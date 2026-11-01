@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SafePay</title>
+<style>
+  :root {
+    --bg: #0b1020; --panel: #121a30; --panel2: #0f1626; --line: #24304d;
+    --fg: #e8edf7; --muted: #9fb0cc; --accent: #4f8cff;
+    --allow: #22c55e; --hold: #f59e0b; --block: #ef4444;
+    --allow-bg: rgba(34,197,94,.12); --hold-bg: rgba(245,158,11,.12); --block-bg: rgba(239,68,68,.12);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.5; }
+  .wrap { max-width: 980px; margin: 0 auto;
+    padding: 28px max(16px, env(safe-area-inset-right,0)) 60px max(16px, env(safe-area-inset-left,0)); }
+  header h1 { font-size: 30px; margin: 0; letter-spacing: -.5px; }
+  header h1 .fix { color: var(--accent); }
+  header .tag { color: var(--muted); margin: 6px 0 0; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--muted); background: var(--panel2); }
+  .chip.on { color: var(--allow); border-color: rgba(34,197,94,.4); background: var(--allow-bg); }
+  .chip.off { color: var(--muted); }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 22px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .card h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin: 0 0 12px; }
+  .policy div { display: flex; justify-content: space-between; padding: 4px 0;
+    border-bottom: 1px dashed var(--line); font-size: 14px; }
+  .policy div:last-child { border-bottom: 0; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+  input, select { width: 100%; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 0; }
+  button { cursor: pointer; border: 0; border-radius: 10px; padding: 11px 18px;
+    font-size: 14px; font-weight: 600; }
+  .primary { background: var(--accent); color: white; }
+  .ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  #results { margin-top: 26px; display: flex; flex-direction: column; gap: 14px; }
+  .result { border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    background: var(--panel); animation: rise .35s ease; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .result .head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .badge { font-size: 12px; font-weight: 800; letter-spacing: .5px; padding: 5px 10px;
+    border-radius: 8px; }
+  .allow .badge { color: var(--allow); background: var(--allow-bg); }
+  .hold .badge { color: var(--hold); background: var(--hold-bg); }
+  .block .badge { color: var(--block); background: var(--block-bg); }
+  .allow { border-left: 4px solid var(--allow); }
+  .hold { border-left: 4px solid var(--hold); }
+  .block { border-left: 4px solid var(--block); }
+  .head .amt { font-weight: 700; }
+  .head .to { color: var(--muted); font-size: 14px; }
+  .head .risk { margin-left: auto; font-size: 12px; color: var(--muted); }
+  .checks { border-top: 1px solid var(--line); padding: 6px 16px 12px; }
+  .check { display: flex; gap: 10px; padding: 8px 0; font-size: 14px; border-bottom: 1px dashed var(--line); }
+  .check:last-child { border-bottom: 0; }
+  .check .mk { flex: 0 0 auto; width: 18px; text-align: center; font-weight: 800; }
+  .check .mk.ok { color: var(--allow); }
+  .check .mk.no { color: var(--hold); }
+  .check .nm { flex: 0 0 86px; color: var(--muted); text-transform: capitalize; }
+  .check .dt { flex: 1 1 auto; }
+  .exec { padding: 10px 16px; font-size: 13px; color: var(--muted);
+    background: var(--panel2); border-top: 1px solid var(--line); }
+  .exec .ok { color: var(--allow); }
+  .stamp { padding: 8px 16px; font-size: 12px; color: var(--muted);
+    display: flex; justify-content: space-between; gap: 10px; }
+  .stamp .sig { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: sp 0.7s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Safe<span class="fix">Pay</span></h1>
+    <p class="tag">A safety guardrail between an autonomous AI agent and PayPal. Every payment passes policy, a live-web merchant check, and intent reasoning before any money moves.</p>
+    <div class="chips">
+      <span class="chip on">PayPal: {{ paypal_mode }}</span>
+      <span class="chip {{ 'on' if nebius_on else 'off' }}">Nemotron reasoning: {{ 'on' if nebius_on else 'off' }}</span>
+      <span class="chip {{ 'on' if tavily_on else 'off' }}">Tavily web verify: {{ 'on' if tavily_on else 'off' }}</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card policy">
+      <h2>Policy in force</h2>
+      <div><span>Per-transaction limit</span><span id="p-tx"></span></div>
+      <div><span>Daily limit (per agent)</span><span id="p-day"></span></div>
+      <div><span>Allowed currencies</span><span id="p-cur"></span></div>
+      <div><span>On soft risk</span><span id="p-soft"></span></div>
+    </div>
+
+    <div class="card">
+      <h2>Custom payment intent</h2>
+      <div class="row2">
+        <div><label>Recipient</label><input id="f-recipient" value="vendor@example.com"></div>
+        <div><label>Amount (USD)</label><input id="f-amount" type="number" value="250"></div>
+      </div>
+      <div class="row2">
+        <div><label>Category</label><input id="f-category" value="software"></div>
+        <div><label>Merchant name</label><input id="f-merchant" value=""></div>
+      </div>
+      <label>Stated purpose</label><input id="f-purpose" value="monthly API bill">
+      <label>Task the agent was given</label><input id="f-goal" value="pay the team's approved SaaS invoices">
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="primary" id="run-demo">Run demo scenarios</button>
+    <button class="ghost" id="run-one">Evaluate custom intent</button>
+    <button class="ghost" id="reset">Reset ledger</button>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+  const POLICY = {{ policy | tojson }};
+  (function initPolicy() {
+    document.getElementById('p-tx').textContent = 'USD ' + POLICY.per_tx_limit.toFixed(2);
+    document.getElementById('p-day').textContent = 'USD ' + POLICY.daily_limit.toFixed(2);
+    document.getElementById('p-cur').textContent = (POLICY.allowed_currencies || []).join(', ') || 'any';
+    document.getElementById('p-soft').textContent = POLICY.hold_on_soft_risk ? 'hold for a human' : 'allow';
+  })();
+
+  const results = document.getElementById('results');
+  const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  function pending(intent) {
+    const el = document.createElement('div');
+    el.className = 'result';
+    el.innerHTML = `<div class="head"><span class="badge"><span class="spin"></span></span>
+      <span class="amt">USD ${Number(intent.amount).toFixed(2)}</span>
+      <span class="to">to ${esc(intent.recipient)}</span>
+      <span class="risk">evaluating…</span></div>`;
+    results.appendChild(el);
+    return el;
+  }
+
+  function render(el, r) {
+    const d = r.decision;
+    el.className = 'result ' + d.verdict;
+    const checks = d.checks.map(c => `
+      <div class="check"><span class="mk ${c.passed ? 'ok':'no'}">${c.passed ? '✓':'!'}</span>
+      <span class="nm">${esc(c.name)}</span><span class="dt">${esc(c.detail)}</span></div>`).join('');
+    let exec = '';
+    if (d.executed && d.execution) {
+      exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] ·
+        batch ${esc(d.execution.payout_batch_id || '?')} (${esc(d.execution.batch_status || '?')})</div>`;
+    } else if (d.verdict !== 'allow') {
+      exec = `<div class="exec">○ not executed — money did not move</div>`;
+    }
+    const sig = r.audit.signature.signed;
+    el.innerHTML = `
+      <div class="head"><span class="badge">${d.verdict.toUpperCase()}</span>
+        <span class="amt">USD ${Number(d.intent.amount).toFixed(2)}</span>
+        <span class="to">to ${esc(d.intent.recipient)}</span>
+        <span class="risk">risk ${Number(d.risk).toFixed(2)}</span></div>
+      <div class="checks">${checks}</div>
+      ${exec}
+      <div class="stamp"><span>${esc(r.stamp)}</span><span class="sig">${sig ? 'signed' : 'unsigned'}</span></div>`;
+  }
+
+  async function evaluate(intent) {
+    const el = pending(intent);
+    try {
+      const resp = await fetch('/api/evaluate', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(intent)
+      });
+      render(el, await resp.json());
+    } catch (e) {
+      el.querySelector('.risk').textContent = 'error';
+    }
+  }
+
+  function setBusy(b) {
+    for (const id of ['run-demo','run-one','reset'])
+      document.getElementById(id).disabled = b;
+  }
+
+  document.getElementById('run-demo').onclick = async () => {
+    setBusy(true);
+    await fetch('/api/reset', {method: 'POST'});
+    results.innerHTML = '';
+    const data = await (await fetch('/api/scenarios')).json();
+    for (const intent of data.intents) {
+      await evaluate(intent);
+      await new Promise(r => setTimeout(r, 350));
+    }
+    setBusy(false);
+  };
+
+  document.getElementById('run-one').onclick = async () => {
+    setBusy(true);
+    await evaluate({
+      recipient: document.getElementById('f-recipient').value,
+      amount: parseFloat(document.getElementById('f-amount').value || '0'),
+      currency: 'USD',
+      category: document.getElementById('f-category').value,
+      merchant_name: document.getElementById('f-merchant').value || null,
+      purpose: document.getElementById('f-purpose').value,
+      task_goal: document.getElementById('f-goal').value,
+      agent_id: 'custom-agent'
+    });
+    setBusy(false);
+  };
+
+  document.getElementById('reset').onclick = async () => {
+    await fetch('/api/reset', {method: 'POST'});
+    results.innerHTML = '';
+  };
+</script>
+</body>
+</html>

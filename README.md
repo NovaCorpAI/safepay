@@ -63,7 +63,19 @@ set -a; . ./.env; set +a
 python -m safepay --scenarios examples/scenarios.json
 ```
 
-Single intent from the command line:
+### Web console (what a judge runs)
+
+```bash
+set -a; . ./.env; set +a
+python webapp/app.py
+# open http://127.0.0.1:5000
+```
+
+Load the demo scenarios or enter a custom payment and watch each intent resolve:
+the three checks, the verdict, the PayPal sandbox batch, and the signed stamp.
+"Reset ledger" starts the daily-cap scenario fresh.
+
+### Single intent from the command line
 
 ```bash
 python -m safepay --recipient vendor@example.com --amount 42 \
