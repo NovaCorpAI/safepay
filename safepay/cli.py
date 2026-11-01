@@ -51,6 +51,14 @@ def _print_human(result: dict) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Model output can contain non-ASCII (smart quotes, unicode hyphens); make
+    # the console robust instead of crashing on a narrow codepage like cp1252.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
     p = argparse.ArgumentParser(prog="safepay", description="SafePay payment guardrail")
     p.add_argument("--scenarios", help="path to a JSON file with a list of intents")
     p.add_argument("--recipient")

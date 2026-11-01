@@ -11,8 +11,7 @@ soft risk signal (can raise a HOLD, never a silent block on its own).
 
 from __future__ import annotations
 
-import json
-
+from .jsonutil import loads_lenient
 from .models import CheckResult, PaymentIntent, Severity
 from .nebius_client import NebiusChat
 
@@ -41,16 +40,6 @@ def _prompt(intent: PaymentIntent) -> str:
     )
 
 
-def _parse(raw: str) -> dict:
-    """Pull the JSON object out of the model's reply, tolerant of stray text."""
-    raw = raw.strip()
-    start = raw.find("{")
-    end = raw.rfind("}")
-    if start != -1 and end != -1 and end > start:
-        raw = raw[start : end + 1]
-    return json.loads(raw)
-
-
 def check_reasoning(intent: PaymentIntent, chat: NebiusChat | None) -> CheckResult:
     if chat is None:
         return CheckResult(
@@ -63,7 +52,7 @@ def check_reasoning(intent: PaymentIntent, chat: NebiusChat | None) -> CheckResu
 
     try:
         raw = chat.complete(_SYSTEM, _prompt(intent), temperature=0.1)
-        data = _parse(raw)
+        data = loads_lenient(raw)
     except Exception as exc:  # a reviewer that errors must fail safe, not open.
         return CheckResult(
             name="reasoning",

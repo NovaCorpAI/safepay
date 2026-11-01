@@ -46,7 +46,7 @@ class Guardrail:
             )
 
         # 2. Soft signals: live-web merchant check and model reasoning.
-        merchant = check_merchant(intent, self.web)
+        merchant = check_merchant(intent, self.web, self.chat)
         checks.append(merchant)
         reasoning = check_reasoning(intent, self.chat)
         checks.append(reasoning)

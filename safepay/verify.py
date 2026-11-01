@@ -1,92 +1,123 @@
-"""Merchant verification against the live web (Tavily).
+"""Merchant verification against the live web (Tavily + Nemotron judgment).
 
 A policy engine knows the rules an operator wrote down; it does not know that a
 recipient domain was registered last week or shows up on scam-report pages.
-This check pulls fresh web evidence about the merchant and asks whether anything
-there looks like fraud. It is deliberately a *soft* signal: on its own it raises
-risk and can trigger a HOLD, but it never silently blocks, because the live web
-is noisy and a false "scam" hit should land in front of a human, not auto-reject.
+This check pulls fresh, neutral web evidence about the payee and then *judges*
+it: the model reads the snippets and decides whether there are credible fraud
+reports about this business, rather than matching keywords. That matters,
+because a naive keyword match flags every well-known brand (large companies all
+have "is X a scam?" and phishing-awareness pages), which is exactly the false
+positive that would make the guardrail useless.
+
+It is a soft signal: on its own it raises risk and can trigger a HOLD, never a
+silent block, because the live web is noisy and a false "scam" hit should land
+in front of a human. When no model is configured it falls back to a cautious
+keyword heuristic over neutrally-queried results.
 """
 
 from __future__ import annotations
 
+from .jsonutil import loads_lenient
 from .models import CheckResult, PaymentIntent, Severity
+from .nebius_client import NebiusChat
 from .search import WebSearch
 
-# Words that, when they co-occur with the merchant in fresh results, suggest the
-# recipient is risky. Kept small and explicit so the signal is auditable.
+_SYSTEM = (
+    "You are SafePay's merchant-reputation reviewer. You are given a payee an "
+    "autonomous agent is about to send money to, and fresh web search snippets "
+    "about it. Decide whether there are CREDIBLE reports that THIS payee is "
+    "fraudulent or unsafe to pay. Do not flag a well-known, established business "
+    "just because generic pages mention the words scam, fraud or phishing, or "
+    "because scammers impersonate it; those are not evidence the business itself "
+    "is fraudulent. Flag an unknown payee with no real footprint, or one with "
+    "specific first-hand scam, non-delivery or chargeback complaints. Respond "
+    'with STRICT JSON only: {"legitimate": boolean, "risk": number 0 to 1, '
+    '"reason": one sentence}.'
+)
+
 _RISK_TERMS = [
     "scam", "fraud", "fraudulent", "phishing", "chargeback",
-    "stolen", "fake store", "complaint", "scammer", "do not buy",
-    "reported", "blacklist", "ripoff",
+    "stolen", "fake store", "scammer", "do not buy", "ripoff",
 ]
 
 
-def check_merchant(intent: PaymentIntent, web: WebSearch) -> CheckResult:
+def check_merchant(
+    intent: PaymentIntent, web: WebSearch, chat: NebiusChat | None = None
+) -> CheckResult:
     target = intent.merchant_name or intent.merchant_url or intent.recipient
     if not web.enabled:
         return CheckResult(
-            name="merchant",
-            passed=True,
-            severity=Severity.INFO,
-            detail=(
-                "web verification skipped (no Tavily key configured); "
-                "falling back to policy and reasoning only"
-            ),
-            risk=0.0,
+            name="merchant", passed=True, severity=Severity.INFO,
+            detail="web verification skipped (no Tavily key configured)", risk=0.0,
         )
     if not target:
         return CheckResult(
-            name="merchant",
-            passed=True,
-            severity=Severity.INFO,
-            detail="no merchant name, url or recipient to verify",
-            risk=0.0,
+            name="merchant", passed=True, severity=Severity.INFO,
+            detail="no merchant name, url or recipient to verify", risk=0.0,
         )
 
-    query = f"{target} reviews scam fraud legit"
-    hits = web.search(query, max_results=5)
-
+    # Neutral query: do not seed the search with the very words we then look for.
+    hits = web.search(f"{target} company reviews reputation", max_results=5)
     evidence = [{"title": h.title, "url": h.url} for h in hits]
+
     if not hits:
-        # No footprint at all is itself a mild flag for a payee you are about to
-        # send money to, but not a block.
         return CheckResult(
-            name="merchant",
-            passed=True,
-            severity=Severity.WARN,
+            name="merchant", passed=True, severity=Severity.WARN,
             detail=(
                 f"no live web footprint found for '{target}'; an unknown payee "
                 f"warrants a second look but is not blocked"
             ),
-            risk=0.35,
-            evidence=evidence,
+            risk=0.35, evidence=evidence,
         )
 
-    corpus = " ".join(
-        f"{h.title} {h.content}" for h in hits
-    ).lower()
+    # Preferred path: let the model judge the evidence.
+    if chat is not None:
+        snippets = "\n\n".join(
+            f"- {h.title} ({h.url})\n  {h.content}" for h in hits
+        )
+        prompt = (
+            f"Payee: {target}\n"
+            f"Recipient id: {intent.recipient}\n\n"
+            f"Web snippets:\n{snippets}\n\nReturn the JSON verdict."
+        )
+        try:
+            data = loads_lenient(chat.complete(_SYSTEM, prompt, temperature=0.1))
+            legit = bool(data.get("legitimate", True))
+            risk = max(0.0, min(1.0, float(data.get("risk", 0.0))))
+            passed = legit and risk < 0.5
+            reason = str(data.get("reason", "")).strip()
+            if not reason:
+                reason = (
+                    f"no credible fraud reports found for '{target}'"
+                    if passed else f"'{target}' flagged as potentially unsafe"
+                )
+            return CheckResult(
+                name="merchant",
+                passed=passed,
+                severity=Severity.OK if passed else Severity.WARN,
+                detail=reason,
+                risk=round(risk, 3),
+                evidence=evidence,
+            )
+        except Exception:
+            pass  # fall through to the keyword heuristic
+
+    # Fallback heuristic when no model: cautious keyword scan over neutral results.
+    corpus = " ".join(f"{h.title} {h.content}" for h in hits).lower()
     found = sorted({t for t in _RISK_TERMS if t in corpus})
-
-    if found:
-        hits_density = min(1.0, 0.4 + 0.15 * len(found))
+    # Require more than one distinct strong term to raise a flag, to blunt the
+    # single-mention false positive.
+    if len(found) >= 2:
         return CheckResult(
-            name="merchant",
-            passed=False,
-            severity=Severity.WARN,
+            name="merchant", passed=False, severity=Severity.WARN,
             detail=(
-                f"live web results for '{target}' mention risk terms "
-                f"({', '.join(found)}); recommend a human review before paying"
+                f"live web results for '{target}' repeatedly mention risk terms "
+                f"({', '.join(found)}); recommend a human review"
             ),
-            risk=round(hits_density, 3),
-            evidence=evidence,
+            risk=round(min(1.0, 0.4 + 0.15 * len(found)), 3), evidence=evidence,
         )
-
     return CheckResult(
-        name="merchant",
-        passed=True,
-        severity=Severity.OK,
-        detail=f"live web results for '{target}' show no fraud signals",
-        risk=0.05,
-        evidence=evidence,
+        name="merchant", passed=True, severity=Severity.OK,
+        detail=f"live web results for '{target}' show no clear fraud signals",
+        risk=0.05, evidence=evidence,
     )
