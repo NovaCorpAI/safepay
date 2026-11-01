@@ -1,0 +1,57 @@
+"""Runtime configuration, loaded from environment variables.
+
+Reuses the LiveFix Nebius/Tavily config shape and adds PayPal sandbox
+credentials. When the PayPal keys are absent, the PayPal client runs in a
+simulated sandbox mode so the whole guardrail is demoable offline; the real
+sandbox turns on the moment the keys are present.
+"""
+
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+
+def _getenv(name: str, default: str | None = None) -> str | None:
+    value = os.environ.get(name, default)
+    if value is not None:
+        value = value.strip()
+    return value or default
+
+
+@dataclass(frozen=True)
+class Config:
+    nebius_api_key: str | None
+    nebius_base_url: str
+    nebius_model: str
+    tavily_api_key: str | None
+    paypal_client_id: str | None
+    paypal_secret: str | None
+    paypal_base_url: str
+
+    @property
+    def paypal_live(self) -> bool:
+        """True only when real sandbox credentials are configured."""
+        return bool(self.paypal_client_id and self.paypal_secret)
+
+    @property
+    def nebius_live(self) -> bool:
+        return bool(self.nebius_api_key)
+
+    @classmethod
+    def from_env(cls) -> "Config":
+        return cls(
+            nebius_api_key=_getenv("NEBIUS_API_KEY"),
+            nebius_base_url=_getenv(
+                "NEBIUS_BASE_URL", "https://api.tokenfactory.nebius.com/v1/"
+            ),
+            nebius_model=_getenv("NEBIUS_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+            tavily_api_key=_getenv("TAVILY_API_KEY"),
+            paypal_client_id=_getenv("PAYPAL_CLIENT_ID"),
+            paypal_secret=_getenv("PAYPAL_SECRET"),
+            # PayPal's sandbox REST host. The live host is api-m.paypal.com; we
+            # never default to it, so SafePay cannot touch real money by accident.
+            paypal_base_url=_getenv(
+                "PAYPAL_BASE_URL", "https://api-m.sandbox.paypal.com"
+            ),
+        )

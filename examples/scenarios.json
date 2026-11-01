@@ -1,0 +1,72 @@
+{
+  "policy": {
+    "per_tx_limit": 500.0,
+    "daily_limit": 1000.0,
+    "allowed_currencies": ["USD"],
+    "hold_on_soft_risk": true
+  },
+  "intents": [
+    {
+      "recipient": "billing@notion.so",
+      "amount": 48.0,
+      "currency": "USD",
+      "category": "software",
+      "purpose": "monthly Notion team subscription",
+      "merchant_name": "Notion Labs",
+      "merchant_url": "https://www.notion.so",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "aws-billing@amazon.com",
+      "amount": 900.0,
+      "currency": "USD",
+      "category": "cloud",
+      "purpose": "annual reserved instance prepayment",
+      "merchant_name": "Amazon Web Services",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "payouts@luckydice-casino.win",
+      "amount": 120.0,
+      "currency": "USD",
+      "category": "entertainment",
+      "purpose": "promotional deposit bonus",
+      "merchant_name": "LuckyDice Casino",
+      "merchant_url": "https://luckydice-casino.win",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "aws-billing@amazon.com",
+      "amount": 420.0,
+      "currency": "USD",
+      "category": "cloud",
+      "purpose": "October compute invoice",
+      "merchant_name": "Amazon Web Services",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "cloud-billing@google.com",
+      "amount": 420.0,
+      "currency": "USD",
+      "category": "cloud",
+      "purpose": "October BigQuery invoice",
+      "merchant_name": "Google Cloud",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "billing@microsoft.com",
+      "amount": 420.0,
+      "currency": "USD",
+      "category": "cloud",
+      "purpose": "October Azure invoice",
+      "merchant_name": "Microsoft Azure",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+"""PayPal sandbox client (Payouts API), with a simulated mode when no keys.
+
+SafePay models an agent that autonomously *sends* money to a recipient, which
+maps to PayPal's Payouts API: no buyer-approval redirect, so the whole flow is
+backend and demoable end to end. The host is pinned to the sandbox in config
+and we never default to the live host, so a misconfigured run cannot move real
+money. Without credentials the client returns a deterministic simulated batch,
+so the guardrail and demo run offline and switch to the real sandbox the moment
+PAYPAL_CLIENT_ID / PAYPAL_SECRET are set.
+"""
+
+from __future__ import annotations
+
+import time
+import uuid
+from typing import Any
+
+from .config import Config
+
+
+class PayPalError(RuntimeError):
+    pass
+
+
+class PayPalClient:
+    def __init__(self, config: Config) -> None:
+        self._cfg = config
+        self._token: str | None = None
+        self._token_exp: float = 0.0
+
+    @property
+    def live(self) -> bool:
+        return self._cfg.paypal_live
+
+    @property
+    def mode(self) -> str:
+        return "sandbox" if self.live else "simulated"
+
+    # --- auth -------------------------------------------------------------
+    def _access_token(self) -> str:
+        if self._token and time.time() < self._token_exp - 60:
+            return self._token
+        import requests
+
+        resp = requests.post(
+            f"{self._cfg.paypal_base_url}/v1/oauth2/token",
+            auth=(self._cfg.paypal_client_id, self._cfg.paypal_secret),
+            data={"grant_type": "client_credentials"},
+            headers={"Accept": "application/json"},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise PayPalError(
+                f"PayPal OAuth failed ({resp.status_code}): {resp.text[:300]}"
+            )
+        data = resp.json()
+        self._token = data["access_token"]
+        self._token_exp = time.time() + float(data.get("expires_in", 3000))
+        return self._token
+
+    # --- payouts ----------------------------------------------------------
+    def send_payout(
+        self,
+        recipient: str,
+        amount: float,
+        currency: str = "USD",
+        note: str = "",
+    ) -> dict[str, Any]:
+        """Send a single-item payout. Returns the batch header (or a simulation)."""
+        batch_id = f"SAFEPAY-{uuid.uuid4().hex[:12]}"
+        if not self.live:
+            return {
+                "mode": "simulated",
+                "payout_batch_id": batch_id,
+                "batch_status": "SUCCESS",
+                "amount": {"value": f"{amount:.2f}", "currency": currency},
+                "receiver": recipient,
+                "note": "simulated payout (no PayPal credentials configured)",
+            }
+
+        import requests
+
+        payload = {
+            "sender_batch_header": {
+                "sender_batch_id": batch_id,
+                "email_subject": "A payment released by SafePay",
+                "email_message": note or "Payment approved by SafePay guardrail.",
+            },
+            "items": [
+                {
+                    "recipient_type": "EMAIL",
+                    "amount": {"value": f"{amount:.2f}", "currency": currency},
+                    "receiver": recipient,
+                    "note": note or "Approved by SafePay.",
+                    "sender_item_id": uuid.uuid4().hex[:16],
+                }
+            ],
+        }
+        resp = requests.post(
+            f"{self._cfg.paypal_base_url}/v1/payments/payouts",
+            json=payload,
+            headers={
+                "Authorization": f"Bearer {self._access_token()}",
+                "Content-Type": "application/json",
+            },
+            timeout=60,
+        )
+        if resp.status_code not in (200, 201, 202):
+            raise PayPalError(
+                f"PayPal payout failed ({resp.status_code}): {resp.text[:400]}"
+            )
+        body = resp.json()
+        header = body.get("batch_header", {})
+        return {
+            "mode": "sandbox",
+            "payout_batch_id": header.get("payout_batch_id", batch_id),
+            "batch_status": header.get("batch_status", "PENDING"),
+            "amount": {"value": f"{amount:.2f}", "currency": currency},
+            "receiver": recipient,
+            "raw": header,
+        }
