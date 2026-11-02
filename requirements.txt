@@ -3,6 +3,10 @@ tavily-python>=0.5.0
 requests>=2.31.0
 flask>=3.0.0
 
+# Production WSGI server for the hosted web console (e.g. on Render). The local
+# `python webapp/app.py` runner does not need it.
+gunicorn>=21.2.0
+
 # Optional: enables LangSmith tracing when LANGSMITH_TRACING + LANGSMITH_API_KEY
 # are set. SafePay runs fine without it (tracing is a transparent no-op when off).
 langsmith>=0.1.0

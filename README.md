@@ -75,6 +75,15 @@ Load the demo scenarios or enter a custom payment and watch each intent resolve:
 the three checks, the verdict, the PayPal sandbox batch, and the signed stamp.
 "Reset ledger" starts the daily-cap scenario fresh.
 
+### Hosted demo (Render)
+
+The same console deploys as a hosted service so a judge can run it with no local
+setup. `render.yaml` is a Render blueprint and `wsgi.py` is the gunicorn entry
+point. On [render.com](https://render.com), choose New > Blueprint, point it at
+this repo, and set the secret values (PayPal, Nebius, Tavily, signing key) in the
+dashboard; without the PayPal keys it runs in simulated mode. Locally the same
+server runs with `gunicorn -w 1 -b 0.0.0.0:8000 wsgi:app`.
+
 ### Single intent from the command line
 
 ```bash

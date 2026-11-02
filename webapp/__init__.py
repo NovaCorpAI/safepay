@@ -1,0 +1,1 @@
+"""SafePay web console package."""

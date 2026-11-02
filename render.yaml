@@ -1,0 +1,29 @@
+# Render blueprint for the SafePay web console (hosted demo for judges).
+# Deploy: push to GitHub, then on render.com "New +" > "Blueprint" and point it
+# at this repo. Render reads this file and creates the service. Set the secret
+# values (marked sync:false) in the Render dashboard; they are never committed.
+services:
+  - type: web
+    name: safepay
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # One worker on purpose: the demo's spend ledger is in-process, so a single
+    # worker keeps the daily-cap scenario consistent across a burst.
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT wsgi:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      # Secrets: set these in the Render dashboard (Environment tab). Without the
+      # PayPal keys the console runs in simulated mode; with them it uses the
+      # real sandbox. Reasoning/web verification turn on with their keys.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_SECRET
+        sync: false
+      - key: NEBIUS_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: SAFEPAY_SIGNING_KEY
+        sync: false
