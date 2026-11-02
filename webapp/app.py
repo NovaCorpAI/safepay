@@ -100,6 +100,7 @@ def index():
         nebius_on=cfg.nebius_live,
         tavily_on=bool(cfg.tavily_api_key),
         policy=_policy.to_dict(),
+        tamper_demo=_tamper_demo_enabled(),
     )
 
 
@@ -138,6 +139,31 @@ def audit():
         "head": log.head,
         "records": log.records,
     })
+
+
+def _tamper_demo_enabled() -> bool:
+    return (os.environ.get("SAFEPAY_TAMPER_DEMO", "on") or "").strip().lower() not in (
+        "0", "false", "off", "no"
+    )
+
+
+@app.post("/api/audit/tamper")
+def audit_tamper():
+    """Demo only: edit a record in place without re-hashing, to show the chain
+    verification catch it. 'Reset ledger' rebuilds a clean chain. Disable with
+    SAFEPAY_TAMPER_DEMO=off."""
+    if not _tamper_demo_enabled():
+        return jsonify({"error": "tamper demo disabled"}), 403
+    recs = _agent.audit_log.records
+    if not recs:
+        return jsonify({"error": "no records to tamper with"}), 400
+    i = len(recs) // 2          # a record in the middle, so the break is visible
+    try:
+        recs[i]["payload"]["intent"]["amount"] = 0.01   # forge a smaller amount
+    except Exception:
+        return jsonify({"error": "could not tamper"}), 500
+    ok, bad = _agent.audit_log.verify()
+    return jsonify({"tampered_index": i, "ok": ok, "first_bad_seq": bad})
 
 
 if __name__ == "__main__":

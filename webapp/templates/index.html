@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>SafePay</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-grid.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-theme-quartz.min.css">
 <style>
   :root {
     --bg: #0b1020; --panel: #121a30; --panel2: #0f1626; --line: #24304d;
@@ -77,6 +79,34 @@
   .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line);
     border-top-color: var(--accent); border-radius: 50%; animation: sp 0.7s linear infinite; }
   @keyframes sp { to { transform: rotate(360deg); } }
+
+  /* Audit ledger (AG Grid) */
+  .ledger { margin-top: 34px; }
+  .ledger .lhead { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+  .ledger h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin: 0; }
+  .ledger .tag { color: var(--muted); font-size: 13px; margin: 6px 0 0; width: 100%; }
+  .status { font-size: 13px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--line); }
+  .status.ok { color: var(--allow); border-color: rgba(34,197,94,.4); background: var(--allow-bg); }
+  .status.bad { color: var(--block); border-color: rgba(239,68,68,.4); background: var(--block-bg); }
+  .status.idle { color: var(--muted); }
+  .lbtns { margin-left: auto; display: flex; gap: 8px; }
+  .lbtns button { padding: 8px 12px; font-size: 13px; }
+  .danger { background: transparent; color: var(--block); border: 1px solid rgba(239,68,68,.45); }
+  #audit-grid { margin-top: 14px; height: 340px; width: 100%; }
+  .ag-theme-quartz-dark {
+    --ag-background-color: var(--panel); --ag-odd-row-background-color: var(--panel2);
+    --ag-header-background-color: var(--panel2); --ag-border-color: var(--line);
+    --ag-foreground-color: var(--fg); --ag-header-foreground-color: var(--muted);
+    --ag-font-size: 13px; --ag-row-border-color: var(--line);
+    --ag-accent-color: var(--accent); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .v-pill { font-weight: 800; font-size: 11px; letter-spacing: .4px; padding: 2px 8px;
+    border-radius: 6px; }
+  .v-allow { color: var(--allow); background: var(--allow-bg); }
+  .v-hold { color: var(--hold); background: var(--hold-bg); }
+  .v-block { color: var(--block); background: var(--block-bg); }
 </style>
 </head>
 <body>
@@ -122,8 +152,24 @@
   </div>
 
   <div id="results"></div>
+
+  <section class="ledger">
+    <div class="lhead">
+      <h2>Audit ledger</h2>
+      <span class="status idle" id="audit-status">no decisions yet</span>
+      <div class="lbtns">
+        <button class="ghost" id="verify-chain">Verify chain</button>
+        {% if tamper_demo %}
+        <button class="danger" id="tamper-chain">Tamper (demo)</button>
+        {% endif %}
+      </div>
+      <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history.{% if tamper_demo %} "Tamper (demo)" edits a row in place to show the break; "Reset ledger" rebuilds a clean chain.{% endif %}</p>
+    </div>
+    <div id="audit-grid" class="ag-theme-quartz-dark"></div>
+  </section>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
 <script>
   const POLICY = {{ policy | tojson }};
   (function initPolicy() {
@@ -181,6 +227,8 @@
       render(el, await resp.json());
     } catch (e) {
       el.querySelector('.risk').textContent = 'error';
+    } finally {
+      loadAudit();
     }
   }
 
@@ -219,7 +267,75 @@
   document.getElementById('reset').onclick = async () => {
     await fetch('/api/reset', {method: 'POST'});
     results.innerHTML = '';
+    loadAudit();
   };
+
+  // --- Audit ledger (AG Grid over /api/audit) ---
+  let auditApi = null;
+  const vClass = v => v === 'allow' ? 'v-allow' : v === 'hold' ? 'v-hold' : 'v-block';
+  function verdictRenderer(p) {
+    const v = p.value || '';
+    return `<span class="v-pill ${vClass(v)}">${esc(v).toUpperCase()}</span>`;
+  }
+  const auditColumns = [
+    { headerName: '#', field: 'seq', width: 70, sort: 'asc' },
+    { headerName: 'Time', field: 'time', width: 110 },
+    { headerName: 'Verdict', field: 'verdict', width: 120, cellRenderer: verdictRenderer },
+    { headerName: 'Amount', field: 'amount', width: 120,
+      valueFormatter: p => p.value == null ? '' : 'USD ' + Number(p.value).toFixed(2) },
+    { headerName: 'Recipient', field: 'recipient', flex: 1, minWidth: 180 },
+    { headerName: 'Category', field: 'category', width: 130 },
+    { headerName: 'Risk', field: 'risk', width: 90,
+      valueFormatter: p => p.value == null ? '' : Number(p.value).toFixed(2) },
+    { headerName: 'Paid', field: 'executed', width: 90, valueFormatter: p => p.value ? 'yes' : 'no' },
+    { headerName: 'Signed', field: 'signed', width: 100, valueFormatter: p => p.value ? 'signed' : 'unsigned' },
+    { headerName: 'Hash', field: 'hash', width: 120 },
+  ];
+  function auditRows(data) {
+    return (data.records || []).map(r => {
+      const p = r.payload || {}, i = p.intent || {};
+      return {
+        seq: p.seq, time: new Date((p.ts || 0) * 1000).toLocaleTimeString(),
+        verdict: p.verdict, amount: i.amount, recipient: i.recipient,
+        category: i.category, risk: p.risk, executed: p.executed,
+        signed: !!(r.signature && r.signature.signed), hash: (r.sha256 || '').slice(0, 10),
+      };
+    });
+  }
+  function setStatus(data) {
+    const el = document.getElementById('audit-status');
+    if (!data.count) { el.className = 'status idle'; el.textContent = 'no decisions yet'; return; }
+    if (data.ok) {
+      el.className = 'status ok';
+      el.textContent = '✓ chain verified — ' + data.count + ' records intact';
+    } else {
+      el.className = 'status bad';
+      el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq;
+    }
+  }
+  async function loadAudit() {
+    let data;
+    try { data = await (await fetch('/api/audit')).json(); } catch (e) { return; }
+    const rows = auditRows(data);
+    if (!auditApi) {
+      auditApi = agGrid.createGrid(document.getElementById('audit-grid'), {
+        columnDefs: auditColumns, rowData: rows,
+        defaultColDef: { resizable: true, sortable: true, filter: true },
+      });
+    } else {
+      auditApi.setGridOption('rowData', rows);
+    }
+    setStatus(data);
+  }
+  document.getElementById('verify-chain').onclick = loadAudit;
+  const tamperBtn = document.getElementById('tamper-chain');
+  if (tamperBtn) {
+    tamperBtn.onclick = async () => {
+      await fetch('/api/audit/tamper', { method: 'POST' });
+      await loadAudit();
+    };
+  }
+  loadAudit();
 </script>
 </body>
 </html>

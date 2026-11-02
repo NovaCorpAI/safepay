@@ -76,7 +76,10 @@ python webapp/app.py
 
 Load the demo scenarios or enter a custom payment and watch each intent resolve:
 the three checks, the verdict, the PayPal sandbox batch, and the signed stamp.
-"Reset ledger" starts the daily-cap scenario fresh.
+"Reset ledger" starts the daily-cap scenario fresh. Below the results, the
+**audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
+with a live verification badge; "Tamper (demo)" edits a row in place to show the
+chain break turn the badge red, and "Verify chain" re-checks it.
 
 ### Hosted demo (Render)
 
