@@ -83,8 +83,10 @@ split values across lines, with a tolerant parser that recovers the verdict.
 Real sandbox activity, not mocks: allowed payments produce actual PayPal payout
 batches, and the Agent Toolkit gate creates actual sandbox orders, while blocked
 intents never reach PayPal at all. The reasoning check genuinely catches the
-goal mismatch attack that a pure rule set lets through. And every decision,
-allowed or blocked, leaves a signed, verifiable record.
+goal mismatch attack that a pure rule set lets through: in the prompt-injection
+demo it holds a payment to an attacker that sat inside every spending limit,
+while allowing the real invoice. And every decision, allowed or blocked, leaves a
+signed, verifiable record in a chain you can re-verify.
 
 ## What we learned
 Safety for agentic payments is a layering problem, not a single model call. The

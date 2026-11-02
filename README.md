@@ -190,6 +190,19 @@ the month's approved software and cloud invoices. SafePay:
 - **allows** two cloud invoices, then
 - **blocks** the next (it would breach the daily cap).
 
+## Catching prompt injection
+
+```bash
+set -a; . ./.env; set +a
+python examples/prompt_injection_demo.py
+```
+
+An agent reads an invoice email carrying a hidden instruction to pay an attacker.
+The injected payment is deliberately inside every spending limit, so policy alone
+passes it, but the reasoning layer catches that a "processing fee to release
+invoices" does not serve the task, and holds it for a human, while the real
+invoice is allowed. This is the agentic-commerce attack SafePay exists to stop.
+
 ## Tamper-evident audit chain
 
 Every decision is appended to a hash-chained log: each record carries `prev`,
