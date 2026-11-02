@@ -31,9 +31,17 @@ def _canonical(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-def audit_record(decision: Decision) -> dict[str, Any]:
-    """Build the signed record for one decision."""
-    payload = {
+def audit_record(
+    decision: Decision, prev: str | None = None, seq: int | None = None
+) -> dict[str, Any]:
+    """Build the signed record for one decision.
+
+    When `prev` (the previous record's sha256) and `seq` are given, they are
+    folded into the signed payload, which chains this record to the one before
+    it: altering or dropping any earlier record breaks every hash that follows.
+    Omitting them yields a standalone record (backward compatible).
+    """
+    payload: dict[str, Any] = {
         "product": PRODUCT,
         "maker": MAKER,
         "ts": int(time.time()),
@@ -44,6 +52,10 @@ def audit_record(decision: Decision) -> dict[str, Any]:
         "executed": decision.executed,
         "execution": decision.execution,
     }
+    if prev is not None:
+        payload["prev"] = prev
+    if seq is not None:
+        payload["seq"] = seq
     body = _canonical(payload)
     digest = hashlib.sha256(body).hexdigest()
 

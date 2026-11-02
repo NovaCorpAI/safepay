@@ -57,6 +57,12 @@ MONEY_METHODS = frozenset(
     {"create_order", "capture_order", "create_subscription", "send_invoice"}
 )
 
+# Of those, the ones that create the obligation (and so should be charged to the
+# daily spend ledger exactly once). `capture_order` completes an order that
+# `create_order` already counted, so it must NOT be charged again, or a single
+# purchase would be double counted against the daily cap.
+COMMIT_METHODS = frozenset({"create_order", "create_subscription", "send_invoice"})
+
 
 def toolkit_available() -> bool:
     """True when the paypal-agent-toolkit package is importable."""
@@ -173,7 +179,10 @@ class GuardedToolkit:
                 executed_result = self.api.run(method, params)
                 decision.executed = True
                 decision.execution = {"method": method, "result": executed_result}
-                self.guardrail.commit_spend(decision)
+                # Charge the daily ledger once, when the obligation is created;
+                # a later capture of the same order must not be charged again.
+                if method in COMMIT_METHODS:
+                    self.guardrail.commit_spend(decision)
             except Exception as exc:  # the toolkit call itself failed
                 decision.executed = False
                 decision.execution = {"method": method, "error": str(exc)}

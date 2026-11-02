@@ -147,6 +147,23 @@ the month's approved software and cloud invoices. SafePay:
 - **allows** two cloud invoices, then
 - **blocks** the next (it would breach the daily cap).
 
+## Tamper-evident audit chain
+
+Every decision is appended to a hash-chained log: each record carries `prev`,
+the SHA-256 of the record before it, so editing or dropping any earlier decision
+breaks every hash that follows. Point a run at a file and verify it later:
+
+```bash
+python -m safepay --scenarios examples/scenarios.json --audit-log audit.jsonl
+python -m safepay --verify-log audit.jsonl      # "audit chain OK: N records, intact"
+```
+
+Tamper with any record and the verifier names the first broken link and exits
+non-zero. The web console serves the live chain and its status at `/api/audit`.
+With `SAFEPAY_SIGNING_KEY` set, each link is also HMAC signed. This chain is the
+seam the Concordium Trusted Agents build extends, signing each link with a
+verified-human identity instead of a shared secret.
+
 ## Tests
 
 ```bash

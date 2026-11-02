@@ -61,13 +61,17 @@ def check_merchant(
     evidence = [{"title": h.title, "url": h.url} for h in hits]
 
     if not hits:
+        # An unknown payee with no web footprint is the exact case this check
+        # exists to catch, so it must fail the check (passed=False) to raise a
+        # HOLD. WARN, not CRITICAL, so it holds for a human rather than hard
+        # blocking on the mere absence of search results.
         return CheckResult(
-            name="merchant", passed=True, severity=Severity.WARN,
+            name="merchant", passed=False, severity=Severity.WARN,
             detail=(
                 f"no live web footprint found for '{target}'; an unknown payee "
-                f"warrants a second look but is not blocked"
+                f"is held for a human review"
             ),
-            risk=0.35, evidence=evidence,
+            risk=0.5, evidence=evidence,
         )
 
     # Preferred path: let the model judge the evidence.
@@ -82,8 +86,12 @@ def check_merchant(
         )
         try:
             data = loads_lenient(chat.complete(_SYSTEM, prompt, temperature=0.1))
-            legit = bool(data.get("legitimate", True))
-            risk = max(0.0, min(1.0, float(data.get("risk", 0.0))))
+            # Fail safe: a reply that does not explicitly clear the payee is not
+            # a pass. `legitimate` defaults to False (not True) and a missing
+            # risk defaults high, so a partial or malformed verdict holds for a
+            # human instead of letting the payment through.
+            legit = bool(data.get("legitimate", False))
+            risk = max(0.0, min(1.0, float(data.get("risk", 0.5))))
             passed = legit and risk < 0.5
             reason = str(data.get("reason", "")).strip()
             if not reason:

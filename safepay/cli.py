@@ -18,13 +18,20 @@ import sys
 from dataclasses import fields
 
 from .agent import SafePayAgent
+from .auditlog import AuditLog, load_records, verify_chain
 from .models import PaymentIntent, PolicyConfig
 
 _COLOR = {"allow": "\033[92m", "hold": "\033[93m", "block": "\033[91m"}
 _RESET = "\033[0m"
 
 
-def _intent_from_dict(d: dict) -> PaymentIntent:
+def _intent_from_dict(d: dict, index: int | None = None) -> PaymentIntent:
+    where = f"scenario #{index}" if index is not None else "intent"
+    if not isinstance(d, dict):
+        raise ValueError(f"{where} must be a JSON object, got {type(d).__name__}")
+    for required in ("recipient", "amount"):
+        if required not in d:
+            raise ValueError(f"{where} is missing required field '{required}'")
     allowed = {f.name for f in fields(PaymentIntent)}
     return PaymentIntent(**{k: v for k, v in d.items() if k in allowed})
 
@@ -71,8 +78,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--goal", default="", help="the task the agent was given")
     p.add_argument("--per-tx-limit", type=float, default=500.0)
     p.add_argument("--daily-limit", type=float, default=2000.0)
+    p.add_argument("--audit-log", help="append the signed decision chain to this JSONL file")
+    p.add_argument("--verify-log", help="verify an existing audit-log chain and exit")
     p.add_argument("--json", action="store_true", help="emit full JSON records")
     args = p.parse_args(argv)
+
+    # Verify-and-exit: no payments, just walk an existing chain.
+    if args.verify_log:
+        records = load_records(args.verify_log)
+        ok, bad = verify_chain(records)
+        if ok:
+            print(f"audit chain OK: {len(records)} records, intact")
+            return 0
+        print(f"audit chain BROKEN at record #{bad} of {len(records)}")
+        return 1
 
     policy = PolicyConfig(per_tx_limit=args.per_tx_limit, daily_limit=args.daily_limit)
 
@@ -88,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
                     **{k: v for k, v in data["policy"].items() if k in pf}
                 )
             data = data.get("intents", [])
-        intents = [_intent_from_dict(d) for d in data]
+        intents = [_intent_from_dict(d, i) for i, d in enumerate(data)]
     elif args.recipient and args.amount is not None:
         intents = [PaymentIntent(
             recipient=args.recipient, amount=args.amount, currency=args.currency,
@@ -99,7 +118,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         p.error("give --scenarios, or --recipient with --amount")
 
-    agent = SafePayAgent(policy=policy_override or policy)
+    audit_log = AuditLog(args.audit_log) if args.audit_log else None
+    agent = SafePayAgent(policy=policy_override or policy, audit_log=audit_log)
     results = agent.pay_many(intents)
 
     if args.json:

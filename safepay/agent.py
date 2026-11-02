@@ -10,9 +10,11 @@ truth.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from . import attest
+from .auditlog import AuditLog
 from .config import Config
 from .guardrail import Guardrail
 from .models import Decision, PaymentIntent, PolicyConfig, Verdict
@@ -22,13 +24,22 @@ from .search import WebSearch
 
 
 class SafePayAgent:
-    def __init__(self, config: Config | None = None, policy: PolicyConfig | None = None):
+    def __init__(
+        self,
+        config: Config | None = None,
+        policy: PolicyConfig | None = None,
+        audit_log: AuditLog | None = None,
+    ):
         self.config = config or Config.from_env()
         self.policy = policy or PolicyConfig()
         web = WebSearch(self.config.tavily_api_key)
         chat = NebiusChat(self.config) if self.config.nebius_live else None
         self.guardrail = Guardrail(self.policy, web, chat)
         self.paypal = PayPalClient(self.config)
+        # Every decision is appended to a hash-chained audit log. A given log is
+        # used if passed; otherwise one is built, backed by the file in
+        # SAFEPAY_AUDIT_LOG when that is set, or in-memory only.
+        self.audit_log = audit_log or AuditLog(os.environ.get("SAFEPAY_AUDIT_LOG"))
 
     def pay(self, intent: PaymentIntent) -> dict[str, Any]:
         """Evaluate one intent and, if allowed, execute the payout."""
@@ -50,7 +61,7 @@ class SafePayAgent:
                 decision.execution = {"error": str(exc)}
                 decision.reasons.append(f"payout error: {exc}")
 
-        record = attest.audit_record(decision)
+        record = self.audit_log.append(decision)
         return {
             "decision": decision.to_dict(),
             "audit": record,

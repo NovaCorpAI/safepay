@@ -100,6 +100,20 @@ def evaluate():
     return jsonify(result)
 
 
+@app.get("/api/audit")
+def audit():
+    """The hash-chained audit log and its live verification status."""
+    log = _agent.audit_log
+    ok, bad = log.verify()
+    return jsonify({
+        "ok": ok,
+        "first_bad_seq": bad,
+        "count": len(log.records),
+        "head": log.head,
+        "records": log.records,
+    })
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5000"))
     app.run(host="127.0.0.1", port=port, debug=False)
