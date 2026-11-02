@@ -114,4 +114,5 @@ deploys from the included render.yaml blueprint).
 ## Links
 - Repo: https://github.com/NovaCorpAI/safepay
 - Demo video: (YouTube link, under 3 min, to add)
-- Try it: web console, run `python webapp/app.py` per the README
+- Live demo: https://safepay.agentposhq.com (no login, no setup)
+- Run it yourself: `python webapp/app.py` per the README

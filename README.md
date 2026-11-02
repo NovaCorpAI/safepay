@@ -81,14 +81,15 @@ the three checks, the verdict, the PayPal sandbox batch, and the signed stamp.
 with a live verification badge; "Tamper (demo)" edits a row in place to show the
 chain break turn the badge red, and "Verify chain" re-checks it.
 
-### Hosted demo (Render)
+### Hosted demo
 
-The same console deploys as a hosted service so a judge can run it with no local
-setup. `render.yaml` is a Render blueprint and `wsgi.py` is the gunicorn entry
-point. On [render.com](https://render.com), choose New > Blueprint, point it at
-this repo, and set the secret values (PayPal, Nebius, Tavily, signing key) in the
-dashboard; without the PayPal keys it runs in simulated mode. Locally the same
-server runs with `gunicorn -w 1 -b 0.0.0.0:8000 wsgi:app`.
+**Live: https://safepay.agentposhq.com** (no login, no local setup). It runs on
+Vercel from this repo (`api/index.py` + `vercel.json`); every push to `master`
+redeploys. The same console also deploys to Render: `render.yaml` is a Render
+blueprint and `wsgi.py` is the gunicorn entry point (New > Blueprint, point it at
+this repo). Set the secret values (PayPal, Nebius, Tavily, signing key) as
+environment variables on the host; without the PayPal keys it runs in simulated
+mode. Locally the same server runs with `gunicorn -w 1 -b 0.0.0.0:8000 wsgi:app`.
 
 ### Single intent from the command line
 
