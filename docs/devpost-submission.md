@@ -47,9 +47,12 @@ three checks, cheapest and strictest first:
 
 The verdict is allow, hold, or block. On allow, SafePay releases the payment
 through the PayPal Payouts API (the agent sends money, no buyer redirect, fully
-backend). On hold or block the money never moves. Every decision is written to a
-tamper evident audit record, optionally HMAC signed, so each call can be
-verified after the fact.
+backend). On hold or block the money never moves. Every decision is appended to
+a hash-chained audit log: each record carries the hash of the one before it, so
+editing or dropping any earlier decision breaks every hash that follows, and a
+one-line verify walks the whole chain. The web console shows this ledger as an
+interactive table with a live verification badge, and a demo button that tampers
+with a row so you can watch the badge turn red.
 
 ## How we built it
 Python core with a clean separation between the deterministic policy engine and
@@ -97,10 +100,13 @@ gets SafePay as its spending gate with one line.
 
 ## Built with
 python, paypal, paypal-payouts, paypal-agent-toolkit, nvidia-nemotron, nebius,
-tavily, flask, hmac
+tavily, flask, gunicorn, ag-grid, render, hmac, sha-256
 
 ## Category / tracks targeted
-Best Use of Agentic Commerce; Best Use of PayPal + AI.
+Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.
+Sponsor: Best Use of AG Grid (the audit ledger is an interactive AG Grid table
+with a live hash-chain verification badge); Best Use of Render (the web console
+deploys from the included render.yaml blueprint).
 
 ## Links
 - Repo: https://github.com/NovaCorpAI/safepay

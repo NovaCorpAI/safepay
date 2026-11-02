@@ -71,18 +71,20 @@ Narration, card by card:
    it would breach the daily cap across the whole run. SafePay tracks spend
    across a burst of payments, not just one in isolation."
 
-## 2:15 - 2:38 | Under the hood
+## 2:15 - 2:40 | The tamper-evident ledger (the money shot)
 
-On screen: hover one allowed card's stamp (shows "signed"); optional cut to the
-terminal showing an audit record JSON with its signature.
+On screen: scroll to the audit ledger table (AG Grid). Point at the green badge
+"chain verified, N records intact". Click "Tamper (demo)"; the badge turns red,
+"chain BROKEN at record #k", and that row is flagged.
 
 Narration:
-"Every decision, allowed or not, is written to a tamper evident audit record,
-HMAC signed. Change one field and verification fails. The stack: PayPal Payouts
-for autonomous sending with no buyer redirect, the PayPal Agent Toolkit for the
-agentic side, Tavily for live web evidence, and Nemotron on Nebius for the
-reasoning. The host is pinned to the sandbox, so SafePay cannot move real money
-by accident."
+"Every decision, allowed or blocked, is appended to a hash-chained audit log.
+Each record carries the hash of the one before it, so if anyone edits or drops a
+past decision, every later hash breaks. Watch: I tamper with one row, and the
+whole chain fails verification instantly. That is the record an operator, an
+auditor, or a court can trust. Under it: PayPal Payouts and the PayPal Agent
+Toolkit for execution, Tavily and Nemotron on Nebius for the checks, and the
+host pinned to the sandbox so it cannot move real money by accident."
 
 ## 2:38 - 2:55 | Close
 
@@ -127,6 +129,11 @@ de la decision."
 Demo: narra tarjeta por tarjeta igual que arriba (Notion permite, AWS 900
 bloquea por limite, casino retiene por objetivo, dos nubes permiten, Azure
 bloquea por tope diario).
+
+Ledger: "Cada decision se encadena por hash en un registro de auditoria. Si
+alguien altera o borra una decision pasada, se rompen todos los hashes
+siguientes. Miren: manipulo una fila y toda la cadena falla la verificacion al
+instante."
 
 Cierre: "SafePay es el guardrail que el comercio agentico necesita: politica,
 web en vivo y razonamiento, con un registro firmado de cada decision. El codigo
