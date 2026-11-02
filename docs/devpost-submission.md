@@ -67,8 +67,9 @@ automatic. Reasoning runs on NVIDIA Nemotron served by Nebius Token Factory
 through an OpenAI compatible endpoint. Merchant evidence comes from Tavily. The
 audit layer canonicalizes each decision to sorted key JSON and signs it with
 HMAC SHA256. There is a command line runner, a Flask web console a judge can
-click through, a toolkit gate demo that creates real sandbox orders, and a
-deterministic offline test suite.
+click through (with the audit chain shown as a live, verifiable AG Grid table),
+a toolkit gate demo that creates real sandbox orders, an MCP server that exposes
+the guardrail to any agent, and a deterministic offline test suite.
 
 ## Challenges we ran into
 The merchant check was the hard part. A naive keyword search flags every large
@@ -92,15 +93,15 @@ the model should be spent only on the judgment calls; and the live web belongs
 as a soft signal in front of a human, never as a silent gate.
 
 ## What is next for SafePay
-A standing audit trail anchored to a public ledger, so the record of every agent
-payment decision is independently verifiable. Packaging the toolkit gate as a
-drop in wrapper for every framework the PayPal Agent Toolkit supports (LangChain,
-CrewAI, the OpenAI Agents SDK) and for the PayPal MCP server, so any agent stack
-gets SafePay as its spending gate with one line.
+SafePay already runs as an MCP server, so any MCP agent (Claude Desktop, Cursor,
+an agent framework) can install it as a spending gate with no code. Next: anchor
+the audit chain head to a public ledger so the record of every agent payment
+decision is independently verifiable, and ship the same gate for the PayPal MCP
+server and the Agent Toolkit's other framework adapters.
 
 ## Built with
-python, paypal, paypal-payouts, paypal-agent-toolkit, nvidia-nemotron, nebius,
-tavily, flask, gunicorn, ag-grid, render, hmac, sha-256
+python, paypal, paypal-payouts, paypal-agent-toolkit, model-context-protocol,
+nvidia-nemotron, nebius, tavily, flask, gunicorn, ag-grid, render, hmac, sha-256
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.

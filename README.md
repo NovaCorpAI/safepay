@@ -128,6 +128,40 @@ out = gate.create_order(intent)               # evaluate, then create on ALLOW
 
 The toolkit is an optional dependency; the core package and tests never need it.
 
+### Use it as an MCP server (any agent)
+
+SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
+Desktop, Cursor, an agent framework) can route its payments through the guardrail
+without importing any SafePay code. It exposes four tools: `safepay_evaluate`
+(judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
+ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow), and
+`safepay_audit_status` (re-verify the tamper-evident chain).
+
+```bash
+pip install -r requirements.txt -r requirements-mcp.txt
+python -m safepay.mcp_server          # stdio transport
+```
+
+Point your MCP client at that command. For Claude Desktop or Cursor
+(`examples/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "safepay": {
+      "command": "python",
+      "args": ["-m", "safepay.mcp_server"],
+      "env": { "PAYPAL_CLIENT_ID": "...", "PAYPAL_SECRET": "...",
+               "NEBIUS_API_KEY": "...", "TAVILY_API_KEY": "...",
+               "SAFEPAY_SIGNING_KEY": "..." }
+    }
+  }
+}
+```
+
+Run it from the repo directory (so `safepay` is importable), or `pip install -e .`
+first. The `mcp` package is optional; the core package and tests never need it.
+
 ### Keys
 
 | Key | What it turns on | Without it |

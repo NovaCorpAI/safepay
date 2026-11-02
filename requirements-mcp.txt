@@ -1,0 +1,5 @@
+# Optional: run SafePay as an MCP server (safepay/mcp_server.py), so any MCP
+# client (Claude Desktop, Cursor, an agent framework) can route payments through
+# the guardrail. The core SafePay package does not need this.
+# Pin to the 1.x line: this server uses FastMCP, which mcp 2.x renamed.
+mcp>=1.2.0,<2

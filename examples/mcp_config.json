@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "safepay": {
+      "command": "python",
+      "args": ["-m", "safepay.mcp_server"],
+      "env": {
+        "PAYPAL_CLIENT_ID": "your-sandbox-client-id",
+        "PAYPAL_SECRET": "your-sandbox-secret",
+        "NEBIUS_API_KEY": "optional-enables-intent-reasoning",
+        "TAVILY_API_KEY": "optional-enables-merchant-web-check",
+        "SAFEPAY_SIGNING_KEY": "optional-enables-hmac-signed-audit"
+      }
+    }
+  }
+}
