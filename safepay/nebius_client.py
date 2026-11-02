@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from openai import OpenAI
-
 from .config import Config
 from .tracing import traceable
 
 
 class NebiusChat:
     def __init__(self, config: Config):
+        # Import lazily so the rest of SafePay (policy, the PayPal/Agent-Toolkit
+        # gate, the audit layer) imports and runs without the OpenAI SDK present
+        # when the reasoning check is turned off.
+        from openai import OpenAI
+
         self._model = config.nebius_model
         # A 120B model regenerating a whole file can take a while, and Token
         # Factory occasionally returns a transient 5xx or drops the connection.

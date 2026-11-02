@@ -85,6 +85,34 @@ python -m safepay --recipient vendor@example.com --amount 42 \
 
 Add `--json` for the full decision and audit records.
 
+### Gate the PayPal Agent Toolkit (agentic commerce)
+
+SafePay also drops in front of the [PayPal Agent Toolkit](https://pypi.org/project/paypal-agent-toolkit/).
+The toolkit gives an agent real PayPal tools (`create_order`, `capture_order`,
+and more); PayPal's own guidance is to "invoke pay_order only after the user
+approves." SafePay is that approver, made automatic: it judges the intent, and
+the toolkit's money-moving tool is called only on ALLOW.
+
+```bash
+python -m venv .venv-agent
+.venv-agent/Scripts/pip install -r requirements.txt -r requirements-agent.txt
+set -a; . ./.env; set +a
+.venv-agent/Scripts/python examples/agent_toolkit_demo.py
+```
+
+Allowed intents create a real sandbox order (with its buyer approval link);
+over-limit and daily-cap breaches are stopped before the toolkit is ever
+called. The gate lives in `safepay/agent_toolkit.py` as `GuardedToolkit`:
+
+```python
+from safepay.agent_toolkit import GuardedToolkit
+gate = GuardedToolkit(policy=policy)          # reasoning/web optional
+out = gate.create_order(intent)               # evaluate, then create on ALLOW
+# out["decision"], out["result"] (the order), out["audit"] (signed)
+```
+
+The toolkit is an optional dependency; the core package and tests never need it.
+
 ### Keys
 
 | Key | What it turns on | Without it |

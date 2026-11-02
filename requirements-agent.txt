@@ -1,0 +1,13 @@
+# Optional: the PayPal Agent Toolkit, for the agentic-commerce gate demo
+# (safepay/agent_toolkit.py and examples/agent_toolkit_demo.py).
+#
+# The core SafePay package does NOT need this. Newer toolkit releases pin heavy
+# agent-framework dependencies (langchain, openai-agents), so install this in a
+# virtualenv:
+#
+#     python -m venv .venv-agent
+#     .venv-agent/Scripts/pip install -r requirements.txt -r requirements-agent.txt
+#
+# On Python 3.14 the resolver settles on the lightweight 1.1.0 release, which
+# needs only pydantic / httpx / requests.
+paypal-agent-toolkit
