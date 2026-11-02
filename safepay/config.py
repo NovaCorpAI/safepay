@@ -38,6 +38,14 @@ class Config:
     def nebius_live(self) -> bool:
         return bool(self.nebius_api_key)
 
+    @property
+    def execute_payments(self) -> bool:
+        """Whether ALLOW decisions actually call PayPal. A public demo instance
+        can set SAFEPAY_EXECUTE to 0/false/simulate to evaluate (and still
+        charge the budget) without moving money or hitting the sandbox."""
+        v = (os.environ.get("SAFEPAY_EXECUTE", "true") or "").strip().lower()
+        return v not in ("0", "false", "no", "off", "simulate")
+
     @classmethod
     def from_env(cls) -> "Config":
         return cls(

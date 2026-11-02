@@ -9,25 +9,44 @@ is enforced across a sequence of intents, not just one in isolation.
 
 from __future__ import annotations
 
+import time
+
 from .models import CheckResult, PaymentIntent, PolicyConfig, Severity
 
 
 class SpendLedger:
     """In-memory tally of approved spend per agent (per process run).
 
+    Tracks total spend per agent, spend per (agent, recipient) for the
+    per-recipient cap, and payment timestamps per agent for the velocity rule.
     A real deployment would back this with a datastore; for the hackathon demo
-    it lives for the length of the run, which is enough to show the daily cap
-    stopping the fourth payment in a burst.
+    it lives for the length of the run, which is enough to show the caps
+    stopping a payment in a burst.
     """
 
     def __init__(self) -> None:
         self._spent: dict[str, float] = {}
+        self._by_recipient: dict[tuple[str, str], float] = {}
+        self._events: dict[str, list[float]] = {}
 
     def spent_today(self, agent_id: str) -> float:
         return self._spent.get(agent_id, 0.0)
 
-    def record(self, agent_id: str, amount: float) -> None:
+    def spent_recipient(self, agent_id: str, recipient: str | None) -> float:
+        return self._by_recipient.get((agent_id, (recipient or "").lower()), 0.0)
+
+    def recent_count(self, agent_id: str, window_seconds: int, now: float | None = None) -> int:
+        now = time.time() if now is None else now
+        return sum(1 for t in self._events.get(agent_id, []) if now - t <= window_seconds)
+
+    def record(
+        self, agent_id: str, amount: float, recipient: str | None = None,
+        ts: float | None = None,
+    ) -> None:
         self._spent[agent_id] = self._spent.get(agent_id, 0.0) + amount
+        key = (agent_id, (recipient or "").lower())
+        self._by_recipient[key] = self._by_recipient.get(key, 0.0) + amount
+        self._events.setdefault(agent_id, []).append(time.time() if ts is None else ts)
 
 
 def check_policy(
@@ -57,6 +76,34 @@ def check_policy(
         )
     evidence.append({"rule": "daily_limit", "limit": policy.daily_limit,
                      "spent_before": already, "amount": intent.amount})
+
+    # Cumulative per-recipient cap.
+    if policy.per_recipient_limit > 0:
+        to_recipient = ledger.spent_recipient(intent.agent_id, intent.recipient)
+        if to_recipient + intent.amount > policy.per_recipient_limit:
+            failures.append(
+                f"this payment would bring spend to '{intent.recipient}' to "
+                f"{intent.currency} {to_recipient + intent.amount:.2f}, over the "
+                f"per-recipient limit of {intent.currency} "
+                f"{policy.per_recipient_limit:.2f}"
+            )
+        evidence.append({"rule": "per_recipient_limit",
+                         "limit": policy.per_recipient_limit,
+                         "spent_before": to_recipient, "amount": intent.amount})
+
+    # Velocity: too many payments too fast.
+    if policy.max_payments_per_window > 0:
+        recent = ledger.recent_count(intent.agent_id, policy.velocity_window_seconds)
+        if recent + 1 > policy.max_payments_per_window:
+            failures.append(
+                f"this is payment {recent + 1} within "
+                f"{policy.velocity_window_seconds}s, over the velocity limit of "
+                f"{policy.max_payments_per_window}"
+            )
+        evidence.append({"rule": "velocity",
+                         "limit": policy.max_payments_per_window,
+                         "recent": recent,
+                         "window_seconds": policy.velocity_window_seconds})
 
     # Currency.
     if policy.allowed_currencies and intent.currency not in policy.allowed_currencies:

@@ -46,20 +46,32 @@ class SafePayAgent:
         decision = self.guardrail.evaluate(intent)
 
         if decision.verdict == Verdict.ALLOW:
-            try:
-                result = self.paypal.send_payout(
-                    recipient=intent.recipient,
-                    amount=intent.amount,
-                    currency=intent.currency,
-                    note=intent.purpose,
-                )
-                decision.executed = True
-                decision.execution = result
-                self.guardrail.commit_spend(decision)
-            except Exception as exc:
+            if not self.config.execute_payments:
+                # Evaluation-only instance: do not move money, but still charge
+                # the budget so the caps behave as they would in production.
                 decision.executed = False
-                decision.execution = {"error": str(exc)}
-                decision.reasons.append(f"payout error: {exc}")
+                decision.execution = {
+                    "mode": "disabled",
+                    "note": "payment execution disabled on this instance "
+                            "(SAFEPAY_EXECUTE off)",
+                }
+                self.guardrail.commit_spend(decision)
+            else:
+                try:
+                    result = self.paypal.send_payout(
+                        recipient=intent.recipient,
+                        amount=intent.amount,
+                        currency=intent.currency,
+                        note=intent.purpose,
+                        idempotency_key=intent.idempotency_key,
+                    )
+                    decision.executed = True
+                    decision.execution = result
+                    self.guardrail.commit_spend(decision)
+                except Exception as exc:
+                    decision.executed = False
+                    decision.execution = {"error": str(exc)}
+                    decision.reasons.append(f"payout error: {exc}")
 
         record = self.audit_log.append(decision)
         return {

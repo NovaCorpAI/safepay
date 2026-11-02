@@ -27,3 +27,9 @@ services:
         sync: false
       - key: SAFEPAY_SIGNING_KEY
         sync: false
+      # Optional config (defaults are fine). Set SAFEPAY_EXECUTE=simulate to run
+      # a public instance that evaluates without moving sandbox money.
+      - key: SAFEPAY_EXECUTE
+        value: "true"
+      - key: SAFEPAY_RATE_LIMIT
+        value: "30"

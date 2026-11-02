@@ -41,6 +41,11 @@ class PaymentIntent:
     # The task the agent was actually given, so the reasoner can check that the
     # payment matches the goal (a travel agent paying a casino is a mismatch).
     task_goal: str = ""
+    # Optional idempotency key for the execution. Set it per logical payment and
+    # a retry of the same intent will not send a second payout (it rides the
+    # PayPal-Request-Id header and a stable batch id). Left unset, each
+    # execution gets a fresh id, as before.
+    idempotency_key: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -99,6 +104,13 @@ class PolicyConfig:
 
     per_tx_limit: float = 500.0
     daily_limit: float = 2000.0
+    # Cumulative cap per recipient across the run (0 = no per-recipient cap).
+    # Blunts a slow-drain attack that stays under the per-transaction limit but
+    # funnels many payments to one payee.
+    per_recipient_limit: float = 0.0
+    # Velocity: at most this many payments inside the window (0 = no limit).
+    max_payments_per_window: int = 0
+    velocity_window_seconds: int = 3600
     allowed_categories: list[str] = field(default_factory=list)   # empty = any
     blocked_categories: list[str] = field(default_factory=list)
     recipient_allowlist: list[str] = field(default_factory=list)  # empty = any

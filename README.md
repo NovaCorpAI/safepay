@@ -26,10 +26,13 @@ once and that every agent payment has to pass through.
 
 Each `PaymentIntent` runs three checks, cheapest and strictest first:
 
-1. **Policy (deterministic).** Per-transaction and daily limits, allowed and
-   blocked categories, recipient allow/block lists, currency. A breach here is a
-   hard **block**, no model call spent. The daily cap is enforced across a burst
-   of payments, not just one in isolation.
+1. **Policy (deterministic).** Per-transaction, daily, per-recipient and
+   velocity limits, allowed and blocked categories, recipient allow/block lists,
+   currency. A breach here is a hard **block**, no model call spent. The daily,
+   per-recipient and velocity caps are enforced across a burst of payments, not
+   just one in isolation, so a slow-drain or high-frequency attack is caught.
+   The deterministic policy is the floor: the model layers below can tighten a
+   verdict to HOLD, never loosen a policy block.
 2. **Merchant verification (live web, Tavily).** Pulls fresh web evidence about
    the payee and flags fraud/scam signals. A soft signal: it raises risk and can
    trigger a **hold**, but never silently blocks on noisy web data.
@@ -130,6 +133,9 @@ The toolkit is an optional dependency; the core package and tests never need it.
 | `NEBIUS_API_KEY` | Nemotron intent/anomaly reasoning | Reasoning check is skipped |
 | `TAVILY_API_KEY` | Live-web merchant verification | Merchant check is skipped |
 | `SAFEPAY_SIGNING_KEY` | HMAC-signed audit records | Records are integrity-only (unsigned) |
+| `SAFEPAY_AUDIT_LOG` | Persist the hash-chained log to this JSONL file | Log is in-memory only |
+| `SAFEPAY_EXECUTE` | `simulate`/`0`/`false` evaluates without moving money (budget still charged) | ALLOW executes the payout |
+| `SAFEPAY_RATE_LIMIT` | Max web-console evaluations per IP per minute | 30 |
 
 Get PayPal sandbox keys at `developer.paypal.com` > Apps & Credentials >
 Sandbox > Create App. The host is pinned to the sandbox in `config.py`; SafePay

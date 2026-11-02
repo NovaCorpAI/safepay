@@ -73,6 +73,22 @@ class Guardrail:
         return Decision(verdict=verdict, intent=intent, checks=checks, reasons=reasons)
 
     def commit_spend(self, decision: Decision) -> None:
-        """Record approved spend so the daily cap holds across a burst of intents."""
+        """Record auto-approved spend so the caps hold across a burst of intents.
+
+        Only ALLOW decisions are recorded here. A HOLD that a human later
+        approves and pays out of band must be fed back with `record_settlement`,
+        or the day's real spend is undercounted.
+        """
         if decision.verdict == Verdict.ALLOW:
-            self.ledger.record(decision.intent.agent_id, decision.intent.amount)
+            self.ledger.record(
+                decision.intent.agent_id, decision.intent.amount,
+                decision.intent.recipient,
+            )
+
+    def record_settlement(
+        self, agent_id: str, amount: float, recipient: str | None = None
+    ) -> None:
+        """Record spend an operator released out of band (e.g. after approving a
+        HOLD), so the daily and per-recipient caps reflect actual money moved,
+        not only what SafePay auto-approved."""
+        self.ledger.record(agent_id, amount, recipient)

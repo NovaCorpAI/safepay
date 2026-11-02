@@ -85,6 +85,21 @@ def test_money_method_without_intent_raises():
         gate.run("create_order", {"currency_code": "USD", "items": []})
 
 
+class FailingPayPalAPI:
+    def run(self, method, params):
+        raise RuntimeError("sandbox 500")
+
+
+def test_toolkit_error_is_captured_not_raised():
+    gate, _ = _gate(PolicyConfig(per_tx_limit=500))
+    gate._api = FailingPayPalAPI()
+    out = gate.create_order(_intent(48))      # ALLOW, but the toolkit call fails
+    assert out["decision"]["verdict"] == "allow"
+    assert out["decision"]["executed"] is False
+    assert "toolkit error" in " ".join(out["decision"]["reasons"])
+    assert out["result"] is None
+
+
 def test_order_params_from_intent_single_line_item():
     params = order_params_from_intent(_intent(48, currency="USD", merchant_name="Notion"))
     assert params["currency_code"] == "USD"

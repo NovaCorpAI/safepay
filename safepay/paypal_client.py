@@ -65,9 +65,18 @@ class PayPalClient:
         amount: float,
         currency: str = "USD",
         note: str = "",
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
-        """Send a single-item payout. Returns the batch header (or a simulation)."""
-        batch_id = f"SAFEPAY-{uuid.uuid4().hex[:12]}"
+        """Send a single-item payout. Returns the batch header (or a simulation).
+
+        When `idempotency_key` is given, the batch id, the item id and PayPal's
+        `PayPal-Request-Id` header are all derived from it, so retrying the same
+        payment does not create a second payout. Without it, each call gets fresh
+        random ids.
+        """
+        stable = (idempotency_key or "").strip()
+        batch_id = f"SAFEPAY-{stable[:12]}" if stable else f"SAFEPAY-{uuid.uuid4().hex[:12]}"
+        item_id = stable[:16] if stable else uuid.uuid4().hex[:16]
         if not self.live:
             return {
                 "mode": "simulated",
@@ -92,17 +101,22 @@ class PayPalClient:
                     "amount": {"value": f"{amount:.2f}", "currency": currency},
                     "receiver": recipient,
                     "note": note or "Approved by SafePay.",
-                    "sender_item_id": uuid.uuid4().hex[:16],
+                    "sender_item_id": item_id,
                 }
             ],
         }
+        headers = {
+            "Authorization": f"Bearer {self._access_token()}",
+            "Content-Type": "application/json",
+        }
+        if stable:
+            # PayPal's idempotency mechanism: a repeated request with the same id
+            # returns the original result instead of paying twice.
+            headers["PayPal-Request-Id"] = stable
         resp = requests.post(
             f"{self._cfg.paypal_base_url}/v1/payments/payouts",
             json=payload,
-            headers={
-                "Authorization": f"Bearer {self._access_token()}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             timeout=60,
         )
         if resp.status_code not in (200, 201, 202):
