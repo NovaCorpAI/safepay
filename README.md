@@ -205,6 +205,32 @@ passes it, but the reasoning layer catches that a "processing fee to release
 invoices" does not serve the task, and holds it for a human, while the real
 invoice is allowed. This is the agentic-commerce attack SafePay exists to stop.
 
+## Attack benchmark (proof, not promise)
+
+`benchmark/attacks/` runs 14 realistic attacks on a wallet-holding agent (prompt
+injection in invoices and vendor pages, goal mismatches, an unknown payee, a
+lookalike recipient, amount inflation, limit breaches, a slow drain, a velocity
+burst) plus 7 legitimate invoices, through the guardrail. Two modes, side by
+side, so the numbers are honest:
+
+| Mode | Attacks caught | Legit allowed (no false positives) |
+| --- | --- | --- |
+| policy only (rules, no model, no web) | 4/14 (28%) | 7/7 (100%) |
+| full (policy + Tavily + Nemotron) | **12/14 (85%)** | **7/7 (100%)** |
+
+Rules alone catch only what breaches a limit. The model layers catch every
+prompt injection, every goal mismatch and the unknown payee, with zero false
+positives on real vendors. The two misses are documented, not hidden: a
+lookalike recipient domain behind a real merchant name, and a 10x amount on a
+real vendor. Neither layer compares recipient to merchant or amount to history
+yet; both are the next deterministic rules. Full per-case results are in
+`benchmark/attacks/results.md`.
+
+```bash
+python benchmark/attacks/run_attack_benchmark.py --mode both   # needs keys for full
+python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
+```
+
 ## Tamper-evident audit chain
 
 Every decision is appended to a hash-chained log: each record carries `prev`,
