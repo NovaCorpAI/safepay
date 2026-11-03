@@ -37,3 +37,10 @@ create index if not exists safepay_approvals_status on safepay_approvals (status
 alter table safepay_audit     enable row level security;
 alter table safepay_ledger    enable row level security;
 alter table safepay_approvals enable row level security;
+
+-- The server uses the service role key, which bypasses RLS. Grant it access
+-- explicitly so this works whether or not the project auto-exposes new tables
+-- to the Data API roles. anon/authenticated get nothing: RLS with no policies.
+grant usage on schema public to service_role;
+grant all on table safepay_audit, safepay_ledger, safepay_approvals to service_role;
+grant usage, select on sequence safepay_ledger_id_seq to service_role;
