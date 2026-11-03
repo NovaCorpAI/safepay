@@ -18,14 +18,17 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Security",
 ]
+# Flask is a core dependency on purpose: Vercel installs from pyproject.toml
+# (not requirements.txt) when this file exists, and the hosted console needs it.
 dependencies = [
     "requests>=2.31.0",
     "openai>=1.40.0",
     "tavily-python>=0.5.0",
+    "flask>=3.0.0",
 ]
 
 [project.optional-dependencies]
-web = ["flask>=3.0.0", "gunicorn>=21.2.0"]
+web = ["gunicorn>=21.2.0"]
 mcp = ["mcp>=1.2.0,<2"]
 tracing = ["langsmith>=0.1.0"]
 
