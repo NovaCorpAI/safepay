@@ -80,6 +80,19 @@
     border-top-color: var(--accent); border-radius: 50%; animation: sp 0.7s linear infinite; }
   @keyframes sp { to { transform: rotate(360deg); } }
 
+  /* Pending approvals */
+  .approvals { margin-top: 30px; }
+  .apr { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 16px;
+    border: 1px solid rgba(245,158,11,.35); border-left: 4px solid var(--hold);
+    border-radius: 12px; background: var(--panel); margin-top: 10px; animation: rise .3s ease; }
+  .apr .amt { font-weight: 700; }
+  .apr .to { color: var(--muted); font-size: 14px; }
+  .apr .why { flex: 1 1 100%; font-size: 13px; color: var(--muted); }
+  .apr .act { margin-left: auto; display: flex; gap: 8px; }
+  .apr button { padding: 8px 12px; font-size: 13px; }
+  .approve { background: var(--allow); color: #04120a; }
+  .reject { background: transparent; color: var(--block); border: 1px solid rgba(239,68,68,.45); }
+
   /* Audit ledger (AG Grid) */
   .ledger { margin-top: 34px; }
   .ledger .lhead { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
@@ -153,6 +166,15 @@
 
   <div id="results"></div>
 
+  <section class="approvals" id="approvals" hidden>
+    <div class="lhead">
+      <h2>Pending approvals</h2>
+      <span class="status idle" id="apr-count"></span>
+      <p class="tag">A HOLD is not a dead end: a person decides here. Approve releases the payment and charges the ledger; Reject stops it. Both outcomes are appended to the audit chain as their own link.</p>
+    </div>
+    <div id="apr-list"></div>
+  </section>
+
   <section class="ledger">
     <div class="lhead">
       <h2>Audit ledger</h2>
@@ -203,8 +225,10 @@
     if (d.executed && d.execution) {
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] ·
         batch ${esc(d.execution.payout_batch_id || '?')} (${esc(d.execution.batch_status || '?')})</div>`;
+    } else if (d.verdict === 'hold' && r.approval_id) {
+      exec = `<div class="exec">○ held, money did not move. Awaiting a human: <b>${esc(r.approval_id)}</b> (see Pending approvals below)</div>`;
     } else if (d.verdict !== 'allow') {
-      exec = `<div class="exec">○ not executed — money did not move</div>`;
+      exec = `<div class="exec">○ not executed, money did not move</div>`;
     }
     const sig = r.audit.signature.signed;
     el.innerHTML = `
@@ -229,6 +253,7 @@
       el.querySelector('.risk').textContent = 'error';
     } finally {
       loadAudit();
+      loadApprovals();
     }
   }
 
@@ -268,7 +293,50 @@
     await fetch('/api/reset', {method: 'POST'});
     results.innerHTML = '';
     loadAudit();
+    loadApprovals();
   };
+
+  // --- Pending approvals (human in the loop over /api/approvals) ---
+  async function loadApprovals() {
+    let data;
+    try { data = await (await fetch('/api/approvals')).json(); } catch (e) { return; }
+    const sec = document.getElementById('approvals');
+    const list = document.getElementById('apr-list');
+    const cnt = document.getElementById('apr-count');
+    sec.hidden = !data.count;
+    cnt.className = 'status ' + (data.count ? 'bad' : 'idle');
+    cnt.textContent = data.count ? data.count + ' waiting for a human' : '';
+    list.innerHTML = data.pending.map(a => {
+      const i = a.decision.intent;
+      const why = (a.decision.reasons || []).join(' · ');
+      return `<div class="apr" data-id="${esc(a.id)}">
+        <span class="badge" style="color:var(--hold);background:var(--hold-bg)">HOLD</span>
+        <span class="amt">USD ${Number(i.amount).toFixed(2)}</span>
+        <span class="to">to ${esc(i.recipient)}</span>
+        <span class="act">
+          <button class="approve" data-act="approve">Approve and pay</button>
+          <button class="reject" data-act="reject">Reject</button>
+        </span>
+        <span class="why">${esc(why)}</span>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('button[data-act]').forEach(b => {
+      b.onclick = async () => {
+        const row = b.closest('.apr'); const id = row.dataset.id; const act = b.dataset.act;
+        row.querySelectorAll('button').forEach(x => x.disabled = true);
+        try {
+          const resp = await fetch(`/api/approvals/${id}/${act}`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ note: act === 'approve' ? 'approved in console' : 'rejected in console' })
+          });
+          const r = await resp.json();
+          if (r.decision) render(pending(r.decision.intent), r);
+        } catch (e) {}
+        loadApprovals();
+        loadAudit();
+      };
+    });
+  }
 
   // --- Audit ledger (AG Grid over /api/audit) ---
   let auditApi = null;
@@ -336,6 +404,7 @@
     };
   }
   loadAudit();
+  loadApprovals();
 </script>
 </body>
 </html>

@@ -127,6 +127,35 @@ def evaluate():
     return jsonify(result)
 
 
+@app.get("/api/approvals")
+def approvals():
+    """Payments a human still has to approve or reject."""
+    pending = _agent.pending_approvals()
+    return jsonify({"count": len(pending), "pending": pending})
+
+
+def _resolve(approval_id: str, action: str):
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    note = str(data.get("note", ""))[:200]
+    try:
+        fn = _agent.approve if action == "approve" else _agent.reject
+        return jsonify(fn(approval_id, note))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+
+
+@app.post("/api/approvals/<approval_id>/approve")
+def approve(approval_id: str):
+    return _resolve(approval_id, "approve")
+
+
+@app.post("/api/approvals/<approval_id>/reject")
+def reject(approval_id: str):
+    return _resolve(approval_id, "reject")
+
+
 @app.get("/api/audit")
 def audit():
     """The hash-chained audit log and its live verification status."""

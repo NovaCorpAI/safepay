@@ -98,6 +98,30 @@ def create_order(**kw: Any) -> dict[str, Any]:
     }
 
 
+def pending_approvals() -> dict[str, Any]:
+    """Payments held for a human decision."""
+    items = _agent.pending_approvals()
+    return {"count": len(items), "pending": items}
+
+
+def resolve_approval(approval_id: str, approve: bool, note: str = "") -> dict[str, Any]:
+    """Approve (execute and charge the ledger) or reject a held payment."""
+    try:
+        out = _agent.approve(approval_id, note) if approve else _agent.reject(approval_id, note)
+    except ValueError as exc:
+        return {"error": str(exc)}
+    dec = out["decision"]
+    return {
+        "approval_id": approval_id,
+        "verdict": dec["verdict"],
+        "executed": dec["executed"],
+        "reasons": dec["reasons"],
+        "execution": dec["execution"],
+        "audit_seq": out["audit"]["payload"].get("seq"),
+        "signed": out["audit"]["signature"]["signed"],
+    }
+
+
 def audit_status() -> dict[str, Any]:
     """Re-verify the hash-chained audit log of every decision so far."""
     ok, bad = _agent.audit_log.verify()
@@ -161,6 +185,24 @@ try:
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
             agent_id=agent_id,
         )
+
+    @_MCP.tool()
+    def safepay_pending_approvals() -> dict[str, Any]:
+        """List payments SafePay held for a human decision (verdict HOLD),
+        with the approval id, the intent and the reasons."""
+        return pending_approvals()
+
+    @_MCP.tool()
+    def safepay_approve(approval_id: str, note: str = "") -> dict[str, Any]:
+        """A human approves a held payment: SafePay executes it, charges the
+        spend ledger, and appends the approval to the audit chain."""
+        return resolve_approval(approval_id, True, note)
+
+    @_MCP.tool()
+    def safepay_reject(approval_id: str, note: str = "") -> dict[str, Any]:
+        """A human rejects a held payment: nothing moves; the rejection is
+        appended to the audit chain."""
+        return resolve_approval(approval_id, False, note)
 
     @_MCP.tool()
     def safepay_audit_status() -> dict[str, Any]:

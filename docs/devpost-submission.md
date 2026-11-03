@@ -47,7 +47,10 @@ three checks, cheapest and strictest first:
 
 The verdict is allow, hold, or block. On allow, SafePay releases the payment
 through the PayPal Payouts API (the agent sends money, no buyer redirect, fully
-backend). On hold or block the money never moves. Every decision is appended to
+backend). On hold or block the money never moves. A hold is not a dead end: it
+waits for a person, who approves it (SafePay then pays and charges the ledger)
+or rejects it, in the console or through the MCP tools, and that decision is
+appended to the chain as its own link. Every decision is appended to
 a hash-chained audit log: each record carries the hash of the one before it, so
 editing or dropping any earlier decision breaks every hash that follows, and a
 one-line verify walks the whole chain. The web console shows this ledger as an

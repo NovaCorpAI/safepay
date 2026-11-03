@@ -134,10 +134,12 @@ The toolkit is an optional dependency; the core package and tests never need it.
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
 Desktop, Cursor, an agent framework) can route its payments through the guardrail
-without importing any SafePay code. It exposes four tools: `safepay_evaluate`
+without importing any SafePay code. It exposes seven tools: `safepay_evaluate`
 (judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
-ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow), and
-`safepay_audit_status` (re-verify the tamper-evident chain).
+ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow),
+`safepay_pending_approvals`, `safepay_approve` and `safepay_reject` (the human
+in the loop for HOLD decisions), and `safepay_audit_status` (re-verify the
+tamper-evident chain).
 
 ```bash
 pip install -r requirements.txt -r requirements-mcp.txt
@@ -230,6 +232,18 @@ yet; both are the next deterministic rules. Full per-case results are in
 python benchmark/attacks/run_attack_benchmark.py --mode both   # needs keys for full
 python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
 ```
+
+## Human in the loop (HOLD is a workflow, not a dead end)
+
+When a soft check raises a concern inside the policy limits, the verdict is
+HOLD and the payment waits in an approval queue. In the web console a "Pending
+approvals" panel appears with **Approve and pay** / **Reject**; the same queue
+is available as `GET /api/approvals`, `POST /api/approvals/<id>/approve` and
+`/reject`, and as MCP tools, so a person (or a supervising agent) can decide
+from anywhere. Approving releases the payment and charges the spend ledger, so
+the daily and per-recipient caps reflect real spend; rejecting moves nothing.
+Both outcomes are appended to the audit chain as their own link, so "who
+approved this agent payment, and when" is provable.
 
 ## Tamper-evident audit chain
 
