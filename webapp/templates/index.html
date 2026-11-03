@@ -72,6 +72,7 @@
   .exec { padding: 10px 16px; font-size: 13px; color: var(--muted);
     background: var(--panel2); border-top: 1px solid var(--line); }
   .exec .ok { color: var(--allow); }
+  .exec .no { color: var(--hold); }
   .stamp { padding: 8px 16px; font-size: 12px; color: var(--muted);
     display: flex; justify-content: space-between; gap: 10px; }
   .stamp .sig { color: var(--accent); }
@@ -232,6 +233,8 @@
     if (d.executed && d.execution) {
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] ·
         batch ${esc(d.execution.payout_batch_id || '?')} (${esc(d.execution.batch_status || '?')})</div>`;
+    } else if (d.verdict === 'allow' && d.execution && d.execution.error) {
+      exec = `<div class="exec"><span class="no">● payout failed</span>, money did not move and the budget was not charged: ${esc(d.execution.error)}</div>`;
     } else if (d.verdict === 'hold' && r.approval_id) {
       exec = `<div class="exec">○ held, money did not move. Awaiting a human: <b>${esc(r.approval_id)}</b> (see Pending approvals below)</div>`;
     } else if (d.verdict !== 'allow') {
