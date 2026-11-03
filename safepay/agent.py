@@ -146,6 +146,59 @@ class SafePayAgent:
     def pending_approvals(self) -> list[dict[str, Any]]:
         return [a.to_dict() for a in self.approvals.pending()]
 
+    # --- settlement: what PayPal says happened to a released payout ----------
+
+    def _links_for_batch(self, batch_id: str) -> list[dict[str, Any]]:
+        out = []
+        for rec in self.audit_log.records:
+            p = rec.get("payload", {})
+            if (p.get("execution") or {}).get("payout_batch_id") == batch_id:
+                out.append(p)
+        return out
+
+    def settle(self, batch_id: str, source: str = "poll") -> dict[str, Any]:
+        """Close the loop on a released payout: ask PayPal for the batch's
+        current state and append it to the audit chain as a settlement link.
+
+        A payout is accepted as PENDING and only later succeeds, fails or is
+        returned. SUCCESS becomes an ALLOW settlement (money moved); a final
+        failure becomes a BLOCK settlement and releases the budget the payout
+        had charged (the money never left); anything else is a HOLD (still in
+        flight). Idempotent: the same state for the same batch is not appended
+        twice. `source` says who asked (console, webhook, mcp, poll)."""
+        links = self._links_for_batch(batch_id)
+        origin = next((p for p in links if p.get("event", "decision") == "decision"), None)
+        if origin is None:
+            raise ValueError(f"no released payout '{batch_id}' in this audit log")
+        state = self.paypal.get_payout(batch_id)
+        status = str(state.get("item_status") or state.get("batch_status") or "PENDING")
+        prior = [p for p in links if p.get("event") == "settlement"]
+        same = next((p for p in prior
+                     if (p.get("execution") or {}).get("item_status") == status), None)
+        if same is not None:
+            return {"settlement": same["execution"], "status": status,
+                    "audit": None, "duplicate": True, "seq": same.get("seq")}
+
+        intent = PaymentIntent.from_dict(origin["intent"])
+        if status in self.paypal.FINAL_OK:
+            verdict, executed = Verdict.ALLOW, True
+            why = f"settlement: payout {status}, money moved ({source})"
+        elif status in self.paypal.FINAL_FAILED:
+            verdict, executed = Verdict.BLOCK, False
+            why = f"settlement: payout {status}, money did not move; budget released ({source})"
+            if not any((p.get("execution") or {}).get("item_status") in self.paypal.FINAL_FAILED
+                       for p in prior):
+                self.guardrail.ledger.record(intent.agent_id, -intent.amount, intent.recipient)
+        else:
+            verdict, executed = Verdict.HOLD, False
+            why = f"settlement: payout {status}, still in flight ({source})"
+        execution = dict(state, source=source)
+        decision = Decision(verdict=verdict, intent=intent, checks=[], reasons=[why],
+                            executed=executed, execution=execution, event="settlement")
+        record = self.audit_log.append(decision)
+        return {"settlement": execution, "status": status, "audit": record,
+                "duplicate": False, "seq": record["payload"].get("seq")}
+
     def pay_many(self, intents: list[PaymentIntent]) -> list[dict[str, Any]]:
         """Run a sequence, so the daily cap is enforced across the burst."""
         return [self.pay(i) for i in intents]

@@ -122,6 +122,19 @@ def resolve_approval(approval_id: str, approve: bool, note: str = "") -> dict[st
     }
 
 
+def payout_status(batch_id: str) -> dict[str, Any]:
+    """What PayPal says happened to a released payout; appended to the chain."""
+    try:
+        out = _agent.settle(batch_id, source="mcp")
+    except ValueError as exc:
+        return {"error": str(exc)}
+    except Exception as exc:
+        return {"error": f"PayPal lookup failed: {exc}"}
+    return {"payout_batch_id": batch_id, "status": out["status"],
+            "settlement": out["settlement"], "audit_seq": out["seq"],
+            "already_recorded": out["duplicate"]}
+
+
 def audit_status() -> dict[str, Any]:
     """Re-verify the hash-chained audit log of every decision so far."""
     ok, bad = _agent.audit_log.verify()
@@ -203,6 +216,13 @@ try:
         """A human rejects a held payment: nothing moves; the rejection is
         appended to the audit chain."""
         return resolve_approval(approval_id, False, note)
+
+    @_MCP.tool()
+    def safepay_payout_status(batch_id: str) -> dict[str, Any]:
+        """Close the loop on a payout SafePay released: ask PayPal whether the
+        money actually moved (SUCCESS), failed or was returned, and append that
+        settlement to the audit chain. A failed payout releases its budget."""
+        return payout_status(batch_id)
 
     @_MCP.tool()
     def safepay_audit_status() -> dict[str, Any]:

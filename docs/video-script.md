@@ -51,25 +51,35 @@ Narration, card by card:
    reputable payee. SafePay allows it and you can see the real PayPal sandbox
    payout batch, with a signed stamp."
 
-2. AWS, 900 dollars, BLOCK.
+2. Notion, 48 dollars, to notion-payments.example, BLOCK.
+   "Same invoice, same amount, but the recipient is a lookalike domain. The
+   approved vendor directory knows Notion's real domain, so this is blocked
+   before any model runs. This is the invoice-fraud attack that stays inside
+   every limit."
+
+3. AWS, 900 dollars, BLOCK.
    "Next, a 900 dollar charge. The per transaction limit is 500, so policy
    blocks it outright. No model call is even spent: the cheapest, strictest
    check runs first. The money does not move."
 
-3. LuckyDice Casino, 120 dollars, entertainment, HOLD.
+4. LuckyDice Casino, 120 dollars, entertainment, HOLD.
    "Now the interesting one. This payment is small and inside every limit, so a
    rule set alone would let it through. But the agent's task was to pay approved
    software and cloud invoices. The reasoning check, running NVIDIA Nemotron on
    Nebius, catches that a casino payout does not serve that goal, and puts it on
    hold for a human. This is the attack a static policy misses."
 
-4. AWS, 420 dollars, ALLOW. 5. Google Cloud, 420 dollars, ALLOW.
+5. AWS, 420 dollars, ALLOW. 6. Google Cloud, 420 dollars, ALLOW.
    "Two legitimate cloud invoices, both allowed and paid."
 
-6. Microsoft Azure, 420 dollars, BLOCK.
+7. Microsoft Azure, 420 dollars, BLOCK.
    "And the last one is blocked, not because of the single amount, but because
    it would breach the daily cap across the whole run. SafePay tracks spend
    across a burst of payments, not just one in isolation."
+
+Optional, if there is time (about 8 seconds): on the first Notion card click
+"check settlement". "And SafePay closes the loop: it asks PayPal whether the
+money actually moved and writes the answer into the same chain."
 
 ## 2:15 - 2:40 | The tamper-evident ledger (the money shot)
 
@@ -101,7 +111,7 @@ Thanks for watching."
 
 - [ ] Header with three chips visible and green.
 - [ ] Policy panel readable (per tx 500, daily cap, USD, hold on soft risk).
-- [ ] Full "Run demo scenarios" sequence, all six cards.
+- [ ] Full "Run demo scenarios" sequence, all seven cards.
 - [ ] Clear read on the HOLD casino card (the differentiator).
 - [ ] At least one card's PayPal batch id and "signed" stamp visible.
 - [ ] Optional: terminal B-roll of a signed audit record.
@@ -126,9 +136,10 @@ vivo, y razonamiento de intencion. El veredicto es permitir, retener o bloquear.
 Si permite, SafePay libera el pago por el sandbox de PayPal y firma un registro
 de la decision."
 
-Demo: narra tarjeta por tarjeta igual que arriba (Notion permite, AWS 900
-bloquea por limite, casino retiene por objetivo, dos nubes permiten, Azure
-bloquea por tope diario).
+Demo: narra tarjeta por tarjeta igual que arriba (Notion permite, Notion en
+dominio parecido bloquea por directorio de proveedores, AWS 900 bloquea por
+limite, casino retiene por objetivo, dos nubes permiten, Azure bloquea por tope
+diario).
 
 Ledger: "Cada decision se encadena por hash en un registro de auditoria. Si
 alguien altera o borra una decision pasada, se rompen todos los hashes

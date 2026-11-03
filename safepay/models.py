@@ -93,6 +93,10 @@ class Decision:
     # Filled in after the payment is (or is not) executed.
     executed: bool = False
     execution: dict[str, Any] | None = None
+    # What kind of link this is in the audit chain: a guardrail "decision"
+    # (the default), or a "settlement", the later record of what PayPal says
+    # happened to a released payout (succeeded, failed, returned).
+    event: str = "decision"
 
     @property
     def risk(self) -> float:
@@ -108,6 +112,7 @@ class Decision:
             "reasons": list(self.reasons),
             "executed": self.executed,
             "execution": self.execution,
+            "event": self.event,
         }
 
     @classmethod
@@ -119,6 +124,7 @@ class Decision:
             reasons=list(d.get("reasons") or []),
             executed=bool(d.get("executed", False)),
             execution=d.get("execution"),
+            event=str(d.get("event") or "decision"),
         )
 
 
@@ -143,6 +149,19 @@ class PolicyConfig:
     # When true, a Tavily/Nemotron concern downgrades ALLOW to HOLD instead of
     # letting it through. On by default: SafePay is conservative on purpose.
     hold_on_soft_risk: bool = True
+    # Approved vendor directory, keyed by merchant name (case-insensitive):
+    # what a payment to that vendor must look like. Catches the two attacks
+    # that stay inside every cap: a lookalike recipient (real vendor name,
+    # swapped domain) and an inflated amount to a real vendor.
+    #   {"Notion": {"domains": ["notion.so"], "expected_amount": 48,
+    #               "aliases": ["Notion Labs"]}}
+    vendors: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # An amount above expected_amount * this factor is an anomaly.
+    vendor_amount_tolerance: float = 1.5
+    # With a directory in place, hold any payee that is not in it for a human
+    # (the "new beneficiary" control banks apply). Off by default so the soft
+    # checks are what judges an unknown payee; on for a locked-down agent.
+    hold_unknown_vendors: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

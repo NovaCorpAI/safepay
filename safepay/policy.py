@@ -46,7 +46,8 @@ class SpendLedger:
         self._spent[agent_id] = self._spent.get(agent_id, 0.0) + amount
         key = (agent_id, (recipient or "").lower())
         self._by_recipient[key] = self._by_recipient.get(key, 0.0) + amount
-        self._events.setdefault(agent_id, []).append(time.time() if ts is None else ts)
+        if amount > 0:   # a released budget (failed payout) is not a payment event
+            self._events.setdefault(agent_id, []).append(time.time() if ts is None else ts)
 
 
 def check_policy(
@@ -135,6 +136,9 @@ def check_policy(
             f"recipient '{intent.recipient}' is not on the allowlist"
         )
 
+    # Vendor directory: lookalike recipient and amount anomaly.
+    failures += check_vendor(intent, policy, evidence)
+
     if failures:
         return CheckResult(
             name="policy",
@@ -148,7 +152,103 @@ def check_policy(
         name="policy",
         passed=True,
         severity=Severity.OK,
-        detail="within per-transaction, daily, currency, category and recipient rules",
+        detail="within per-transaction, daily, currency, category, recipient and vendor rules",
         risk=0.0,
         evidence=evidence,
     )
+
+
+def domain_of(address: str | None) -> str:
+    """The lowercase domain of an email ('billing@notion.so' -> 'notion.so')
+    or a URL ('https://www.notion.so/x' -> 'notion.so'); '' when unknown."""
+    s = (address or "").strip().lower()
+    if not s:
+        return ""
+    if "@" in s:
+        s = s.rsplit("@", 1)[1]
+    elif "://" in s:
+        s = s.split("://", 1)[1]
+    s = s.split("/", 1)[0].split(":", 1)[0]
+    return s[4:] if s.startswith("www.") else s
+
+
+def registrable(domain: str) -> str:
+    """The part of a domain a registrant actually owns, so 'cloud.google.com'
+    and 'google.com' compare equal while 'notion-payments.example' and
+    'notion.so' do not. Two labels, three under a country second-level like
+    'co.uk' or 'com.br'."""
+    parts = [p for p in domain.lower().split(".") if p]
+    if len(parts) >= 3 and parts[-2] in ("co", "com", "org", "net", "gov", "ac", "edu") \
+            and len(parts[-1]) == 2:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:]) if len(parts) >= 2 else domain.lower()
+
+
+def _vendor_for(intent: PaymentIntent, policy: PolicyConfig) -> tuple[str, dict] | None:
+    name = (intent.merchant_name or "").strip().lower()
+    if not name:
+        return None
+    for key, spec in policy.vendors.items():
+        names = {key.strip().lower()} | {a.strip().lower() for a in (spec or {}).get("aliases", [])}
+        if name in names:
+            return key, spec or {}
+    return None
+
+
+def is_known_vendor(intent: PaymentIntent, policy: PolicyConfig) -> bool:
+    """True when the merchant name is in the directory, or the recipient's
+    domain belongs to a directory vendor (a known domain with no merchant
+    name stated is still a known payee)."""
+    if _vendor_for(intent, policy):
+        return True
+    rd = registrable(domain_of(intent.recipient))
+    return any(rd and rd == registrable(domain_of(d))
+               for spec in policy.vendors.values() for d in (spec or {}).get("domains", []))
+
+
+def check_vendor(intent: PaymentIntent, policy: PolicyConfig,
+                 evidence: list[dict]) -> list[str]:
+    """Deterministic rules against the approved vendor directory and the
+    stated merchant URL. Both attacks these catch stay inside every cap:
+
+    - lookalike recipient: the intent names a real vendor but pays a domain
+      that is not that vendor's (billing@notion-payments.example for Notion);
+    - amount anomaly: a real vendor, real domain, but an amount far above
+      what the operator expects to pay it (USD 480 for a USD 48 plan).
+    """
+    failures: list[str] = []
+    rcpt_dom = domain_of(intent.recipient)
+    found = _vendor_for(intent, policy)
+    if found:
+        key, spec = found
+        domains = [registrable(domain_of(d)) for d in spec.get("domains", []) if d]
+        if domains and rcpt_dom and registrable(rcpt_dom) not in domains:
+            failures.append(
+                f"recipient domain '{rcpt_dom}' is not an approved domain for "
+                f"vendor '{key}' ({', '.join(domains)}); possible lookalike payee"
+            )
+        expected = spec.get("expected_amount")
+        if expected:
+            ceiling = float(expected) * policy.vendor_amount_tolerance
+            if intent.amount > ceiling:
+                failures.append(
+                    f"amount {intent.currency} {intent.amount:.2f} is "
+                    f"{intent.amount / float(expected):.1f}x the expected "
+                    f"{intent.currency} {float(expected):.2f} for vendor '{key}' "
+                    f"(tolerance {policy.vendor_amount_tolerance:g}x)"
+                )
+        evidence.append({"rule": "vendor_directory", "vendor": key, "domains": domains,
+                         "expected_amount": expected, "recipient_domain": rcpt_dom})
+    # Independently of the directory: a stated merchant URL must agree with
+    # the recipient's domain. A real vendor's site with a different payee
+    # domain is the lookalike pattern again.
+    url_dom = domain_of(intent.merchant_url)
+    if url_dom and rcpt_dom and "@" in (intent.recipient or "") \
+            and registrable(url_dom) != registrable(rcpt_dom):
+        failures.append(
+            f"recipient domain '{rcpt_dom}' does not match the merchant site "
+            f"'{url_dom}'; possible lookalike payee"
+        )
+        evidence.append({"rule": "merchant_url_match", "merchant_domain": url_dom,
+                         "recipient_domain": rcpt_dom})
+    return failures

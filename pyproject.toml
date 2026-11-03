@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "safepay"
+version = "0.2.0"
+description = "A payment guardrail between an autonomous AI agent and PayPal: policy, live-web merchant check and intent reasoning before any money moves, with a hash-chained audit log."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "NovaCorp Labs" }]
+keywords = ["ai-agents", "payments", "paypal", "guardrail", "agentic-commerce", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = [
+    "requests>=2.31.0",
+    "openai>=1.40.0",
+    "tavily-python>=0.5.0",
+]
+
+[project.optional-dependencies]
+web = ["flask>=3.0.0", "gunicorn>=21.2.0"]
+mcp = ["mcp>=1.2.0,<2"]
+tracing = ["langsmith>=0.1.0"]
+
+[project.scripts]
+safepay = "safepay.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/NovaCorpAI/safepay"
+Demo = "https://safepay.agentposhq.com"
+
+[tool.setuptools]
+packages = ["safepay"]
+
+[tool.setuptools.package-data]
+safepay = ["data/*.json"]

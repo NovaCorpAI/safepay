@@ -118,7 +118,8 @@ class SupabaseSpendLedger:
 
     def recent_count(self, agent_id: str, window_seconds: int, now: float | None = None) -> int:
         now = time.time() if now is None else now
-        return len(self._rows(agent_id, now - window_seconds))
+        # Budget releases (negative rows, a failed payout) are not payments.
+        return len([r for r in self._rows(agent_id, now - window_seconds) if r["amount"] > 0])
 
     def record(self, agent_id: str, amount: float, recipient: str | None = None,
                ts: float | None = None) -> None:

@@ -52,6 +52,11 @@ def audit_record(
         "executed": decision.executed,
         "execution": decision.execution,
     }
+    if decision.event != "decision":
+        # Only non-default kinds are written, so every record produced before
+        # settlements existed keeps the exact bytes it was hashed over.
+        payload["event"] = decision.event
+        payload["reasons"] = list(decision.reasons)
     if prev is not None:
         payload["prev"] = prev
     if seq is not None:

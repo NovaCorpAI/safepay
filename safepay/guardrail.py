@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
-from .policy import SpendLedger, check_policy
+from .policy import SpendLedger, check_policy, is_known_vendor
 from .reason import check_reasoning
 from .search import WebSearch
 from .verify import check_merchant
@@ -50,8 +50,23 @@ class Guardrail:
         checks.append(merchant)
         reasoning = check_reasoning(intent, self.chat)
         checks.append(reasoning)
+        soft = [merchant, reasoning]
 
-        soft_failed = [c for c in (merchant, reasoning) if not c.passed]
+        # 2b. Optional deterministic "new payee" control: with a vendor
+        # directory and hold_unknown_vendors on, a payee outside the directory
+        # is held for a human regardless of what the web and the model say.
+        if self.policy.hold_unknown_vendors and self.policy.vendors \
+                and not is_known_vendor(intent, self.policy):
+            who = intent.merchant_name or intent.recipient
+            vendor = CheckResult(
+                name="vendor", passed=False, severity=Severity.WARN,
+                detail=f"'{who}' is not in the approved vendor directory; new payee held for a human",
+                risk=0.6, evidence=[{"rule": "hold_unknown_vendors"}],
+            )
+            checks.append(vendor)
+            soft.append(vendor)
+
+        soft_failed = [c for c in soft if not c.passed]
 
         if not soft_failed:
             return Decision(

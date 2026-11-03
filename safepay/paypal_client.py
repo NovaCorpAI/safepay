@@ -133,3 +133,79 @@ class PayPalClient:
             "receiver": recipient,
             "raw": header,
         }
+
+    # --- settlement ---------------------------------------------------------
+    # A payout is accepted as PENDING; the money moves (or bounces) later.
+    # These close the loop: what PayPal says actually happened to the batch.
+
+    FINAL_OK = ("SUCCESS",)
+    FINAL_FAILED = ("FAILED", "RETURNED", "BLOCKED", "DENIED", "CANCELED",
+                    "REFUNDED", "REVERSED")
+
+    def get_payout(self, batch_id: str) -> dict[str, Any]:
+        """Current state of a payout batch and its (single) item, normalized:
+        {payout_batch_id, batch_status, item_status, transaction_id,
+         time_processed, errors, final}. Simulated batches are SUCCESS."""
+        if not self.live:
+            return {
+                "mode": "simulated", "payout_batch_id": batch_id,
+                "batch_status": "SUCCESS", "item_status": "SUCCESS",
+                "transaction_id": None, "time_processed": None, "errors": None,
+                "final": True,
+            }
+        import requests
+
+        resp = requests.get(
+            f"{self._cfg.paypal_base_url}/v1/payments/payouts/{batch_id}",
+            headers={"Authorization": f"Bearer {self._access_token()}"},
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise PayPalError(
+                f"PayPal payout lookup failed ({resp.status_code}): {resp.text[:300]}"
+            )
+        body = resp.json()
+        header = body.get("batch_header", {})
+        items = body.get("items") or []
+        item = items[0] if items else {}
+        status = str(item.get("transaction_status") or header.get("batch_status") or "PENDING")
+        return {
+            "mode": "sandbox",
+            "payout_batch_id": header.get("payout_batch_id", batch_id),
+            "batch_status": header.get("batch_status", "PENDING"),
+            "item_status": status,
+            "transaction_id": item.get("transaction_id"),
+            "time_processed": item.get("time_processed") or header.get("time_completed"),
+            "errors": item.get("errors"),
+            "final": status in self.FINAL_OK or status in self.FINAL_FAILED,
+        }
+
+    def verify_webhook(self, headers: dict[str, str], event: dict[str, Any],
+                       webhook_id: str) -> bool:
+        """Ask PayPal whether a webhook delivery is genuine (signature over the
+        transmission). Only a verified event is acted on."""
+        if not self.live:
+            return False
+        import requests
+
+        h = {k.upper(): v for k, v in headers.items()}
+        payload = {
+            "transmission_id": h.get("PAYPAL-TRANSMISSION-ID"),
+            "transmission_time": h.get("PAYPAL-TRANSMISSION-TIME"),
+            "cert_url": h.get("PAYPAL-CERT-URL"),
+            "auth_algo": h.get("PAYPAL-AUTH-ALGO"),
+            "transmission_sig": h.get("PAYPAL-TRANSMISSION-SIG"),
+            "webhook_id": webhook_id,
+            "webhook_event": event,
+        }
+        if not all(payload[k] for k in ("transmission_id", "transmission_time",
+                                        "cert_url", "auth_algo", "transmission_sig")):
+            return False
+        resp = requests.post(
+            f"{self._cfg.paypal_base_url}/v1/notifications/verify-webhook-signature",
+            json=payload,
+            headers={"Authorization": f"Bearer {self._access_token()}",
+                     "Content-Type": "application/json"},
+            timeout=30,
+        )
+        return resp.status_code == 200 and resp.json().get("verification_status") == "SUCCESS"

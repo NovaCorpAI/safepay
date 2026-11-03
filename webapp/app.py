@@ -171,6 +171,46 @@ def reject(approval_id: str):
     return _resolve(approval_id, "reject")
 
 
+@app.post("/api/payouts/<batch_id>/settle")
+def settle(batch_id: str):
+    """Ask PayPal what happened to a released payout and append the answer to
+    the chain. The console calls this from a paid card."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    try:
+        return jsonify(_agent.settle(batch_id, source="console"))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"error": f"PayPal lookup failed: {exc}"}), 502
+
+
+@app.post("/api/paypal/webhook")
+def paypal_webhook():
+    """PayPal Payouts webhook. The delivery is verified with PayPal (signature
+    over the transmission) against PAYPAL_WEBHOOK_ID; only then is the batch
+    it names settled, and even then the state is re-read from the Payouts API
+    rather than trusted from the event body."""
+    webhook_id = (os.environ.get("PAYPAL_WEBHOOK_ID") or "").strip()
+    if not webhook_id:
+        return jsonify({"error": "webhook not configured (PAYPAL_WEBHOOK_ID)"}), 503
+    event = request.get_json(silent=True) or {}
+    if not _agent.paypal.verify_webhook(dict(request.headers), event, webhook_id):
+        return jsonify({"error": "webhook signature not verified"}), 403
+    res = event.get("resource") or {}
+    batch_id = (res.get("payout_batch_id")
+                or (res.get("batch_header") or {}).get("payout_batch_id"))
+    if not batch_id:
+        return jsonify({"ok": True, "ignored": event.get("event_type")})
+    try:
+        out = _agent.settle(batch_id, source="webhook")
+    except ValueError:
+        return jsonify({"ok": True, "ignored": "unknown batch"})
+    except Exception as exc:
+        return jsonify({"error": f"PayPal lookup failed: {exc}"}), 502
+    return jsonify({"ok": True, "status": out["status"], "duplicate": out["duplicate"]})
+
+
 @app.get("/api/audit")
 def audit():
     """The hash-chained audit log and its live verification status."""

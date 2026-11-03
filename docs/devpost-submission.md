@@ -34,9 +34,11 @@ SafePay is a payment safety guardrail. Each payment the agent wants to make runs
 three checks, cheapest and strictest first:
 
 1. Policy, deterministic. Per transaction and daily limits, allowed and blocked
-   categories, recipient allow and block lists, currency. A breach is a hard
-   block and no model call is spent. The daily cap is enforced across a burst of
-   payments, not one in isolation.
+   categories, recipient allow and block lists, currency, and an approved
+   vendor directory (each vendor's real domains and expected amount), which
+   catches a lookalike recipient and an inflated amount even when they sit
+   inside every cap. A breach is a hard block and no model call is spent. The
+   daily cap is enforced across a burst of payments, not one in isolation.
 2. Merchant verification, live web via Tavily. Pulls fresh, neutral evidence
    about the payee and judges whether there are credible fraud reports. It is a
    soft signal: it can raise a hold, never a silent block on noisy web data.
@@ -50,10 +52,13 @@ through the PayPal Payouts API (the agent sends money, no buyer redirect, fully
 backend). On hold or block the money never moves. A hold is not a dead end: it
 waits for a person, who approves it (SafePay then pays and charges the ledger)
 or rejects it, in the console or through the MCP tools, and that decision is
-appended to the chain as its own link. Every decision is appended to
-a hash-chained audit log: each record carries the hash of the one before it, so
-editing or dropping any earlier decision breaks every hash that follows, and a
-one-line verify walks the whole chain. The web console shows this ledger as an
+appended to the chain as its own link. When PayPal later reports what
+happened to a released payout (succeeded, failed, returned), SafePay appends
+that settlement to the same chain and releases the budget of a payout that
+never left, via a signature-verified webhook or on demand. Every decision is
+appended to a hash-chained audit log: each record carries the hash of the one
+before it, so editing or dropping any earlier decision breaks every hash that
+follows, and a one-line verify walks the whole chain. The web console shows this ledger as an
 interactive table with a live verification badge, and a demo button that tampers
 with a row so you can watch the badge turn red.
 
@@ -82,6 +87,14 @@ judge the evidence, rather than matching risk words. We also hardened model JSON
 parsing, since reasoning models sometimes wrap answers in thinking traces or
 split values across lines, with a tolerant parser that recovers the verdict.
 
+The guardrail is itself a target: the payee's web page and the agent's own
+purpose text both end up in a model prompt. We made the defence structural (the
+model can only tighten a verdict, never loosen a policy block) and explicit
+(text with instructions aimed at the reviewer fails the check closed before any
+model reads it, and what the model does read is delimited as data). A test
+feeds a deliberately obedient fake model a planted page and shows it never gets
+to see it.
+
 ## Accomplishments that we are proud of
 Real sandbox activity, not mocks: allowed payments produce actual PayPal payout
 batches, and the Agent Toolkit gate creates actual sandbox orders, while blocked
@@ -93,10 +106,15 @@ signed, verifiable record in a chain you can re-verify.
 
 We also measured it instead of asserting it. On a reproducible attack benchmark
 in the repo (14 realistic attacks on a wallet-holding agent, 7 legitimate
-invoices), rules alone catch 4 of 14; the full guardrail catches 12 of 14 (85%)
-with zero false positives on real vendors. The two misses, a lookalike recipient
-domain behind a real merchant name and a 10x amount on a real vendor, are
-published as the next deterministic rules rather than hidden.
+invoices), rules alone catch 6 of 14; the full guardrail catches 13 of 14
+(92%), and with the new-payee control on, 14 of 14, all with zero false
+positives on real vendors. The first version of this benchmark missed two
+attacks, a lookalike recipient domain behind a real merchant name and a 10x
+amount on a real vendor; we published them as misses, then closed both with
+the approved vendor directory, a deterministic rule that needs no model. The
+one remaining soft spot, an unknown payee with a plausible invoice, flips
+between runs because model checks are not deterministic, which is why the
+strict mode exists and is reported separately.
 
 ## What we learned
 Safety for agentic payments is a layering problem, not a single model call. The
@@ -115,8 +133,9 @@ audit chain, write-only), and we onboard the first teams by hand: their agents'
 real payouts decide what SafePay builds next.
 
 ## Built with
-python, paypal, paypal-payouts, paypal-agent-toolkit, model-context-protocol,
-nvidia-nemotron, nebius, tavily, flask, gunicorn, ag-grid, render, hmac, sha-256
+python, paypal, paypal-payouts, paypal-webhooks, paypal-agent-toolkit,
+model-context-protocol, nvidia-nemotron, nebius, tavily, flask, gunicorn,
+ag-grid, supabase, postgres, vercel, render, hmac, sha-256
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.

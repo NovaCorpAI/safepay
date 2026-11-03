@@ -1,13 +1,17 @@
 """Command-line runner for SafePay.
 
-Run a single intent from flags, or a batch from a JSON scenario file:
+Run the bundled demo, a single intent from flags, or a batch from a JSON
+scenario file:
 
-    python -m safepay --scenarios examples/scenarios.json
-    python -m safepay --recipient vendor@example.com --amount 42 \
+    safepay --demo
+    safepay --scenarios examples/scenarios.json
+    safepay --recipient vendor@example.com --amount 42 \
         --purpose "monthly API bill" --goal "pay the team's SaaS invoices"
 
-Prints a readable verdict per intent and a one-line signed stamp. With
---json it emits the full decision+audit records instead.
+(`python -m safepay` works the same.) Prints a readable verdict per intent and
+a one-line signed stamp. With --json it emits the full decision+audit records
+instead. `--demo` needs no keys: without PayPal credentials payouts are
+simulated, and the merchant and reasoning checks report themselves as skipped.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ import argparse
 import json
 import sys
 from dataclasses import fields
+from importlib import resources
 
 from .agent import SafePayAgent
 from .auditlog import AuditLog, load_records, verify_chain
@@ -67,6 +72,8 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     p = argparse.ArgumentParser(prog="safepay", description="SafePay payment guardrail")
+    p.add_argument("--demo", action="store_true",
+                   help="run the bundled demo scenarios (no keys needed)")
     p.add_argument("--scenarios", help="path to a JSON file with a list of intents")
     p.add_argument("--recipient")
     p.add_argument("--amount", type=float)
@@ -97,9 +104,13 @@ def main(argv: list[str] | None = None) -> int:
 
     intents: list[PaymentIntent] = []
     policy_override: PolicyConfig | None = None
-    if args.scenarios:
-        with open(args.scenarios, encoding="utf-8") as fh:
-            data = json.load(fh)
+    if args.demo or args.scenarios:
+        if args.demo:
+            data = json.loads(resources.files("safepay").joinpath("data/scenarios.json")
+                              .read_text(encoding="utf-8"))
+        else:
+            with open(args.scenarios, encoding="utf-8") as fh:
+                data = json.load(fh)
         if isinstance(data, dict):
             if "policy" in data:
                 pf = {f.name for f in fields(PolicyConfig)}
@@ -116,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
             task_goal=args.goal,
         )]
     else:
-        p.error("give --scenarios, or --recipient with --amount")
+        p.error("give --demo, --scenarios, or --recipient with --amount")
 
     audit_log = AuditLog(args.audit_log) if args.audit_log else None
     agent = SafePayAgent(policy=policy_override or policy, audit_log=audit_log)

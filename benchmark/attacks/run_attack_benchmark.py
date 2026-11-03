@@ -5,12 +5,16 @@ payees, lookalike recipients, amount inflation, limit breaches, slow drains,
 velocity bursts) and legitimate cases through the guardrail, and reports the
 detection rate on attacks and the false-positive rate on legit payments.
 
-Two modes, reported side by side so the numbers are honest:
+Three modes, reported side by side so the numbers are honest:
 
-- policy: deterministic rules only (no model, no web). This is what any
-  rate-limiter does; by design it misses attacks that stay inside the limits.
+- policy: deterministic rules only (no model, no web), including the approved
+  vendor directory. This is what any rate-limiter plus an allow list does; by
+  design it misses attacks that stay inside the limits and name no vendor.
 - full:   policy + live-web merchant check (Tavily) + intent reasoning
-  (Nemotron on Nebius). This is the real system.
+  (Nemotron on Nebius). This is the real system with its default policy.
+- strict: full, plus the "new payee" control (hold_unknown_vendors): a payee
+  outside the vendor directory is held for a human. What a locked-down
+  finance agent runs.
 
 Nothing is executed: the guardrail is evaluated and spend is committed to the
 in-memory ledger so sequence cases (slow drain, velocity) behave as a burst.
@@ -67,6 +71,8 @@ def load_cases(path: Path = CASES_PATH) -> dict[str, Any]:
 def build_guardrail(mode: str, policy: PolicyConfig, config: Config) -> Guardrail:
     if mode == "policy":
         return Guardrail(policy, WebSearch(None), None)
+    if mode == "strict":
+        policy = PolicyConfig(**dict(policy.to_dict(), hold_unknown_vendors=True))
     web = WebSearch(config.tavily_api_key)
     chat = NebiusChat(config) if config.nebius_live else None
     return Guardrail(policy, web, chat)
@@ -128,7 +134,9 @@ def to_markdown(runs: dict[str, dict], when: str) -> str:
     modes = list(runs)
     lines = ["# SafePay attack benchmark", "",
              f"Run: {when}. Modes: {', '.join(modes)}. Policy: per-tx 500, daily 2000, "
-             "per-recipient 600, 6 payments per hour, USD only.", "",
+             "per-recipient 600, 6 payments per hour, USD only, approved vendor directory "
+             "(domains and expected amounts for the 7 legit vendors); strict adds "
+             "hold_unknown_vendors.", "",
              "## Summary", "", "| Mode | Attacks caught | Legit allowed (no false positives) |",
              "| --- | --- | --- |"]
     for m in modes:
@@ -151,14 +159,16 @@ def to_markdown(runs: dict[str, dict], when: str) -> str:
                      + f" | {', '.join(last['caught_by']) or ''} |")
     lines += ["", "Legend: a legit case counts as allowed when no step is held or blocked; an "
               "attack counts as caught when any step is held or blocked. policy mode has no "
-              "model and no web, so within-limit attacks pass it by design; full mode is the "
-              "real system.", ""]
+              "model and no web, so within-limit attacks that name no vendor pass it by "
+              "design; full mode is the real system; strict adds the new-payee hold. The "
+              "model checks are not deterministic: run to run, a borderline case (an "
+              "unknown payee with a plausible invoice) can flip, which is why strict exists.", ""]
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="SafePay attack benchmark")
-    p.add_argument("--mode", choices=["policy", "full", "both"], default=None)
+    p.add_argument("--mode", choices=["policy", "full", "strict", "both", "all"], default=None)
     p.add_argument("--cases", default=str(CASES_PATH))
     p.add_argument("--out", default=str(Path(__file__).resolve().parent))
     args = p.parse_args(argv)
@@ -166,10 +176,10 @@ def main(argv: list[str] | None = None) -> int:
     _load_dotenv(ROOT / ".env")
     cfg = Config.from_env()
     live = cfg.nebius_live or bool(cfg.tavily_api_key)
-    mode = args.mode or ("both" if live else "policy")
-    modes = ["policy", "full"] if mode == "both" else [mode]
-    if "full" in modes and not live:
-        print("full mode needs NEBIUS_API_KEY and/or TAVILY_API_KEY; running policy only")
+    mode = args.mode or ("all" if live else "policy")
+    modes = {"both": ["policy", "full"], "all": ["policy", "full", "strict"]}.get(mode, [mode])
+    if any(m in modes for m in ("full", "strict")) and not live:
+        print("full/strict modes need NEBIUS_API_KEY and/or TAVILY_API_KEY; running policy only")
         modes = ["policy"]
 
     data = load_cases(Path(args.cases))

@@ -73,6 +73,7 @@
     background: var(--panel2); border-top: 1px solid var(--line); }
   .exec .ok { color: var(--allow); }
   .exec .no { color: var(--hold); }
+  .exec button.settle { margin-left: 8px; padding: 3px 9px; font-size: 12px; font-weight: 600; }
   .stamp { padding: 8px 16px; font-size: 12px; color: var(--muted);
     display: flex; justify-content: space-between; gap: 10px; }
   .stamp .sig { color: var(--accent); }
@@ -266,8 +267,10 @@
       <span class="nm">${esc(c.name)}</span><span class="dt">${esc(c.detail)}</span></div>`).join('');
     let exec = '';
     if (d.executed && d.execution) {
+      const b = d.execution.payout_batch_id || '';
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] ·
-        batch ${esc(d.execution.payout_batch_id || '?')} (${esc(d.execution.batch_status || '?')})</div>`;
+        batch ${esc(b || '?')} (<span class="bstat">${esc(d.execution.batch_status || '?')}</span>)
+        ${b ? `<button class="ghost settle" data-batch="${esc(b)}" title="Ask PayPal whether the money actually moved and record the answer in the chain">check settlement</button>` : ''}</div>`;
     } else if (d.verdict === 'allow' && d.execution && d.execution.error) {
       exec = `<div class="exec"><span class="no">● payout failed</span>, money did not move and the budget was not charged: ${esc(d.execution.error)}</div>`;
     } else if (d.verdict === 'hold' && r.approval_id) {
@@ -284,6 +287,27 @@
       <div class="checks">${checks}</div>
       ${exec}
       <div class="stamp"><span>${esc(r.stamp)}</span><span class="sig">${sig ? 'signed' : 'unsigned'}</span></div>`;
+    const sb = el.querySelector('button.settle');
+    if (sb) sb.onclick = () => settle(sb);
+  }
+
+  // Close the loop: what PayPal says happened to the payout, appended to the chain.
+  async function settle(btn) {
+    const line = btn.closest('.exec');
+    btn.disabled = true; btn.textContent = 'asking PayPal…';
+    try {
+      const r = await (await fetch(`/api/payouts/${encodeURIComponent(btn.dataset.batch)}/settle`, { method: 'POST' })).json();
+      if (r.error) { btn.textContent = r.error; return; }
+      const s = r.status, ok = s === 'SUCCESS';
+      const failed = ['FAILED','RETURNED','BLOCKED','DENIED','CANCELED','REFUNDED','REVERSED'].includes(s);
+      line.querySelector('.bstat').textContent = s;
+      btn.replaceWith(Object.assign(document.createElement('span'), {
+        className: ok ? 'ok' : (failed ? 'no' : 'muted'),
+        textContent: ok ? ` · settled: money moved${r.duplicate ? '' : `, chain link #${r.seq}`}`
+                   : failed ? ` · settled: ${s}, money did not move, budget released` : ` · still in flight (${s})`
+      }));
+      loadAudit();
+    } catch (e) { btn.textContent = 'network error'; btn.disabled = false; }
   }
 
   async function evaluate(intent) {
@@ -396,6 +420,7 @@
     { headerName: '#', field: 'seq', width: 70, sort: 'asc' },
     { headerName: 'Time', field: 'time', width: 110 },
     { headerName: 'Verdict', field: 'verdict', width: 120, cellRenderer: verdictRenderer },
+    { headerName: 'Link', field: 'event', width: 110 },
     { headerName: 'Amount', field: 'amount', width: 120,
       valueFormatter: p => p.value == null ? '' : 'USD ' + Number(p.value).toFixed(2) },
     { headerName: 'Recipient', field: 'recipient', flex: 1, minWidth: 180 },
@@ -411,7 +436,7 @@
       const p = r.payload || {}, i = p.intent || {};
       return {
         seq: p.seq, time: new Date((p.ts || 0) * 1000).toLocaleTimeString(),
-        verdict: p.verdict, amount: i.amount, recipient: i.recipient,
+        verdict: p.verdict, event: p.event || 'decision', amount: i.amount, recipient: i.recipient,
         category: i.category, risk: p.risk, executed: p.executed,
         signed: !!(r.signature && r.signature.signed), hash: (r.sha256 || '').slice(0, 10),
       };

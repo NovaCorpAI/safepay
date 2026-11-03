@@ -2,8 +2,42 @@
   "policy": {
     "per_tx_limit": 500.0,
     "daily_limit": 1000.0,
-    "allowed_currencies": ["USD"],
-    "hold_on_soft_risk": true
+    "allowed_currencies": [
+      "USD"
+    ],
+    "hold_on_soft_risk": true,
+    "vendors": {
+      "Notion": {
+        "domains": [
+          "notion.so"
+        ],
+        "expected_amount": 48,
+        "aliases": [
+          "Notion Labs"
+        ]
+      },
+      "Amazon Web Services": {
+        "domains": [
+          "amazon.com"
+        ],
+        "aliases": [
+          "AWS"
+        ]
+      },
+      "Google Cloud": {
+        "domains": [
+          "google.com"
+        ]
+      },
+      "Microsoft Azure": {
+        "domains": [
+          "microsoft.com"
+        ],
+        "aliases": [
+          "Microsoft"
+        ]
+      }
+    }
   },
   "intents": [
     {
@@ -14,6 +48,17 @@
       "purpose": "monthly Notion team subscription",
       "merchant_name": "Notion Labs",
       "merchant_url": "https://www.notion.so",
+      "agent_id": "ops-agent-7",
+      "task_goal": "Pay the team's approved software and cloud invoices for this month."
+    },
+    {
+      "recipient": "billing@notion-payments.example",
+      "amount": 48.0,
+      "currency": "USD",
+      "category": "software",
+      "purpose": "monthly Notion team subscription (updated billing address)",
+      "merchant_name": "Notion Labs",
+      "merchant_url": null,
       "agent_id": "ops-agent-7",
       "task_goal": "Pay the team's approved software and cloud invoices for this month."
     },
