@@ -88,6 +88,13 @@ demo it holds a payment to an attacker that sat inside every spending limit,
 while allowing the real invoice. And every decision, allowed or blocked, leaves a
 signed, verifiable record in a chain you can re-verify.
 
+We also measured it instead of asserting it. On a reproducible attack benchmark
+in the repo (14 realistic attacks on a wallet-holding agent, 7 legitimate
+invoices), rules alone catch 4 of 14; the full guardrail catches 12 of 14 (85%)
+with zero false positives on real vendors. The two misses, a lookalike recipient
+domain behind a real merchant name and a 10x amount on a real vendor, are
+published as the next deterministic rules rather than hidden.
+
 ## What we learned
 Safety for agentic payments is a layering problem, not a single model call. The
 cheap deterministic rules should run first and stop the obvious cases for free;
