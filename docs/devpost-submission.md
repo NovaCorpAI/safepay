@@ -108,11 +108,13 @@ nvidia-nemotron, nebius, tavily, flask, gunicorn, ag-grid, render, hmac, sha-256
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.
 Sponsor: Best Use of AG Grid (the audit ledger is an interactive AG Grid table
-with a live hash-chain verification badge); Best Use of Render (the web console
-deploys from the included render.yaml blueprint).
+with a live hash-chain verification badge); Best Use of Render (a live instance
+of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
+from the included render.yaml blueprint with gunicorn).
 
 ## Links
 - Repo: https://github.com/NovaCorpAI/safepay
 - Demo video: (YouTube link, under 3 min, to add)
 - Live demo: https://safepay.agentposhq.com (no login, no setup)
+- Render instance: https://safepay-ygzp.onrender.com (same console, Render blueprint)
 - Run it yourself: `python webapp/app.py` per the README

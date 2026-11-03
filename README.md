@@ -85,11 +85,12 @@ chain break turn the badge red, and "Verify chain" re-checks it.
 
 **Live: https://safepay.agentposhq.com** (no login, no local setup). It runs on
 Vercel from this repo (`api/index.py` + `vercel.json`); every push to `master`
-redeploys. The same console also deploys to Render: `render.yaml` is a Render
-blueprint and `wsgi.py` is the gunicorn entry point (New > Blueprint, point it at
-this repo). Set the secret values (PayPal, Nebius, Tavily, signing key) as
-environment variables on the host; without the PayPal keys it runs in simulated
-mode. Locally the same server runs with `gunicorn -w 1 -b 0.0.0.0:8000 wsgi:app`.
+redeploys. A second live instance runs on Render from the included blueprint:
+**https://safepay-ygzp.onrender.com** (`render.yaml` + the gunicorn entry point
+`wsgi.py`; free plan, so it may take up to a minute to wake after idling). Set
+the secret values (PayPal, Nebius, Tavily, signing key) as environment variables
+on the host; without the PayPal keys it runs in simulated mode. Locally the same
+server runs with `gunicorn -w 1 -b 0.0.0.0:8000 wsgi:app`.
 
 ### Single intent from the command line
 
