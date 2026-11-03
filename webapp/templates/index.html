@@ -121,6 +121,16 @@
   .v-allow { color: var(--allow); background: var(--allow-bg); }
   .v-hold { color: var(--hold); background: var(--hold-bg); }
   .v-block { color: var(--block); background: var(--block-bg); }
+
+  /* Early access */
+  .early { margin-top: 34px; border-color: rgba(79,140,255,.35); }
+  .early p { margin: 0 0 6px; max-width: 70ch; }
+  .early .row2 { align-items: end; }
+  .early .note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+  .early .msg { font-size: 14px; margin: 12px 0 0; min-height: 1.5em; }
+  .early .msg.ok { color: var(--allow); }
+  .early .msg.bad { color: var(--block); }
+  .early a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -190,6 +200,31 @@
       <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history.{% if tamper_demo %} "Tamper (demo)" shows what verification reports if a row were edited (on a copy; the stored chain is never touched), and "Verify chain" re-checks the real one.{% endif %}</p>
     </div>
     <div id="audit-grid" class="ag-theme-quartz-dark"></div>
+  </section>
+
+  <section class="card early" id="early">
+    <h2>Early access</h2>
+    <p>SafePay is open source (<a href="https://github.com/NovaCorpAI/safepay" target="_blank" rel="noopener">github.com/NovaCorpAI/safepay</a>). If your agents already pay vendors, or are about to, we will put this guardrail in front of their PayPal payouts with you, by hand, and shape the product around what breaks.</p>
+    <form id="early-form" novalidate>
+      <div class="row2">
+        <div><label for="e-email">Work email</label><input id="e-email" type="email" autocomplete="email" placeholder="you@company.com" required></div>
+        <div><label for="e-company">Company (optional)</label><input id="e-company" autocomplete="organization" placeholder="Acme"></div>
+      </div>
+      <div class="row2">
+        <div><label for="e-use">What does your agent pay for? (optional)</label><input id="e-use" placeholder="SaaS invoices, contractor payouts, ad spend…"></div>
+        <div><label for="e-vol">Monthly volume</label>
+          <select id="e-vol">
+            <option value="unknown">Not sure yet</option>
+            <option value="under_1k">Under USD 1,000</option>
+            <option value="1k_10k">USD 1,000 to 10,000</option>
+            <option value="10k_100k">USD 10,000 to 100,000</option>
+            <option value="over_100k">Over USD 100,000</option>
+          </select></div>
+      </div>
+      <div class="btns"><button class="primary" type="submit" id="early-submit">Request early access</button></div>
+      <p class="msg" id="early-msg" aria-live="polite"></p>
+      <p class="note">Stored in SafePay's own database and used only to contact you about SafePay. No newsletter.</p>
+    </form>
   </section>
 </div>
 
@@ -422,6 +457,43 @@
   }
   loadAudit();
   loadApprovals();
+
+  // --- Early access (write-only POST; nothing on the page lists sign-ups) ---
+  const earlyForm = document.getElementById('early-form');
+  const earlyMsg = document.getElementById('early-msg');
+  earlyForm.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const btn = document.getElementById('early-submit');
+    earlyMsg.className = 'msg';
+    earlyMsg.textContent = '';
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/api/early-access', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          email: document.getElementById('e-email').value,
+          company: document.getElementById('e-company').value,
+          use_case: document.getElementById('e-use').value,
+          monthly_volume: document.getElementById('e-vol').value,
+        })
+      });
+      const r = await resp.json();
+      if (r.ok) {
+        earlyMsg.className = 'msg ok';
+        earlyMsg.textContent = r.new ? 'Thanks. We will reach out within a few days.'
+                                     : 'You are already on the list. We updated your details.';
+        earlyForm.reset();
+      } else {
+        earlyMsg.className = 'msg bad';
+        earlyMsg.textContent = r.error || 'could not save, try again';
+      }
+    } catch (e) {
+      earlyMsg.className = 'msg bad';
+      earlyMsg.textContent = 'network error, try again';
+    } finally {
+      btn.disabled = false;
+    }
+  };
 </script>
 </body>
 </html>

@@ -109,7 +109,10 @@ SafePay already runs as an MCP server, so any MCP agent (Claude Desktop, Cursor,
 an agent framework) can install it as a spending gate with no code. Next: anchor
 the audit chain head to a public ledger so the record of every agent payment
 decision is independently verifiable, and ship the same gate for the PayPal MCP
-server and the Agent Toolkit's other framework adapters.
+server and the Agent Toolkit's other framework adapters. The hosted console
+already takes early-access sign-ups (stored in the same Supabase project as the
+audit chain, write-only), and we onboard the first teams by hand: their agents'
+real payouts decide what SafePay builds next.
 
 ## Built with
 python, paypal, paypal-payouts, paypal-agent-toolkit, model-context-protocol,

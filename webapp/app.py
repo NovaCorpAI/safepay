@@ -47,6 +47,7 @@ from flask import Flask, jsonify, request, render_template  # noqa: E402
 from safepay.agent import SafePayAgent  # noqa: E402
 from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
+from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
 from dataclasses import fields  # noqa: E402
 
@@ -69,6 +70,11 @@ _agent = SafePayAgent(policy=_policy)
 def _reset_agent() -> None:
     global _agent
     _agent = SafePayAgent(policy=_policy)
+
+
+# Early-access sign-ups. Same backend rule as the agent's state: Supabase when
+# configured (shared, survives redeploys), memory otherwise. Never reset.
+_leads = lead_store_from_config(Config.from_env())
 
 
 # Light per-IP rate limit so a public demo instance cannot be hammered into
@@ -177,6 +183,23 @@ def audit():
         "head": log.head,
         "records": log.records,
     })
+
+
+@app.post("/api/early-access")
+def early_access():
+    """Store an early-access sign-up. Write-only: nothing lists the leads."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    try:
+        lead = normalize_lead(request.get_json(silent=True) or {})
+    except LeadError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    lead["source"] = "console"
+    try:
+        new = _leads.add(lead)
+    except Exception:
+        return jsonify({"ok": False, "error": "could not save right now, try again"}), 503
+    return jsonify({"ok": True, "new": new})
 
 
 def _tamper_demo_enabled() -> bool:

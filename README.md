@@ -265,6 +265,12 @@ the service role key, kept server-side, can touch them). The console shows
 `state: durable (Supabase)` when it is on. The audit chain is never deleted;
 "Reset ledger" in the console starts a new run id for the demo agents instead.
 
+The console also has an **Early access** form (`POST /api/early-access`) for
+teams that want SafePay in front of their own agents' payouts. Sign-ups go to
+the same backend (`safepay_leads`, upserted on email, in memory without
+Supabase). The endpoint is write-only: nothing public lists them, and the
+form says exactly what the data is used for.
+
 ## Tamper-evident audit chain
 
 Every decision is appended to a hash-chained log: each record carries `prev`,

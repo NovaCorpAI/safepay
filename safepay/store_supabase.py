@@ -82,6 +82,13 @@ class PostgREST:
         return self._request("PATCH", table, params=params, body=data,
                              prefer="return=representation")
 
+    def upsert(self, table: str, row: dict, params: dict | None = None) -> dict:
+        """Insert, or update the existing row on the unique column named in
+        params["on_conflict"] (PostgREST's merge-duplicates resolution)."""
+        rows = self._request("POST", table, params=params, body=row,
+                             prefer="resolution=merge-duplicates,return=representation")
+        return rows[0] if rows else row
+
 
 def _day_start(now: float | None = None) -> float:
     now = time.time() if now is None else now
