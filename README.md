@@ -177,6 +177,7 @@ first. The `mcp` package is optional; the core package and tests never need it.
 | `SAFEPAY_AUDIT_LOG` | Persist the hash-chained log to this JSONL file | Log is in-memory only |
 | `SAFEPAY_EXECUTE` | `simulate`/`0`/`false` evaluates without moving money (budget still charged) | ALLOW executes the payout |
 | `SAFEPAY_RATE_LIMIT` | Max web-console evaluations per IP per minute | 30 |
+| `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Durable, shared audit chain, ledger and approvals | In-memory state |
 
 Get PayPal sandbox keys at `developer.paypal.com` > Apps & Credentials >
 Sandbox > Create App. The host is pinned to the sandbox in `config.py`; SafePay
@@ -244,6 +245,25 @@ from anywhere. Approving releases the payment and charges the spend ledger, so
 the daily and per-recipient caps reflect real spend; rejecting moves nothing.
 Both outcomes are appended to the audit chain as their own link, so "who
 approved this agent payment, and when" is provable.
+
+## Durable state (Supabase)
+
+By default the spend ledger, the audit chain and the approval queue live in
+memory, which is fine locally and in tests but not for a hosted service: a
+restart loses them, and on a serverless host each instance would keep its own
+copy. Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` and all three persist
+in Supabase and are shared by every instance:
+
+- the chain is appended against the head stored in the database (`seq` is the
+  primary key, so two instances can never both claim the same link),
+- the daily cap, per-recipient cap and velocity rule are computed from real
+  history over a true UTC day,
+- approvals survive restarts and resolve atomically.
+
+Create the tables once with `supabase/schema.sql` (RLS on, no policies: only
+the service role key, kept server-side, can touch them). The console shows
+`state: durable (Supabase)` when it is on. The audit chain is never deleted;
+"Reset ledger" in the console starts a new run id for the demo agents instead.
 
 ## Tamper-evident audit chain
 

@@ -47,11 +47,11 @@ def test_evaluate_appends_to_chain(client):
     assert a["ok"] is True and a["count"] == 1
 
 
-def test_tamper_breaks_then_reset_clears(client):
+def test_tamper_is_simulated_on_a_copy(client):
     _evaluate(client)
     _evaluate(client)
     t = client.post("/api/audit/tamper").get_json()
-    assert t["ok"] is False                   # tamper is caught
-    assert client.get("/api/audit").get_json()["ok"] is False
+    assert t["ok"] is False and t["simulated"] is True     # the copy fails verification
+    assert client.get("/api/audit").get_json()["ok"] is True  # the stored chain is intact
     client.post("/api/reset")
-    assert client.get("/api/audit").get_json()["count"] == 0
+    assert client.get("/api/audit").get_json()["count"] == 0  # in-memory store only

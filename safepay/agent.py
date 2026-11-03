@@ -35,14 +35,29 @@ class SafePayAgent:
         self.policy = policy or PolicyConfig()
         web = WebSearch(self.config.tavily_api_key)
         chat = NebiusChat(self.config) if self.config.nebius_live else None
-        self.guardrail = Guardrail(self.policy, web, chat)
+
+        # State that must outlive a request: the spend ledger, the audit chain
+        # and the approval queue. With a Supabase project configured they
+        # persist there and are shared by every instance of the service;
+        # otherwise they live in memory (local runs, tests), with the audit
+        # chain optionally mirrored to the file in SAFEPAY_AUDIT_LOG.
+        if self.config.supabase_live:
+            from .store_supabase import (
+                PostgREST, SupabaseApprovalQueue, SupabaseAuditLog, SupabaseSpendLedger,
+            )
+            db = PostgREST(self.config.supabase_url, self.config.supabase_key)
+            ledger = SupabaseSpendLedger(db)
+            self.audit_log = audit_log or SupabaseAuditLog(db)
+            self.approvals = SupabaseApprovalQueue(db)
+            self.store = "supabase"
+        else:
+            ledger = None  # Guardrail builds an in-memory SpendLedger
+            self.audit_log = audit_log or AuditLog(os.environ.get("SAFEPAY_AUDIT_LOG"))
+            self.approvals = ApprovalQueue()
+            self.store = "memory"
+
+        self.guardrail = Guardrail(self.policy, web, chat, ledger=ledger)
         self.paypal = PayPalClient(self.config)
-        # Every decision is appended to a hash-chained audit log. A given log is
-        # used if passed; otherwise one is built, backed by the file in
-        # SAFEPAY_AUDIT_LOG when that is set, or in-memory only.
-        self.audit_log = audit_log or AuditLog(os.environ.get("SAFEPAY_AUDIT_LOG"))
-        # HOLD decisions wait here for a human; see approve()/reject().
-        self.approvals = ApprovalQueue()
 
     def _release(self, decision: Decision) -> None:
         """Execute an ALLOW decision's payment and charge the ledger."""

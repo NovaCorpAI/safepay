@@ -28,6 +28,15 @@ class Config:
     paypal_client_id: str | None
     paypal_secret: str | None
     paypal_base_url: str
+    supabase_url: str | None = None
+    supabase_key: str | None = None
+
+    @property
+    def supabase_live(self) -> bool:
+        """True when a Supabase project is configured: the audit chain, the
+        spend ledger and the approval queue then persist there, shared across
+        every instance of the service."""
+        return bool(self.supabase_url and self.supabase_key)
 
     @property
     def paypal_live(self) -> bool:
@@ -62,4 +71,8 @@ class Config:
             paypal_base_url=_getenv(
                 "PAYPAL_BASE_URL", "https://api-m.sandbox.paypal.com"
             ),
+            supabase_url=_getenv("SUPABASE_URL"),
+            # The service role key: it bypasses RLS, so it stays server-side
+            # only (never in the browser).
+            supabase_key=_getenv("SUPABASE_SERVICE_ROLE_KEY") or _getenv("SUPABASE_KEY"),
         )

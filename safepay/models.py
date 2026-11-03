@@ -8,7 +8,7 @@ cleanly into the signed audit trail and the demo UI.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, fields, asdict
 from enum import Enum
 from typing import Any
 
@@ -50,6 +50,11 @@ class PaymentIntent:
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "PaymentIntent":
+        names = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in d.items() if k in names})
+
 
 @dataclass
 class CheckResult:
@@ -67,6 +72,14 @@ class CheckResult:
         d = asdict(self)
         d["severity"] = self.severity.value
         return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "CheckResult":
+        return cls(
+            name=d["name"], passed=bool(d["passed"]),
+            severity=Severity(d.get("severity", "info")), detail=d.get("detail", ""),
+            risk=float(d.get("risk", 0.0)), evidence=list(d.get("evidence") or []),
+        )
 
 
 @dataclass
@@ -96,6 +109,17 @@ class Decision:
             "executed": self.executed,
             "execution": self.execution,
         }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "Decision":
+        return cls(
+            verdict=Verdict(d["verdict"]),
+            intent=PaymentIntent.from_dict(d["intent"]),
+            checks=[CheckResult.from_dict(c) for c in d.get("checks") or []],
+            reasons=list(d.get("reasons") or []),
+            executed=bool(d.get("executed", False)),
+            execution=d.get("execution"),
+        )
 
 
 @dataclass

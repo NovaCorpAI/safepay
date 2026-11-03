@@ -92,17 +92,24 @@ def verify_chain(
     """Walk a chain of records. Each must verify on its own (hash, and HMAC when
     signed), link to the previous record's hash, and sit at the expected seq.
 
-    Returns (True, None) for an intact chain, or (False, i) naming the index of
-    the first record that fails, so a tampered or dropped record is pinpointed.
+    Returns (True, None) for an intact chain, or (False, seq) naming the first
+    record that fails, so a tampered or dropped record is pinpointed. The list
+    may be a window of a longer chain (a persistent store returns the most
+    recent records): the first record then anchors the check at its own `seq`
+    and `prev`, and every later record must link to the one before it.
     """
-    prev = GENESIS
+    if not records:
+        return True, None
+    first = records[0].get("payload", {})
+    base = int(first.get("seq", 0) or 0)
+    prev = first.get("prev", GENESIS)
     for i, rec in enumerate(records):
         if not attest.verify_record(rec, key):
-            return False, i
+            return False, base + i
         payload = rec.get("payload", {})
         if payload.get("prev") != prev:
-            return False, i
-        if payload.get("seq") != i:
-            return False, i
+            return False, base + i
+        if payload.get("seq") != base + i:
+            return False, base + i
         prev = rec.get("sha256", "")
     return True, None

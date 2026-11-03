@@ -15,6 +15,7 @@ Run:
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import sys
@@ -44,6 +45,7 @@ _load_dotenv(ROOT / ".env")
 from flask import Flask, jsonify, request, render_template  # noqa: E402
 
 from safepay.agent import SafePayAgent  # noqa: E402
+from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
 from dataclasses import fields  # noqa: E402
@@ -101,6 +103,7 @@ def index():
         tavily_on=bool(cfg.tavily_api_key),
         policy=_policy.to_dict(),
         tamper_demo=_tamper_demo_enabled(),
+        store=_agent.store,
     )
 
 
@@ -129,8 +132,14 @@ def evaluate():
 
 @app.get("/api/approvals")
 def approvals():
-    """Payments a human still has to approve or reject."""
+    """Payments a human still has to approve or reject. With ?run=<id> only
+    the current console run's agents are shown (their agent_id ends in :<id>),
+    so a persistent queue does not surface other sessions' holds."""
+    run = (request.args.get("run") or "").strip()
     pending = _agent.pending_approvals()
+    if run:
+        pending = [a for a in pending
+                   if str(a["decision"]["intent"].get("agent_id", "")).endswith(":" + run)]
     return jsonify({"count": len(pending), "pending": pending})
 
 
@@ -178,12 +187,13 @@ def _tamper_demo_enabled() -> bool:
 
 @app.post("/api/audit/tamper")
 def audit_tamper():
-    """Demo only: edit a record in place without re-hashing, to show the chain
-    verification catch it. 'Reset ledger' rebuilds a clean chain. Disable with
-    SAFEPAY_TAMPER_DEMO=off."""
+    """Demo only: show what verification reports if a record were edited. It
+    works on a COPY of the chain, so the stored history stays intact (an audit
+    log must never be mutated); 'Verify chain' re-checks the real one. Disable
+    with SAFEPAY_TAMPER_DEMO=off."""
     if not _tamper_demo_enabled():
         return jsonify({"error": "tamper demo disabled"}), 403
-    recs = _agent.audit_log.records
+    recs = copy.deepcopy(_agent.audit_log.records)
     if not recs:
         return jsonify({"error": "no records to tamper with"}), 400
     i = len(recs) // 2          # a record in the middle, so the break is visible
@@ -191,8 +201,16 @@ def audit_tamper():
         recs[i]["payload"]["intent"]["amount"] = 0.01   # forge a smaller amount
     except Exception:
         return jsonify({"error": "could not tamper"}), 500
-    ok, bad = _agent.audit_log.verify()
-    return jsonify({"tampered_index": i, "ok": ok, "first_bad_seq": bad})
+    ok, bad = verify_chain(recs)
+    return jsonify({
+        "simulated": True,
+        "tampered_seq": recs[i]["payload"].get("seq", i),
+        "ok": ok,
+        "first_bad_seq": bad,
+        "count": len(recs),
+        "head": _agent.audit_log.head,
+        "records": recs,
+    })
 
 
 if __name__ == "__main__":

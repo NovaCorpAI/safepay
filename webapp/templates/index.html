@@ -131,6 +131,7 @@
       <span class="chip on">PayPal: {{ paypal_mode }}</span>
       <span class="chip {{ 'on' if nebius_on else 'off' }}">Nemotron reasoning: {{ 'on' if nebius_on else 'off' }}</span>
       <span class="chip {{ 'on' if tavily_on else 'off' }}">Tavily web verify: {{ 'on' if tavily_on else 'off' }}</span>
+      <span class="chip {{ 'on' if store == 'supabase' else 'off' }}" title="Where the audit chain, spend ledger and approvals live">state: {{ 'durable (Supabase)' if store == 'supabase' else 'in memory' }}</span>
     </div>
   </header>
 
@@ -185,7 +186,7 @@
         <button class="danger" id="tamper-chain">Tamper (demo)</button>
         {% endif %}
       </div>
-      <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history.{% if tamper_demo %} "Tamper (demo)" edits a row in place to show the break; "Reset ledger" rebuilds a clean chain.{% endif %}</p>
+      <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history.{% if tamper_demo %} "Tamper (demo)" shows what verification reports if a row were edited (on a copy; the stored chain is never touched), and "Verify chain" re-checks the real one.{% endif %}</p>
     </div>
     <div id="audit-grid" class="ag-theme-quartz-dark"></div>
   </section>
@@ -194,6 +195,12 @@
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
 <script>
   const POLICY = {{ policy | tojson }};
+  // Each console run gets its own id. The spend ledger is per agent, so
+  // namespacing the agent id isolates a run's daily cap from earlier runs when
+  // state is durable; the audit chain itself is global and never reset.
+  const newRun = () => Math.random().toString(36).slice(2, 8);
+  let RUN = newRun();
+  const runAgent = base => `${base || 'agent'}:${RUN}`;
   (function initPolicy() {
     document.getElementById('p-tx').textContent = 'USD ' + POLICY.per_tx_limit.toFixed(2);
     document.getElementById('p-day').textContent = 'USD ' + POLICY.daily_limit.toFixed(2);
@@ -246,7 +253,7 @@
     try {
       const resp = await fetch('/api/evaluate', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(intent)
+        body: JSON.stringify({ ...intent, agent_id: runAgent(intent.agent_id) })
       });
       render(el, await resp.json());
     } catch (e) {
@@ -264,6 +271,7 @@
 
   document.getElementById('run-demo').onclick = async () => {
     setBusy(true);
+    RUN = newRun();
     await fetch('/api/reset', {method: 'POST'});
     results.innerHTML = '';
     const data = await (await fetch('/api/scenarios')).json();
@@ -290,6 +298,7 @@
   };
 
   document.getElementById('reset').onclick = async () => {
+    RUN = newRun();
     await fetch('/api/reset', {method: 'POST'});
     results.innerHTML = '';
     loadAudit();
@@ -299,7 +308,7 @@
   // --- Pending approvals (human in the loop over /api/approvals) ---
   async function loadApprovals() {
     let data;
-    try { data = await (await fetch('/api/approvals')).json(); } catch (e) { return; }
+    try { data = await (await fetch('/api/approvals?run=' + encodeURIComponent(RUN))).json(); } catch (e) { return; }
     const sec = document.getElementById('approvals');
     const list = document.getElementById('apr-list');
     const cnt = document.getElementById('apr-count');
@@ -378,12 +387,11 @@
       el.textContent = '✓ chain verified — ' + data.count + ' records intact';
     } else {
       el.className = 'status bad';
-      el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq;
+      el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq
+        + (data.simulated ? ' (simulated on a copy; the stored chain is intact, press Verify chain)' : '');
     }
   }
-  async function loadAudit() {
-    let data;
-    try { data = await (await fetch('/api/audit')).json(); } catch (e) { return; }
+  function showAudit(data) {
     const rows = auditRows(data);
     if (!auditApi) {
       auditApi = agGrid.createGrid(document.getElementById('audit-grid'), {
@@ -395,12 +403,18 @@
     }
     setStatus(data);
   }
+  async function loadAudit() {
+    let data;
+    try { data = await (await fetch('/api/audit')).json(); } catch (e) { return; }
+    showAudit(data);
+  }
   document.getElementById('verify-chain').onclick = loadAudit;
   const tamperBtn = document.getElementById('tamper-chain');
   if (tamperBtn) {
     tamperBtn.onclick = async () => {
-      await fetch('/api/audit/tamper', { method: 'POST' });
-      await loadAudit();
+      let r;
+      try { r = await (await fetch('/api/audit/tamper', { method: 'POST' })).json(); } catch (e) { return; }
+      if (r && r.records) showAudit(r);   // the tampered copy; Verify chain reloads the real one
     };
   }
   loadAudit();
