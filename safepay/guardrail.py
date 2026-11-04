@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .attest import policy_hash
 from .control import PAUSED
 from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
@@ -43,6 +44,7 @@ class Guardrail:
         this call (the console applies a per-run policy that way)."""
         checks: list[CheckResult] = []
         rules = policy or self.policy
+        ph = policy_hash(rules)
 
         # 0. Is this agent allowed to ask at all? An operator's pause is the
         # one rule that beats every other: nothing is evaluated, nothing moves.
@@ -56,7 +58,7 @@ class Guardrail:
                     risk=1.0, evidence=[{"rule": "agent_paused", "status": PAUSED}],
                 ))
                 return Decision(verdict=Verdict.BLOCK, intent=intent, checks=checks,
-                                reasons=[f"agent: {checks[0].detail}"])
+                                reasons=[f"agent: {checks[0].detail}"], policy_hash=ph)
 
         # 1. Hard rules first. A failure here is final.
         pol = check_policy(intent, rules, self.ledger)
@@ -67,6 +69,7 @@ class Guardrail:
                 intent=intent,
                 checks=checks,
                 reasons=[f"policy: {pol.detail}"],
+                policy_hash=ph,
             )
 
         # 2. Soft signals: live-web merchant check and model reasoning.
@@ -110,6 +113,7 @@ class Guardrail:
                 intent=intent,
                 checks=checks,
                 reasons=["all checks passed"],
+                policy_hash=ph,
             )
 
         reasons = [f"{c.name}: {c.detail}" for c in soft_failed]
@@ -121,7 +125,8 @@ class Guardrail:
             verdict = Verdict.HOLD
         else:
             verdict = Verdict.ALLOW
-        return Decision(verdict=verdict, intent=intent, checks=checks, reasons=reasons)
+        return Decision(verdict=verdict, intent=intent, checks=checks, reasons=reasons,
+                        policy_hash=ph)
 
     def commit_spend(self, decision: Decision) -> None:
         """Record auto-approved spend so the caps hold across a burst of intents.

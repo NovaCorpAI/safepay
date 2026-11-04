@@ -207,6 +207,7 @@
     <div class="card">
       <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this run</span></h2>
       <ul class="rules" id="p-rules"></ul>
+      <p class="src" style="font-size:12px;color:var(--muted);margin:10px 0 0" title="sha256 of these rules; every decision in the ledger carries the hash of the policy it was judged under">rules hash <code id="p-hash"></code></p>
     </div>
 
     <div class="card">
@@ -294,6 +295,7 @@
 <script>
   const POLICY = {{ policy | tojson }};
   const DEFAULT_RULES = {{ rules | tojson }};
+  const DEFAULT_HASH = {{ policy_hash | tojson }};
   // Each console run gets its own id. The spend ledger is per agent, so
   // namespacing the agent id isolates a run's daily cap from earlier runs when
   // state is durable; the audit chain itself is global and never reset. The
@@ -306,16 +308,18 @@
 
   // --- Policy in plain words ---
   let APPLIED = null;   // the policy dict applied to this session, re-applied to each new run
-  function showRules(rules, custom) {
+  function showRules(rules, custom, hash) {
     document.getElementById('p-rules').innerHTML = (rules || []).map(r => `<li>${esc(r)}</li>`).join('');
     document.getElementById('p-custom').hidden = !custom;
+    document.getElementById('p-hash').textContent = (hash || DEFAULT_HASH || '').slice(0, 12);
   }
-  showRules(DEFAULT_RULES, false);
+  showRules(DEFAULT_RULES, false, DEFAULT_HASH);
   const polMsg = (text, cls) => { const m = document.getElementById('policy-msg'); m.className = 'msg ' + (cls || ''); m.textContent = text; };
   async function applyPolicy(policy, quiet) {
     const r = await (await fetch('/api/policy/apply', { method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ run: RUN, policy }) })).json();
-    if (r.ok) { APPLIED = r.policy; showRules(r.rules, true); if (!quiet) polMsg('Applied to this run. Every payment below is judged by these rules.', 'ok'); }
+    if (r.ok) { APPLIED = r.policy; showRules(r.rules, true, r.policy_hash); loadAudit();
+      if (!quiet) polMsg(`Applied to this run and chained as link #${r.seq}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
     else if (!quiet) polMsg(r.error || 'could not apply', 'bad');
     return r;
   }
@@ -347,9 +351,10 @@
     try {
       const r = await (await fetch('/api/policy/reset', { method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ run: RUN }) })).json();
-      APPLIED = null; showRules(r.rules || DEFAULT_RULES, false);
+      APPLIED = null; showRules(r.rules || DEFAULT_RULES, false, r.policy_hash);
       document.getElementById('policy-draft-box').classList.remove('show');
-      polMsg('Back to the default policy for this run.', 'ok');
+      polMsg(r.seq != null ? `Back to the default policy for this run (chained as link #${r.seq}).` : 'Back to the default policy for this run.', 'ok');
+      loadAudit();
     } catch (e) { polMsg('network error', 'bad'); }
   };
   async function startRun() {
@@ -569,6 +574,7 @@
       valueFormatter: p => p.value == null ? '' : Number(p.value).toFixed(2) },
     { headerName: 'Paid', field: 'executed', width: 90, valueFormatter: p => p.value ? 'yes' : 'no' },
     { headerName: 'Signed', field: 'signed', width: 100, valueFormatter: p => p.value ? 'signed' : 'unsigned' },
+    { headerName: 'Policy', field: 'policy', width: 110, headerTooltip: 'hash of the rules this link was judged under' },
     { headerName: 'Hash', field: 'hash', width: 120 },
   ];
   function auditRows(data) {
@@ -579,6 +585,7 @@
         verdict: p.verdict, event: p.event || 'decision', amount: i.amount, recipient: i.recipient,
         category: i.category, risk: p.risk, executed: p.executed,
         signed: !!(r.signature && r.signature.signed), hash: (r.sha256 || '').slice(0, 10),
+        policy: (p.policy_hash || '').slice(0, 8),
       };
     });
   }

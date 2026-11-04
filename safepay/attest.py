@@ -31,6 +31,15 @@ def _canonical(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def policy_hash(policy: Any) -> str:
+    """The fingerprint of a set of rules: sha256 over the canonical policy
+    dict. A decision carries the hash of the policy it was judged under, and
+    applying a policy writes a chain link with the same hash, so an auditor
+    can prove which rules were in force for any payment."""
+    data = policy.to_dict() if hasattr(policy, "to_dict") else dict(policy or {})
+    return hashlib.sha256(_canonical(data)).hexdigest()
+
+
 def audit_record(
     decision: Decision, prev: str | None = None, seq: int | None = None
 ) -> dict[str, Any]:
@@ -57,6 +66,9 @@ def audit_record(
         # settlements existed keeps the exact bytes it was hashed over.
         payload["event"] = decision.event
         payload["reasons"] = list(decision.reasons)
+    if decision.policy_hash:
+        # Same rule: written only when known, so older records are untouched.
+        payload["policy_hash"] = decision.policy_hash
     if prev is not None:
         payload["prev"] = prev
     if seq is not None:

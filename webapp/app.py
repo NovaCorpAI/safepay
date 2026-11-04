@@ -45,6 +45,7 @@ _load_dotenv(ROOT / ".env")
 from flask import Flask, jsonify, request, render_template  # noqa: E402
 
 from safepay.agent import SafePayAgent  # noqa: E402
+from safepay.attest import policy_hash  # noqa: E402
 from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
@@ -111,6 +112,7 @@ def index():
         telegram_on=cfg.telegram_live,
         policy=_policy.to_dict(),
         rules=describe_policy(_policy),
+        policy_hash=policy_hash(_policy),
         tamper_demo=_tamper_demo_enabled(),
         store=_agent.store,
     )
@@ -161,7 +163,8 @@ def policy_in_force():
     run = (request.args.get("run") or "")[:16].strip()
     pol = _agent.policy_for(f"console:{run}") if run else _policy
     return jsonify({"run": run, "custom": pol.to_dict() != _policy.to_dict(),
-                    "policy": pol.to_dict(), "rules": describe_policy(pol)})
+                    "policy": pol.to_dict(), "rules": describe_policy(pol),
+                    "policy_hash": policy_hash(pol)})
 
 
 @app.post("/api/policy/reset")

@@ -141,19 +141,48 @@ class SafePayAgent:
         base = self.policy_for(f"console:{run}") if run else self.policy
         return draft_policy(text, self.guardrail.chat, base)
 
-    def apply_policy(self, run: str, raw: dict[str, Any]) -> dict[str, Any]:
-        """Validate a policy dict and make it the policy for a console run."""
+    def _policy_link(self, run: str, policy: PolicyConfig, what: str,
+                     source: str) -> dict[str, Any]:
+        """Chain a policy change. The link carries the full policy and its
+        hash; every decision judged under it carries the same hash, so the
+        chain proves which rules governed which payment, and when they changed."""
+        h = attest.policy_hash(policy)
+        rules = describe_policy(policy)
+        decision = Decision(
+            verdict=Verdict.ALLOW,
+            intent=PaymentIntent(recipient=f"run:{run}", amount=0.0, category="policy",
+                                 purpose=what, agent_id=f"operator:{run}"),
+            checks=[], reasons=[f"{what}: {len(rules)} rules in force, hash {h[:12]}"],
+            executed=False,
+            execution={"policy_hash": h, "policy": policy.to_dict(), "run": run,
+                       "source": source, "rules": rules},
+            event="policy", policy_hash=h,
+        )
+        return self.audit_log.append(decision)
+
+    def apply_policy(self, run: str, raw: dict[str, Any],
+                     source: str = "console") -> dict[str, Any]:
+        """Validate a policy dict and make it the policy for a console run.
+        The change is appended to the audit chain as a "policy" link."""
         if not run:
             raise ValueError("a run id is required")
         policy = coerce_policy(raw, self.policy)
         self.control.set_policy(run, policy.to_dict())
-        return {"run": run, "policy": policy.to_dict(), "rules": describe_policy(policy)}
+        record = self._policy_link(run, policy, "policy applied", source)
+        return {"run": run, "policy": policy.to_dict(), "rules": describe_policy(policy),
+                "policy_hash": attest.policy_hash(policy), "audit": record,
+                "seq": record["payload"].get("seq")}
 
-    def clear_policy(self, run: str) -> dict[str, Any]:
-        if run:
+    def clear_policy(self, run: str, source: str = "console") -> dict[str, Any]:
+        out = {"run": run, "policy": self.policy.to_dict(),
+               "rules": describe_policy(self.policy),
+               "policy_hash": attest.policy_hash(self.policy)}
+        if run and self.control.policy_for(run) is not None:
             self.control.clear_policy(run)
-        return {"run": run, "policy": self.policy.to_dict(),
-                "rules": describe_policy(self.policy)}
+            record = self._policy_link(run, self.policy, "policy reset to default", source)
+            out["audit"] = record
+            out["seq"] = record["payload"].get("seq")
+        return out
 
     def agents(self, run: str | None = None) -> list[dict[str, Any]]:
         return self.control.agents(run)
@@ -175,6 +204,7 @@ class SafePayAgent:
             verdict=Verdict.ALLOW, intent=held.decision.intent,
             checks=list(held.decision.checks),
             reasons=list(held.decision.reasons) + [why],
+            policy_hash=held.decision.policy_hash,
         )
         self._release(decision)
         record = self.audit_log.append(decision)
@@ -192,6 +222,7 @@ class SafePayAgent:
             verdict=Verdict.BLOCK, intent=held.decision.intent,
             checks=list(held.decision.checks),
             reasons=list(held.decision.reasons) + [why],
+            policy_hash=held.decision.policy_hash,
         )
         record = self.audit_log.append(decision)
         self.approvals.resolve(approval_id, REJECTED, note)

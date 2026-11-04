@@ -97,6 +97,10 @@ class Decision:
     # (the default), or a "settlement", the later record of what PayPal says
     # happened to a released payout (succeeded, failed, returned).
     event: str = "decision"
+    # The fingerprint (sha256) of the policy this decision was judged under.
+    # Applying a policy writes a "policy" link with the same hash, so the chain
+    # proves which rules governed every payment.
+    policy_hash: str = ""
 
     @property
     def risk(self) -> float:
@@ -113,6 +117,7 @@ class Decision:
             "executed": self.executed,
             "execution": self.execution,
             "event": self.event,
+            "policy_hash": self.policy_hash,
         }
 
     @classmethod
@@ -125,6 +130,7 @@ class Decision:
             executed=bool(d.get("executed", False)),
             execution=d.get("execution"),
             event=str(d.get("event") or "decision"),
+            policy_hash=str(d.get("policy_hash") or ""),
         )
 
 
