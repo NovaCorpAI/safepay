@@ -14,6 +14,21 @@ on a wallet-holding agent, not a claim.
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
 
+![Write the policy in plain words: Nemotron drafts the rules, the operator reviews and applies](docs/img/policy-in-plain-words.jpg)
+
+## See it
+
+Screenshots from the hosted demo (https://safepay.agentposhq.com), real
+sandbox payouts, real web and model checks.
+
+| A casino payout held: the web check found a first-hand complaint, the reasoning check found a goal mismatch, and every source is one click away | Freeze an agent, the way a bank freezes a card |
+|---|---|
+| ![HOLD card with the merchant and reasoning evidence opened](docs/img/hold-casino-evidence.jpg) | ![Agents in this run with the Freeze agent switch](docs/img/freeze-agent.jpg) |
+| **Pending approvals and the hash-chained ledger (AG Grid), chain verified** | **The same ledger after the tamper demo: one edited row and the chain breaks** |
+| ![Pending approvals above the audit ledger, chain verified badge](docs/img/approvals-and-ledger.jpg) | ![Chain BROKEN badge after the tamper demo](docs/img/chain-broken.jpg) |
+
+![AG Charts under the ledger: verdict mix, approved spend per agent with the money that moved outside SafePay as its own bar, average risk by category](docs/img/ledger-charts.jpg)
+
 ---
 
 ## The problem
