@@ -20,8 +20,8 @@ def client():
 
 
 def test_page_has_policy_editor_and_agents_panel(client):
-    page = client.get("/").data
-    assert b"policy-text" in page and b"agents-list" in page
+    assert b"policy-text" in client.get("/console").data
+    assert b"agents-list" in client.get("/agents").data
 
 
 def test_draft_then_apply_changes_this_run_only(client):

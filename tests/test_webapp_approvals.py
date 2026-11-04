@@ -37,7 +37,7 @@ def _hold(client):
 
 
 def test_page_has_approvals_panel(client):
-    assert b"Pending approvals" in client.get("/").data
+    assert b"Pending approvals" in client.get("/console").data
 
 
 def test_hold_lists_then_approve_executes(client):

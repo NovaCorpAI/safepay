@@ -18,8 +18,10 @@ Total budget: 2:55. Keep each beat tight; the demo carries the video.
 
 ## 0:00 - 0:15 | The problem (talking head or title card)
 
-On screen: SafePay title, then the webapp header with the chips
-(PayPal: sandbox, Nemotron reasoning: on, Tavily web verify: on, state: durable).
+On screen: the Flow page (https://safepay.agentposhq.com) with the pulses
+travelling through the layers; let it play under the narration. Then the
+status strip (Nemotron reasoning: on, Tavily web verify: on, Agent Toolkit
+gate: on, state: durable, Telegram approvals: on).
 
 Narration:
 "Agents are starting to pay the bills. An agent that can pay can be prompt
@@ -29,7 +31,7 @@ none of that. SafePay is the payables firewall for AI agents."
 
 ## 0:15 - 0:40 | Policy in plain words (do this live)
 
-On screen: type into the policy box and click "Draft the policy". The draft
+On screen: open the Console page, type into the policy box and click "Draft the policy". The draft
 summary appears in a few seconds; click "Apply to this session". The "Policy in
 force" card updates with a "custom for this session" pill.
 

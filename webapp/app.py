@@ -139,23 +139,46 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
-@app.get("/")
-def index():
+VERSION = "0.4.0"
+
+
+def _page(name: str):
+    """Render one of the console's pages with the shared status context."""
     cfg = Config.from_env()
-    return render_template(
-        "index.html",
-        paypal_mode=_agent.paypal.mode,
-        nebius_on=cfg.nebius_live,
-        tavily_on=bool(cfg.tavily_api_key),
-        telegram_on=cfg.telegram_live,
-        policy=_policy.to_dict(),
-        rules=describe_policy(_policy),
-        policy_hash=policy_hash(_policy),
-        tamper_demo=_tamper_demo_enabled(),
-        store=_agent.store,
-        operator_locked=bool((os.environ.get("SAFEPAY_OPERATOR_TOKEN") or "").strip()),
-        toolkit_on=toolkit_available() and cfg.paypal_live,
-    )
+    ctx = {
+        "paypalMode": _agent.paypal.mode,
+        "nebiusOn": cfg.nebius_live,
+        "tavilyOn": bool(cfg.tavily_api_key),
+        "telegramOn": cfg.telegram_live,
+        "toolkitOn": toolkit_available() and cfg.paypal_live,
+        "store": _agent.store,
+        "tamperDemo": _tamper_demo_enabled(),
+        "operatorLocked": bool((os.environ.get("SAFEPAY_OPERATOR_TOKEN") or "").strip()),
+        "policy": _policy.to_dict(),
+        "rules": describe_policy(_policy),
+        "policyHash": policy_hash(_policy),
+    }
+    return render_template(f"{name}.html", page=name, cfg=ctx, version=VERSION)
+
+
+@app.get("/")
+def home():
+    return _page("home")
+
+
+@app.get("/console")
+def console():
+    return _page("console")
+
+
+@app.get("/agents")
+def agents_page():
+    return _page("agents")
+
+
+@app.get("/ledger")
+def ledger_page():
+    return _page("ledger")
 
 
 @app.get("/api/scenarios")

@@ -130,21 +130,34 @@ python webapp/app.py
 # open http://127.0.0.1:5000
 ```
 
-Write the policy in plain words at the top and apply it, then load the demo
-scenarios or enter a custom payment and watch each intent resolve: the checks,
-the verdict, the PayPal sandbox batch, and the signed stamp. "Agents in this
-session" lists every agent seen with a Freeze / Resume switch. "New session"
-starts the daily-cap scenario fresh: the policy, the agents and the budget are
-scoped to your console session, and the ledger shows your session's links by
-default ("Show all sessions" shows the whole shared chain). Below the results, the
-**audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
-with a live verification badge; "Tamper (demo)" edits a row in place to show the
-chain break turn the badge red, and "Verify chain" re-checks it. Three AG
-Charts under the table read the same chain: the verdict mix, approved spend
-per agent (with anything that moved outside the firewall as its own bar), and
-average risk by category. Each check on a card opens to show what it looked
-at: the web sources and snippets the merchant check judged, the model's
-verdict, the rule numbers.
+The console is four pages on one design:
+
+- **Flow** (`/`): the didactic view. An animated map of the layers (agent,
+  policy, live web, reasoning, verdict, PayPal, human, chain) through which
+  every payment travels as a pulse. It is not a mock: it replays the most
+  recent links of the real audit chain, decision by decision, with the
+  verdict colour, the stage that stopped it and the human or settlement
+  links that followed, and it keeps polling the chain, so running the demo
+  in the Console lights it up live. Live figures from the chain, the layers,
+  the benchmark table and the early-access form sit under it.
+- **Console** (`/console`): write the policy in plain words and apply it,
+  then run the demo scenarios, a custom payment or a PayPal Agent Toolkit
+  order through the gate, and watch each intent resolve: the checks (each
+  one opens to show what it looked at: web sources and snippets, the
+  model's verdict, the rule numbers), the verdict, the PayPal sandbox batch,
+  the signed stamp. Pending approvals and the session's agents sit under the
+  results. "New session" starts the daily-cap scenario fresh: the policy,
+  the agents and the budget are scoped to your session, which follows you
+  across pages.
+- **Agents** (`/agents`): every agent id seen, with Freeze / Resume and
+  Issue key / Revoke key, for this session or all of them.
+- **Ledger** (`/ledger`): the hash-chained log as an AG Grid table with a
+  live verification badge, your session's links by default ("Show all
+  sessions" for the shared chain); "Verify chain", "Reconcile with PayPal"
+  and "Tamper (demo)", which edits a row on a copy so the badge turns red.
+  Three AG Charts read the same chain: the verdict mix, approved spend per
+  agent (with anything that moved outside the firewall as its own bar), and
+  average risk by category.
 
 ### Hosted demo
 

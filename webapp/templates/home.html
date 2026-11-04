@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Flow{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="eyebrow">The payables firewall for AI agents</span>
+    <h1>Every payment an agent wants to make passes through <span class="fix">SafePay</span> before any money moves.</h1>
+    <p class="lead">Policy you write in plain words, a live-web check of the payee, reasoning about whether the payment serves the agent's task, one-tap human approvals, a kill switch per agent, and a signed hash chain of every decision. Measured against 14 real attacks, not asserted.</p>
+    <div class="cta btns">
+      <a class="btn primary" href="/console">Open the console</a>
+      <a class="btn ghost" href="https://github.com/NovaCorpAI/safepay#attack-benchmark-proof-not-promise" target="_blank" rel="noopener">Read the benchmark</a>
+    </div>
+  </div>
+  <div class="stats" aria-label="Live figures from the audit chain">
+    <div class="stat"><div class="n" data-stat="links">…</div><div class="l">links in the audit chain</div></div>
+    <div class="stat ok"><div class="n" data-stat="verified">…</div><div class="l">chain verification</div></div>
+    <div class="stat warn"><div class="n" data-stat="held">…</div><div class="l">payments held for a person</div></div>
+    <div class="stat bad"><div class="n" data-stat="outside">…</div><div class="l">moved outside the firewall</div></div>
+  </div>
+</section>
+
+<section class="section">
+  <h2>How a payment travels</h2>
+  <div class="flow" id="flow">
+    <svg viewBox="0 0 1000 400" role="img" aria-label="Animated diagram: a payment pulse travels from the agent through policy, the live web check and the reasoning check to a verdict, then to PayPal or to a human, and every outcome lands in the signed chain"></svg>
+    <div class="cap" id="flow-cap-row"><span id="flow-cap">Loading the chain…</span><span class="ctl"><button class="ghost" id="flow-pause">Pause</button></span></div>
+    <div class="legend">
+      <span><i style="background:#4f8cff"></i>in evaluation</span>
+      <span><i style="background:#22c55e"></i>allow: money moves</span>
+      <span><i style="background:#f59e0b"></i>hold: a person decides</span>
+      <span><i style="background:#ef4444"></i>block, or money that moved outside the firewall</span>
+      <span class="dim" id="flow-note"></span>
+    </div>
+  </div>
+</section>
+
+<section class="layers section">
+  <h2>The layers, cheapest and strictest first</h2>
+  <div class="grid4">
+    <div class="layer"><div class="k"><i style="background:#4f8cff"></i>Policy</div><p>Per-payment and daily caps, categories, allow and block lists, an approved vendor directory that catches lookalike domains and inflated invoices, and "ask me before anything over X". A breach is a hard block, no model call spent. Written in plain words, drafted by Nemotron, reviewed by you.</p></div>
+    <div class="layer"><div class="k"><i style="background:#22c55e"></i>Live web</div><p>Tavily pulls fresh, neutral evidence about the payee and the model judges it: a first-hand scam complaint or a payee with no footprint raises a hold. Sources are kept with the decision, one click away.</p></div>
+    <div class="layer"><div class="k"><i style="background:#f59e0b"></i>Reasoning</div><p>NVIDIA Nemotron on Nebius reads the task the agent was given and judges whether this payment serves it. The attack a rule set misses: a cloud-invoice agent steered into a casino payout.</p></div>
+    <div class="layer"><div class="k"><i style="background:#ef4444"></i>Chain and watch</div><p>Every decision, approval, policy change, order and settlement is a link in a hash chain, HMAC-signed. A payout that reaches PayPal without a decision is flagged as outside the firewall and the operator is alerted on Telegram.</p></div>
+  </div>
+</section>
+
+<section class="proof section">
+  <h2>Proof, not promise</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="over"><table>
+        <tr><th>Benchmark mode</th><th>Attacks caught</th><th>Legit allowed</th></tr>
+        <tr><td>policy only (rules, no model, no web)</td><td class="n">6 / 14</td><td class="n">7 / 7</td></tr>
+        <tr><td>full (policy + Tavily + Nemotron)</td><td class="n">13 / 14</td><td class="n">7 / 7</td></tr>
+        <tr><td>strict (full + hold unknown vendors)</td><td class="n">14 / 14</td><td class="n">7 / 7</td></tr>
+      </table></div>
+      <p class="note">14 realistic attacks on a wallet-holding agent (prompt injection in invoices and vendor pages, goal mismatches, lookalike recipients, inflated amounts, slow drains, bursts) plus 7 real invoices. Reproducible: <code>benchmark/attacks/</code> in the repo.</p>
+    </div>
+    <div class="card">
+      <h2>Plug it in</h2>
+      <p class="muted" style="font-size:14px">As a library (<code>pip install safepay</code>), as an MCP server any agent can call (thirteen tools), as the approver in front of the PayPal Agent Toolkit, or as this console. Payments go out through PayPal Payouts in the sandbox; the host is pinned so no real money can move.</p>
+      <div class="btns"><a class="btn ghost" style="text-decoration:none;color:var(--fg);border:1px solid var(--line2);padding:9px 14px;border-radius:10px;font-weight:700;font-size:14px" href="https://github.com/NovaCorpAI/safepay#use-it-as-an-mcp-server-any-agent" target="_blank" rel="noopener">MCP setup</a>
+        <a class="btn ghost" style="text-decoration:none;color:var(--fg);border:1px solid var(--line2);padding:9px 14px;border-radius:10px;font-weight:700;font-size:14px" href="/console">Try it now</a></div>
+    </div>
+  </div>
+</section>
+
+<section class="card early accent section" id="early">
+  <h2>Early access</h2>
+  <p>SafePay is open source. If your agents already pay vendors, or are about to, we will put this guardrail in front of their PayPal payouts with you, by hand, and shape the product around what breaks.</p>
+  <form id="early-form" novalidate>
+    <div class="row2">
+      <div><label for="e-email">Work email</label><input id="e-email" type="email" autocomplete="email" placeholder="you@company.com" required></div>
+      <div><label for="e-company">Company (optional)</label><input id="e-company" autocomplete="organization" placeholder="Acme"></div>
+    </div>
+    <div class="row2">
+      <div><label for="e-use">What does your agent pay for? (optional)</label><input id="e-use" placeholder="SaaS invoices, contractor payouts, ad spend…"></div>
+      <div><label for="e-vol">Monthly volume</label>
+        <select id="e-vol"><option value="unknown">Not sure yet</option><option value="under_1k">Under USD 1,000</option><option value="1k_10k">USD 1,000 to 10,000</option><option value="10k_100k">USD 10,000 to 100,000</option><option value="over_100k">Over USD 100,000</option></select></div>
+    </div>
+    <div class="btns"><button class="primary" type="submit" id="early-submit">Request early access</button></div>
+    <p class="msg" id="early-msg" aria-live="polite"></p>
+    <p class="note">Stored in SafePay's own database and used only to contact you about SafePay. No newsletter.</p>
+  </form>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='flow.js') }}?v={{ version }}"></script>{% endblock %}

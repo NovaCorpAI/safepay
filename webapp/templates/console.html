@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Console{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Console</span>
+  <h1>Write the policy, then let the agent pay.</h1>
+  <p>Everything below is scoped to your session: the policy, the agents and the spend budget. The audit chain is shared and never reset; the <a href="/ledger">Ledger</a> shows your session's links by default.</p>
+</div>
+
+<section class="card pol" id="policy-editor">
+  <h2>Policy in plain words</h2>
+  <textarea id="policy-text" placeholder="Example: Up to $300 per payment and $1,000 a day. Ask me before anything over $100. No gambling or crypto. Hold any new payee for me."></textarea>
+  <div class="btns" style="margin-top:12px">
+    <button class="primary" id="policy-draft">Draft the policy</button>
+    <span class="muted" style="font-size:13px">{{ 'Nemotron reads your words' if cfg.nebiusOn else 'A rule parser reads your words (no Nemotron key)' }}; you review every field before it applies. The model never applies anything by itself.</span>
+  </div>
+  <div class="draft" id="policy-draft-box">
+    <b style="font-size:13px">What the draft says</b>
+    <ul id="policy-summary"></ul>
+    <ul class="q" id="policy-questions"></ul>
+    <p class="src" id="policy-source"></p>
+    <details><summary>Review the exact fields (editable JSON)</summary><textarea id="policy-json" spellcheck="false"></textarea></details>
+    <div class="btns" style="margin-top:12px">
+      <button class="primary" id="policy-apply">Apply to this session</button>
+      <button class="ghost" id="policy-reset">Back to the default policy</button>
+    </div>
+  </div>
+  <p class="msg" id="policy-msg" aria-live="polite"></p>
+</section>
+
+<div class="grid section">
+  <div class="card">
+    <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this session</span></h2>
+    <ul class="rules" id="p-rules"></ul>
+    <p class="note" title="sha256 of these rules; every decision in the ledger carries the hash of the policy it was judged under">rules hash <code id="p-hash"></code></p>
+  </div>
+  <div class="card">
+    <h2>Custom payment intent</h2>
+    <div class="row2">
+      <div><label>Recipient</label><input id="f-recipient" value="vendor@example.com"></div>
+      <div><label>Amount (USD)</label><input id="f-amount" type="number" value="250"></div>
+    </div>
+    <div class="row2">
+      <div><label>Category</label><input id="f-category" value="software"></div>
+      <div><label>Merchant name</label><input id="f-merchant" value=""></div>
+    </div>
+    <label>Stated purpose</label><input id="f-purpose" value="monthly API bill">
+    <label>Task the agent was given</label><input id="f-goal" value="pay the team's approved SaaS invoices">
+  </div>
+</div>
+
+<section class="card section" id="toolkit-card">
+  <h2>Agentic commerce: an order through the PayPal Agent Toolkit</h2>
+  <p class="muted" style="font-size:14px;max-width:80ch">The agent wants to buy something. PayPal's guidance for the Toolkit's order flow is to create the order and invoke pay only after a person approves; SafePay is that approver, made automatic: the Toolkit's <code>create_order</code> runs only after the guardrail says ALLOW, and the buyer-approval link the Orders flow requires stays intact. Held or blocked, the Toolkit is never called.</p>
+  <div class="row2">
+    <div><label>Merchant</label><input id="t-merchant" value="Statista"></div>
+    <div><label>Amount (USD)</label><input id="t-amount" type="number" value="20"></div>
+  </div>
+  <div class="row2">
+    <div><label>What the agent is buying</label><input id="t-purpose" value="Market research report on agentic commerce"></div>
+    <div><label>Category</label><input id="t-category" value="software"></div>
+  </div>
+</section>
+
+<div class="actions">
+  <button class="primary" id="run-demo">Run demo scenarios</button>
+  <button class="ghost" id="run-one">Evaluate custom intent</button>
+  <button class="ghost" id="run-order">Create the order through the gate</button>
+  <button class="ghost" id="reset" title="Start a fresh session: new spend budget and agent ids for the demo. The audit chain is never deleted.">New session</button>
+</div>
+
+<div id="results"></div>
+
+<section class="section" id="approvals" hidden>
+  <div class="lhead">
+    <h2>Pending approvals</h2>
+    <span class="status idle" id="apr-count"></span>
+    <p class="tag">A HOLD is not a dead end: a person decides here{{ ', in Telegram' if cfg.telegramOn else '' }} or through the MCP tools. Approve releases the payment and charges the ledger; Reject stops it. Both outcomes are appended to the audit chain as their own link.</p>
+  </div>
+  <div id="apr-list"></div>
+</section>
+
+<section class="section" id="agents" data-autohide="1" hidden>
+  <div class="lhead">
+    <h2>Agents in this session</h2>
+    <p class="tag">Every agent id the guardrail has seen. Freeze one, the way a bank freezes a card, and its next request is refused before any check runs. Keys, revocation and every session: see <a href="/agents">Agents</a>.</p>
+  </div>
+  <div id="agents-list"></div>
+</section>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Agents{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Agents</span>
+  <h1>Who is allowed to ask, and who is frozen.</h1>
+  <p>Every agent id the guardrail has seen, with its status, how many decisions it asked for and when it was last seen. <b>Freeze agent</b> is the kill switch: the next request is refused before any check runs and the refusal is chained. <b>Issue key</b> binds the id to a key the agent must present, so nothing else can act in its name.</p>
+</div>
+
+<div class="grid3 section">
+  <div class="layer"><div class="k"><i style="background:#ef4444"></i>Freeze</div><p>The way a bank freezes a card: nothing is evaluated, nothing moves, until Resume. Also an MCP tool, so an on-call engineer or a supervising agent can do it from anywhere.</p></div>
+  <div class="layer"><div class="k"><i style="background:#4f8cff"></i>Keys</div><p>A key is shown once; SafePay keeps only its sha256. A request with the key is that agent whatever its body claims; a keyed agent without it is refused. Unkeyed agents keep working, so the demo stays zero-setup.</p></div>
+  <div class="layer"><div class="k"><i style="background:#22c55e"></i>Operator</div><p>On a locked host, freezing, issuing keys, applying policies and approving payments need the operator token. Paying never does: agents keep working either way.</p></div>
+</div>
+
+<section class="section">
+  <div class="lhead">
+    <h2>Agents</h2>
+    <div class="lbtns"><button class="ghost" id="agents-scope">Show all sessions</button></div>
+  </div>
+  <div id="agents-list"></div>
+</section>
+{% endblock %}

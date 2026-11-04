@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Ledger{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-grid.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-theme-quartz.min.css">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Ledger</span>
+  <h1>Every decision, in a chain nobody can quietly edit.</h1>
+  <p>Each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows; with a signing key each record is also HMAC-signed. Decisions, approvals, policy changes, Toolkit orders, settlements from PayPal and money that moved outside the firewall are all links in the same chain, and every decision names the hash of the policy it was judged under.</p>
+</div>
+
+<section class="section">
+  <div class="lhead">
+    <h2>Audit chain</h2>
+    <span class="status idle" id="audit-status">no decisions yet</span>
+    <div class="lbtns">
+      <button class="ghost" id="scope" title="The chain is shared by every session of this demo. By default you see your own session's links (plus anything that moved outside the firewall).">Show all sessions</button>
+      <button class="ghost" id="reconcile" title="Ask PayPal for every debit in the last 24 hours and flag any that SafePay never released">Reconcile with PayPal</button>
+      <button class="ghost" id="verify-chain">Verify chain</button>
+      {% if cfg.tamperDemo %}<button class="danger" id="tamper-chain" title="Edits one row on a copy of the chain to show what verification reports; the stored chain is never touched">Tamper (demo)</button>{% endif %}
+    </div>
+    <p class="tag">"Verify chain" re-checks the whole history. Money that leaves the PayPal account without a SafePay decision (a PayPal webhook or "Reconcile with PayPal" finds it) is chained as an <b>outside</b> link and the operator is alerted.<span id="reconcile-msg" class="muted"></span>{% if cfg.tamperDemo %} "Tamper (demo)" shows what verification reports if a row were edited, on a copy; "Verify chain" re-checks the real one.{% endif %}</p>
+  </div>
+  <div id="audit-grid" class="ag-theme-quartz-dark"></div>
+  <div class="charts" id="charts" hidden>
+    <div class="chart" id="chart-verdicts"></div>
+    <div class="chart" id="chart-agents"></div>
+    <div class="chart" id="chart-risk"></div>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@9.3.1/dist/umd/ag-charts-community.min.js"></script>
+{% endblock %}

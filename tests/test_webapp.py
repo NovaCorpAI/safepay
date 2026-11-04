@@ -32,10 +32,14 @@ def _evaluate(client, amount=48):
     })
 
 
-def test_index_renders_ledger(client):
-    r = client.get("/")
-    assert r.status_code == 200
-    assert b"audit-grid" in r.data            # the AG Grid mount point is present
+def test_pages_render(client):
+    home = client.get("/")
+    assert home.status_code == 200 and b'id="flow"' in home.data   # the animated flow
+    assert b"audit-grid" in client.get("/ledger").data              # the AG Grid mount point
+    assert b"policy-text" in client.get("/console").data
+    assert b"agents-list" in client.get("/agents").data
+    assert client.get("/static/app.js").status_code == 200
+    assert client.get("/static/flow.js").status_code == 200
 
 
 def test_evaluate_appends_to_chain(client):
