@@ -11,6 +11,7 @@ PAYPAL_CLIENT_ID / PAYPAL_SECRET are set.
 
 from __future__ import annotations
 
+import sys
 import time
 import uuid
 from typing import Any
@@ -208,4 +209,11 @@ class PayPalClient:
                      "Content-Type": "application/json"},
             timeout=30,
         )
-        return resp.status_code == 200 and resp.json().get("verification_status") == "SUCCESS"
+        ok = resp.status_code == 200 and resp.json().get("verification_status") == "SUCCESS"
+        if not ok:
+            # Operator diagnostics: PayPal's answer says whether the webhook id,
+            # the transmission or the event body is what failed. No secrets here.
+            print(f"safepay: webhook verification failed for {event.get('event_type')} "
+                  f"({payload['transmission_id']}): HTTP {resp.status_code} {resp.text[:300]}",
+                  file=sys.stderr)
+        return ok
