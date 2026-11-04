@@ -16,30 +16,34 @@ Total budget: 2:55. Keep each beat tight; the demo carries the video.
 
 ---
 
-## 0:00 - 0:18 | The problem (talking head or title card)
+## 0:00 - 0:15 | The problem (talking head or title card)
 
-On screen: SafePay title, then the webapp header with the three chips
-(PayPal: sandbox, Nemotron reasoning: on, Tavily web verify: on).
-
-Narration:
-"Agentic commerce gives an AI agent a wallet. That is the promise, and it is
-also the risk. An agent that can pay can be prompt injected into paying the
-wrong recipient, talked into the wrong amount, or sent to a merchant registered
-last week. A static allow list is too blunt, and letting the model decide alone
-is exactly what goes wrong. SafePay is the layer in between."
-
-## 0:18 - 0:38 | What SafePay is
-
-On screen: slowly scroll the policy panel and the custom intent form.
+On screen: SafePay title, then the webapp header with the chips
+(PayPal: sandbox, Nemotron reasoning: on, Tavily web verify: on, state: durable).
 
 Narration:
-"SafePay is a payments firewall. An operator configures it once, and every agent
-payment has to pass through it. Before any money moves, each payment runs three
-checks: deterministic policy, a live web merchant check, and intent reasoning.
-The verdict is allow, hold, or block. On allow, SafePay releases the payment
-through the PayPal sandbox and signs an audit record of the decision."
+"Agents are starting to pay the bills. An agent that can pay can be prompt
+injected by an invoice email, handed a real vendor's name on a lookalike
+domain, or sent to a merchant registered last week. Spending caps alone catch
+none of that. SafePay is the payables firewall for AI agents."
 
-## 0:38 - 2:15 | Live demo (the core of the video)
+## 0:15 - 0:40 | Policy in plain words (do this live)
+
+On screen: type into the policy box and click "Draft the policy". The draft
+summary appears in a few seconds; click "Apply to this run". The "Policy in
+force" card updates with a "custom for this run" pill.
+
+Type: "Up to $500 per payment and $1,000 a day. Ask me before anything over
+$300. No gambling or crypto."
+
+Narration:
+"You write the policy the way you would say it. Nemotron reads it and drafts
+the exact rules; I review every field and apply. The model never applies
+anything by itself. From here, every payment this agent asks for runs three
+checks before any money moves: this policy, a live web check of the payee, and
+reasoning about whether the payment serves the agent's task."
+
+## 0:40 - 2:10 | Live demo (the core of the video)
 
 Action: click "Run demo scenarios". Narrate each card as it resolves. The app
 runs them in sequence with a short pause, which gives you time to talk.
@@ -69,19 +73,30 @@ Narration, card by card:
    Nebius, catches that a casino payout does not serve that goal, and puts it on
    hold for a human. This is the attack a static policy misses."
 
-5. AWS, 420 dollars, ALLOW. 6. Google Cloud, 420 dollars, ALLOW.
-   "Two legitimate cloud invoices, both allowed and paid."
+5. AWS, 420 dollars, HOLD (over the 300 "ask me" threshold you set).
+   "A legitimate cloud invoice, but over the amount I asked to be consulted
+   on, so it waits for me."
+   If Telegram is configured, show the phone or the chat: the card arrives,
+   tap "Approve and pay". "It reaches me where I am: one tap on Telegram, and
+   the chain records who approved it." Otherwise click "Approve and pay" in
+   the Pending approvals panel.
 
+6. Google Cloud, 420 dollars, HOLD, then approve in the console.
 7. Microsoft Azure, 420 dollars, BLOCK.
    "And the last one is blocked, not because of the single amount, but because
    it would breach the daily cap across the whole run. SafePay tracks spend
    across a burst of payments, not just one in isolation."
 
-Optional, if there is time (about 8 seconds): on the first Notion card click
-"check settlement". "And SafePay closes the loop: it asks PayPal whether the
-money actually moved and writes the answer into the same chain."
+Kill switch (about 8 seconds): scroll to "Agents in this run", click "Pause
+agent", evaluate the custom intent: BLOCK, "agent paused", no check ran.
+"And when something looks wrong, one click pauses the agent: its next request
+is refused before any check runs."
 
-## 2:15 - 2:40 | The tamper-evident ledger (the money shot)
+Optional, if there is time (about 6 seconds): on the first Notion card click
+"check settlement". "SafePay closes the loop: it asks PayPal whether the money
+actually moved and writes the answer into the same chain."
+
+## 2:10 - 2:38 | The tamper-evident ledger and the benchmark (the money shot)
 
 On screen: scroll to the audit ledger table (AG Grid). Point at the green badge
 "chain verified, N records intact". Click "Tamper (demo)"; the badge turns red,
@@ -92,27 +107,38 @@ Narration:
 Each record carries the hash of the one before it, so if anyone edits or drops a
 past decision, every later hash breaks. Watch: I tamper with one row, and the
 whole chain fails verification instantly. That is the record an operator, an
-auditor, or a court can trust. Under it: PayPal Payouts and the PayPal Agent
-Toolkit for execution, Tavily and Nemotron on Nebius for the checks, and the
-host pinned to the sandbox so it cannot move real money by accident."
+auditor, or a court can trust."
+
+On screen: the benchmark table from the README (policy 6 of 14, full 13 of
+14, strict 14 of 14, zero false positives).
+
+Narration:
+"And we measured it instead of asserting it: fourteen real attacks on a
+wallet-holding agent, run through the guardrail. Rules alone catch six; the
+full guardrail catches thirteen, strict mode fourteen, with zero false
+positives on real vendors. The benchmark is in the repo; run it yourself."
 
 ## 2:38 - 2:55 | Close
 
-On screen: SafePay title card, repo URL, NovaCorp Labs.
+On screen: SafePay title card, repo URL, "pip install safepay", NovaCorp Labs.
 
 Narration:
-"SafePay is the guardrail agentic commerce needs: policy, live web, and
-reasoning, with a signed record of every call. Code and demo are linked below.
+"SafePay: policy in plain words, a live web check of every payee, reasoning
+about every payment, one-tap approvals, a kill switch, and a signed record of
+it all. pip install safepay, or plug it into any agent as an MCP server.
 Thanks for watching."
 
 ---
 
 ## Shot list / checklist
 
-- [ ] Header with three chips visible and green.
-- [ ] Policy panel readable (per tx 500, daily cap, USD, hold on soft risk).
+- [ ] Header with the chips visible and green.
+- [ ] Policy typed live, drafted and applied ("custom for this run" pill).
 - [ ] Full "Run demo scenarios" sequence, all seven cards.
 - [ ] Clear read on the HOLD casino card (the differentiator).
+- [ ] One approval taken (Telegram if configured, else the console panel).
+- [ ] Pause agent, then a BLOCK with "agent paused".
+- [ ] Benchmark table on screen for 5 seconds.
 - [ ] At least one card's PayPal batch id and "signed" stamp visible.
 - [ ] Optional: terminal B-roll of a signed audit record.
 - [ ] End card with the public repo URL.

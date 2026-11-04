@@ -10,6 +10,9 @@ a human sees it instead of the money leaving.
 
 from __future__ import annotations
 
+from typing import Any
+
+from .control import PAUSED
 from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
 from .policy import SpendLedger, check_policy, is_known_vendor
@@ -25,17 +28,38 @@ class Guardrail:
         web: WebSearch,
         chat: NebiusChat | None,
         ledger: SpendLedger | None = None,
+        control: Any | None = None,
     ) -> None:
         self.policy = policy
         self.web = web
         self.chat = chat
         self.ledger = ledger or SpendLedger()
+        # The agent registry (see control.py): a paused agent is refused before
+        # any rule runs. None in library use, where there is no operator UI.
+        self.control = control
 
-    def evaluate(self, intent: PaymentIntent) -> Decision:
+    def evaluate(self, intent: PaymentIntent, policy: PolicyConfig | None = None) -> Decision:
+        """Judge one intent. `policy` overrides the guardrail's default for
+        this call (the console applies a per-run policy that way)."""
         checks: list[CheckResult] = []
+        rules = policy or self.policy
+
+        # 0. Is this agent allowed to ask at all? An operator's pause is the
+        # one rule that beats every other: nothing is evaluated, nothing moves.
+        if self.control is not None:
+            reg = self.control.touch_agent(intent.agent_id)
+            if reg.get("status") == PAUSED:
+                why = reg.get("reason") or "paused by the operator"
+                checks.append(CheckResult(
+                    name="agent", passed=False, severity=Severity.CRITICAL,
+                    detail=f"agent '{intent.agent_id}' is paused ({why}); nothing is evaluated",
+                    risk=1.0, evidence=[{"rule": "agent_paused", "status": PAUSED}],
+                ))
+                return Decision(verdict=Verdict.BLOCK, intent=intent, checks=checks,
+                                reasons=[f"agent: {checks[0].detail}"])
 
         # 1. Hard rules first. A failure here is final.
-        pol = check_policy(intent, self.policy, self.ledger)
+        pol = check_policy(intent, rules, self.ledger)
         checks.append(pol)
         if not pol.passed:
             return Decision(
@@ -55,8 +79,8 @@ class Guardrail:
         # 2b. Optional deterministic "new payee" control: with a vendor
         # directory and hold_unknown_vendors on, a payee outside the directory
         # is held for a human regardless of what the web and the model say.
-        if self.policy.hold_unknown_vendors and self.policy.vendors \
-                and not is_known_vendor(intent, self.policy):
+        if rules.hold_unknown_vendors and rules.vendors \
+                and not is_known_vendor(intent, rules):
             who = intent.merchant_name or intent.recipient
             vendor = CheckResult(
                 name="vendor", passed=False, severity=Severity.WARN,
@@ -65,6 +89,18 @@ class Guardrail:
             )
             checks.append(vendor)
             soft.append(vendor)
+
+        # 2c. "Ask me before anything over X": inside the hard cap, but big
+        # enough that the operator wants a tap. Deterministic, like 2b.
+        if rules.hold_above and intent.amount > rules.hold_above:
+            ask = CheckResult(
+                name="approval", passed=False, severity=Severity.WARN,
+                detail=(f"amount {intent.currency} {intent.amount:.2f} is over the ask-a-human "
+                        f"threshold of {intent.currency} {rules.hold_above:.2f}"),
+                risk=0.5, evidence=[{"rule": "hold_above", "threshold": rules.hold_above}],
+            )
+            checks.append(ask)
+            soft.append(ask)
 
         soft_failed = [c for c in soft if not c.passed]
 
@@ -81,7 +117,7 @@ class Guardrail:
         # a future rule may mark critical) blocks; otherwise hold for a human.
         if any(c.severity == Severity.CRITICAL for c in soft_failed):
             verdict = Verdict.BLOCK
-        elif self.policy.hold_on_soft_risk:
+        elif rules.hold_on_soft_risk or any(c.name == "approval" for c in soft_failed):
             verdict = Verdict.HOLD
         else:
             verdict = Verdict.ALLOW

@@ -3,10 +3,13 @@
 [![PyPI](https://img.shields.io/pypi/v/safepay)](https://pypi.org/project/safepay/)
 [![Live demo](https://img.shields.io/badge/demo-safepay.agentposhq.com-blue)](https://safepay.agentposhq.com)
 
-**A safety guardrail between an autonomous AI agent and PayPal.** SafePay sits in
-front of an agent's payment and decides, before any money moves, whether to
-**allow**, **hold**, or **block** it. It then executes allowed payments through the
-PayPal sandbox and signs an audit record of every decision.
+**The payables firewall for AI agents.** SafePay sits between an agent that pays
+vendors and PayPal, and decides, before any money moves, whether to **allow**,
+**hold**, or **block** the payment. It checks the payee on the live web, catches
+lookalike vendors and inflated invoices, holds what a person should see, pays
+the rest through PayPal Payouts, and leaves a signed link in a hash chain for
+every decision. And it is measured: a reproducible benchmark of 14 real attacks
+on a wallet-holding agent, not a claim.
 
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
@@ -15,15 +18,19 @@ Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 
 ## The problem
 
-Agentic commerce gives an AI agent a wallet. The upside is obvious; the risk is
-the same thing. An agent that can pay can also be prompt-injected into paying
-the wrong recipient, talked into an amount that does not fit its task, or sent
-to a merchant that was registered last week and shows up on scam-report pages. A
-static allow-list is too blunt, and letting the model decide alone is exactly
-what goes wrong.
+Agents are starting to pay the bills: SaaS renewals, cloud invoices, contractor
+payouts. The upside is obvious; the risk is the same thing. An agent that can pay
+can also be prompt-injected by an invoice email into paying an attacker, talked
+into an amount that does not fit its task, handed a real vendor's name on a
+lookalike domain, or sent to a merchant that was registered last week and shows
+up on scam-report pages. A static allow-list is too blunt, and letting the model
+decide alone is exactly what goes wrong.
 
-SafePay is the missing layer: a payments firewall that an operator configures
-once and that every agent payment has to pass through.
+SafePay is the missing layer: a payments firewall that an operator describes in
+plain words once, and that every agent payment has to pass through. Most
+"give your agent a leash" tools stop at spending caps. SafePay also looks
+outward (is this payee what it claims to be?) and inward (does this payment
+serve the task the agent was given?), and it proves how well that works.
 
 ## How it works
 
@@ -40,9 +47,10 @@ Each `PaymentIntent` runs three checks, cheapest and strictest first:
    swapped domain) and an inflated amount to a real vendor; a stated merchant
    URL must also agree with the recipient's domain. With `hold_unknown_vendors`
    on, any payee outside the directory is held for a human, the "new
-   beneficiary" control banks apply. The deterministic policy is the floor:
-   the model layers below can tighten a verdict to HOLD, never loosen a policy
-   block.
+   beneficiary" control banks apply. `hold_above` is "ask me before anything
+   over X": inside the hard cap, but big enough to wait for a tap. The
+   deterministic policy is the floor: the model layers below can tighten a
+   verdict to HOLD, never loosen a policy block.
 2. **Merchant verification (live web, Tavily).** Pulls fresh web evidence about
    the payee and flags fraud/scam signals. A soft signal: it raises risk and can
    trigger a **hold**, but never silently blocks on noisy web data.
@@ -107,9 +115,11 @@ python webapp/app.py
 # open http://127.0.0.1:5000
 ```
 
-Load the demo scenarios or enter a custom payment and watch each intent resolve:
-the three checks, the verdict, the PayPal sandbox batch, and the signed stamp.
-"Reset ledger" starts the daily-cap scenario fresh. Below the results, the
+Write the policy in plain words at the top and apply it, then load the demo
+scenarios or enter a custom payment and watch each intent resolve: the checks,
+the verdict, the PayPal sandbox batch, and the signed stamp. "Agents in this
+run" lists every agent seen with a Pause / Resume switch. "Reset ledger"
+starts the daily-cap scenario fresh. Below the results, the
 **audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
 with a live verification badge; "Tamper (demo)" edits a row in place to show the
 chain break turn the badge red, and "Verify chain" re-checks it.
@@ -167,12 +177,14 @@ The toolkit is an optional dependency; the core package and tests never need it.
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
 Desktop, Cursor, an agent framework) can route its payments through the guardrail
-without importing any SafePay code. It exposes seven tools: `safepay_evaluate`
+without importing any SafePay code. It exposes twelve tools: `safepay_evaluate`
 (judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
 ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow),
 `safepay_pending_approvals`, `safepay_approve` and `safepay_reject` (the human
-in the loop for HOLD decisions), and `safepay_audit_status` (re-verify the
-tamper-evident chain).
+in the loop for HOLD decisions), `safepay_payout_status` (settlement),
+`safepay_draft_policy` (plain words to a policy draft), `safepay_agents`,
+`safepay_pause_agent` and `safepay_resume_agent` (the kill switch), and
+`safepay_audit_status` (re-verify the tamper-evident chain).
 
 ```bash
 pip install -r requirements.txt -r requirements-mcp.txt
@@ -212,6 +224,7 @@ first. The `mcp` package is optional; the core package and tests never need it.
 | `SAFEPAY_RATE_LIMIT` | Max web-console evaluations per IP per minute | 30 |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Durable, shared audit chain, ledger and approvals | In-memory state |
 | `PAYPAL_WEBHOOK_ID` | Accept PayPal Payouts webhooks at `/api/paypal/webhook` (signature verified with PayPal) | Settlements only on demand (console button, API, MCP tool) |
+| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `TELEGRAM_WEBHOOK_SECRET` | Every HOLD is pushed to a Telegram chat with Approve and pay / Reject buttons; taps come back through `/api/telegram/webhook` | Approvals in the console, API and MCP only |
 
 Get PayPal sandbox keys at `developer.paypal.com` > Apps & Credentials >
 Sandbox > Create App. The host is pinned to the sandbox in `config.py`; SafePay
@@ -275,17 +288,62 @@ python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for 
 python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
 ```
 
+## Policy in plain words
+
+An operator should not have to write JSON to say what they mean. In the console
+(and with `safepay --draft-policy "..."` or the `safepay_draft_policy` MCP
+tool) you write the rules as you would say them:
+
+> Up to $300 per payment and $1,000 a day. Ask me before anything over $100.
+> No gambling or crypto. Hold any new payee for me.
+
+Nemotron turns that into a `PolicyConfig` draft (a rule-based parser does it
+without a key), with a one-line summary per rule and a question for anything
+important the text left unsaid. You review the exact fields, edit them if you
+like, and apply. Three things keep this honest: the model's output is data
+that is validated and coerced field by field (unknown fields dropped, caps
+clamped, a `hold_above` over the hard cap turned off); the model never applies
+anything, a person does; and text that tries to instruct the reviewer ("ignore
+the limits") is refused before any model reads it. The applied policy belongs
+to your console run and follows it: the agents in that run are judged by it,
+other sessions are not.
+
 ## Human in the loop (HOLD is a workflow, not a dead end)
 
-When a soft check raises a concern inside the policy limits, the verdict is
-HOLD and the payment waits in an approval queue. In the web console a "Pending
-approvals" panel appears with **Approve and pay** / **Reject**; the same queue
-is available as `GET /api/approvals`, `POST /api/approvals/<id>/approve` and
-`/reject`, and as MCP tools, so a person (or a supervising agent) can decide
-from anywhere. Approving releases the payment and charges the spend ledger, so
-the daily and per-recipient caps reflect real spend; rejecting moves nothing.
-Both outcomes are appended to the audit chain as their own link, so "who
-approved this agent payment, and when" is provable.
+When a soft check raises a concern inside the policy limits, or a payment is
+over the operator's "ask me" threshold, the verdict is HOLD and the payment
+waits in an approval queue. In the web console a "Pending approvals" panel
+appears with **Approve and pay** / **Reject**; the same queue is available as
+`GET /api/approvals`, `POST /api/approvals/<id>/approve` and `/reject`, and as
+MCP tools, so a person (or a supervising agent) can decide from anywhere.
+With a Telegram bot configured, every HOLD also lands in your chat as a card
+with the same two buttons, and the tap resolves it through the same path, so
+the chain records "approved by human: via Telegram by <name>". Approving
+releases the payment and charges the spend ledger, so the daily and
+per-recipient caps reflect real spend; rejecting moves nothing. Both outcomes
+are appended to the audit chain as their own link, so "who approved this agent
+payment, and when" is provable.
+
+Telegram setup, once: create a bot with @BotFather, message it, then
+`python -m safepay.telegram --chat-id` to read your chat id, set
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET`
+(`--new-secret` makes one), and register the webhook with
+`python -m safepay.telegram --set-webhook https://<host>/api/telegram/webhook`.
+Telegram echoes the secret in a header on every delivery; anything else is
+refused.
+
+## Agents on a leash (pause and resume)
+
+Every agent id the guardrail has seen is listed in the console with its
+status, how many decisions it asked for and when it was last seen. **Pause
+agent** is the kill switch: the agent's next request is refused before any
+check runs ("agent paused" is the one rule that beats every other), the
+refusal is chained like any decision, and nothing moves until **Resume**. The
+same controls are `GET /api/agents`, `POST /api/agents/<id>/pause` and
+`/resume`, and the `safepay_agents`, `safepay_pause_agent` and
+`safepay_resume_agent` MCP tools, so a supervising agent or an on-call
+engineer can freeze a misbehaving agent from anywhere. With Supabase
+configured the registry is shared by every instance of the service.
 
 ## Settlement (did the money actually move?)
 
@@ -321,7 +379,9 @@ in Supabase and are shared by every instance:
   primary key, so two instances can never both claim the same link),
 - the daily cap, per-recipient cap and velocity rule are computed from real
   history over a true UTC day,
-- approvals survive restarts and resolve atomically.
+- approvals survive restarts and resolve atomically,
+- the per-run policy and the agent registry (pause / resume) are shared too
+  (`safepay_settings`, `safepay_agents`).
 
 Create the tables once with `supabase/schema.sql` (RLS on, no policies: only
 the service role key, kept server-side, can touch them). The console shows
@@ -381,7 +441,9 @@ python -m pytest -q
 ```
 
 Deterministic, offline: policy, aggregation, the daily cap across a burst,
-simulated execution, and audit integrity.
+simulated execution, audit integrity, the vendor directory, injection
+defences, settlement, the plain-words policy parser and validator, the agent
+registry, Telegram approvals (fake transport) and the web and MCP surfaces.
 
 ## License
 

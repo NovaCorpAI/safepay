@@ -30,6 +30,15 @@ class Config:
     paypal_base_url: str
     supabase_url: str | None = None
     supabase_key: str | None = None
+    telegram_token: str | None = None
+    telegram_chat_id: str | None = None
+    telegram_secret: str | None = None
+
+    @property
+    def telegram_live(self) -> bool:
+        """True when HOLDs are also sent to a Telegram chat with one-tap
+        Approve / Reject buttons."""
+        return bool(self.telegram_token and self.telegram_chat_id)
 
     @property
     def supabase_live(self) -> bool:
@@ -75,4 +84,7 @@ class Config:
             # The service role key: it bypasses RLS, so it stays server-side
             # only (never in the browser).
             supabase_key=_getenv("SUPABASE_SERVICE_ROLE_KEY") or _getenv("SUPABASE_KEY"),
+            telegram_token=_getenv("TELEGRAM_BOT_TOKEN"),
+            telegram_chat_id=_getenv("TELEGRAM_CHAT_ID"),
+            telegram_secret=_getenv("TELEGRAM_WEBHOOK_SECRET"),
         )

@@ -9,14 +9,19 @@ filled once the video is up. No em dashes used, per house style.
 SafePay
 
 ## Tagline (one line)
-A payments firewall that sits between an autonomous AI agent and PayPal, and
-decides allow, hold, or block before any money moves.
+The payables firewall for AI agents: it checks the payee on the live web, holds
+what a person should see, pays the rest through PayPal, and is measured against
+real attacks.
 
 ## Elevator pitch (shorter, if a short field is asked)
-Give an AI agent a wallet and it can be prompt injected into paying the wrong
-payee, the wrong amount, or a merchant registered last week. SafePay is the
-guardrail in between: policy, live web verification, and intent reasoning on
-every payment, with a signed record of each decision.
+Agents are starting to pay the bills. An agent that can pay can be prompt
+injected by an invoice email, handed a real vendor's name on a lookalike
+domain, or sent to a merchant registered last week. Spending caps alone do not
+catch any of that. SafePay does: policy you write in plain words, live web
+verification of the payee, intent reasoning on every payment, one-tap human
+approvals (console, MCP, Telegram), a kill switch per agent, and a signed
+record of each decision. On a reproducible benchmark of 14 attacks it catches
+13 to 14, with zero false positives.
 
 ---
 
@@ -26,12 +31,19 @@ their own. The upside is obvious, and so is the failure mode. The moment an
 agent can move money, a bad prompt, a spoofed merchant, or a subtle goal drift
 turns into a real payment. A static allow list is too blunt for open ended
 tasks, and letting the model approve its own spending is exactly what goes
-wrong. We wanted the missing layer: something an operator sets up once, that
-every agent payment has to pass through.
+wrong. Most tools in this space stop at spending caps: a leash. We wanted the
+layer that also looks outward (is this payee what it claims to be?) and inward
+(does this payment serve the task the agent was given?), that an operator sets
+up in plain words once, and that proves how well it works instead of asserting
+it.
 
 ## What it does
-SafePay is a payment safety guardrail. Each payment the agent wants to make runs
-three checks, cheapest and strictest first:
+SafePay is a payment safety guardrail for agents that pay vendors. The
+operator writes the policy in plain words ("USD 300 per payment, 1,000 a day,
+ask me before anything over 100, no gambling or crypto, hold any new payee")
+and Nemotron drafts the exact rules, which the operator reviews and applies.
+Each payment the agent wants to make then runs three checks, cheapest and
+strictest first:
 
 1. Policy, deterministic. Per transaction and daily limits, allowed and blocked
    categories, recipient allow and block lists, currency, and an approved
@@ -51,8 +63,11 @@ The verdict is allow, hold, or block. On allow, SafePay releases the payment
 through the PayPal Payouts API (the agent sends money, no buyer redirect, fully
 backend). On hold or block the money never moves. A hold is not a dead end: it
 waits for a person, who approves it (SafePay then pays and charges the ledger)
-or rejects it, in the console or through the MCP tools, and that decision is
-appended to the chain as its own link. When PayPal later reports what
+or rejects it, in the console, through the MCP tools, or with one tap on a
+Telegram card, and that decision is appended to the chain as its own link
+naming who took it. Every agent the guardrail has seen is listed with a
+Pause switch: a paused agent's next request is refused before any check runs,
+the kill switch for an incident. When PayPal later reports what
 happened to a released payout (succeeded, failed, returned), SafePay appends
 that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is
@@ -93,7 +108,10 @@ model can only tighten a verdict, never loosen a policy block) and explicit
 (text with instructions aimed at the reviewer fails the check closed before any
 model reads it, and what the model does read is delimited as data). A test
 feeds a deliberately obedient fake model a planted page and shows it never gets
-to see it.
+to see it. The same discipline applies to the plain-words policy editor: the
+model's output is data that is validated field by field, the model never
+applies anything (a person does), and text that instructs the reviewer is
+refused before any model reads it.
 
 ## Accomplishments that we are proud of
 Real sandbox activity, not mocks: allowed payments produce actual PayPal payout
@@ -134,8 +152,9 @@ real payouts decide what SafePay builds next.
 
 ## Built with
 python, paypal, paypal-payouts, paypal-webhooks, paypal-agent-toolkit,
-model-context-protocol, nvidia-nemotron, nebius, tavily, flask, gunicorn,
-ag-grid, supabase, postgres, vercel, render, hmac, sha-256
+model-context-protocol, nvidia-nemotron, nebius, tavily, telegram-bot-api,
+flask, gunicorn, ag-grid, supabase, postgres, vercel, render, hmac, sha-256,
+pypi
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.

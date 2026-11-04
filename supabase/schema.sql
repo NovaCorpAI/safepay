@@ -48,6 +48,31 @@ create table if not exists safepay_leads (
   created_at     timestamptz not null default now()
 );
 
+-- Operator controls. settings holds the policy a console run applied
+-- (key 'policy:<run>'); agents is the registry: every agent id the guardrail
+-- has seen, with its status (active | paused) and the operator's reason.
+create table if not exists safepay_settings (
+  key        text primary key,
+  value      jsonb not null,
+  updated_ts double precision not null
+);
+
+create table if not exists safepay_agents (
+  agent_id   text primary key,
+  run        text not null default '',
+  status     text not null default 'active',
+  reason     text not null default '',
+  first_seen double precision not null,
+  last_seen  double precision not null,
+  status_ts  double precision,
+  decisions  integer not null default 0
+);
+create index if not exists safepay_agents_run on safepay_agents (run, first_seen);
+
+alter table safepay_settings  enable row level security;
+alter table safepay_agents    enable row level security;
+grant all on table safepay_settings, safepay_agents to service_role;
+
 alter table safepay_audit     enable row level security;
 alter table safepay_ledger    enable row level security;
 alter table safepay_approvals enable row level security;

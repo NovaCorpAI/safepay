@@ -49,6 +49,7 @@ from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
+from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
 from dataclasses import fields  # noqa: E402
 
 app = Flask(__name__)
@@ -107,7 +108,9 @@ def index():
         paypal_mode=_agent.paypal.mode,
         nebius_on=cfg.nebius_live,
         tavily_on=bool(cfg.tavily_api_key),
+        telegram_on=cfg.telegram_live,
         policy=_policy.to_dict(),
+        rules=describe_policy(_policy),
         tamper_demo=_tamper_demo_enabled(),
         store=_agent.store,
     )
@@ -117,6 +120,106 @@ def index():
 def scenarios():
     intents = _SCENARIOS.get("intents", []) if isinstance(_SCENARIOS, dict) else _SCENARIOS
     return jsonify({"policy": _policy.to_dict(), "intents": intents})
+
+
+# --- policy in plain words (per console run) ------------------------------
+
+@app.post("/api/policy/draft")
+def policy_draft():
+    """Plain words -> a validated policy draft. Nothing is applied here."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(_agent.draft_policy(str(data.get("text", "")),
+                                           run=str(data.get("run", ""))[:16]))
+    except PolicyDraftError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/api/policy/apply")
+def policy_apply():
+    """Make a (reviewed) policy the one in force for this console run."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    run = str(data.get("run", ""))[:16].strip()
+    if not run:
+        return jsonify({"error": "run id is required"}), 400
+    try:
+        out = _agent.apply_policy(run, data.get("policy") or {})
+    except PolicyDraftError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"could not save the policy: {exc}"}), 503
+    return jsonify(dict(out, ok=True))
+
+
+@app.get("/api/policy")
+def policy_in_force():
+    """The policy that applies to ?run=<id> (the default when none was set)."""
+    run = (request.args.get("run") or "")[:16].strip()
+    pol = _agent.policy_for(f"console:{run}") if run else _policy
+    return jsonify({"run": run, "custom": pol.to_dict() != _policy.to_dict(),
+                    "policy": pol.to_dict(), "rules": describe_policy(pol)})
+
+
+@app.post("/api/policy/reset")
+def policy_reset():
+    data = request.get_json(silent=True) or {}
+    run = str(data.get("run", ""))[:16].strip()
+    try:
+        return jsonify(dict(_agent.clear_policy(run), ok=True))
+    except Exception as exc:
+        return jsonify({"error": f"could not reset the policy: {exc}"}), 503
+
+
+# --- agents on a leash: pause / resume -------------------------------------
+
+@app.get("/api/agents")
+def agents():
+    run = (request.args.get("run") or "")[:16].strip() or None
+    try:
+        return jsonify({"agents": _agent.agents(run)})
+    except Exception as exc:
+        return jsonify({"error": f"could not list agents: {exc}"}), 503
+
+
+def _agent_status(agent_id: str, pause: bool):
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    reason = str(data.get("reason", ""))[:200]
+    try:
+        row = _agent.pause_agent(agent_id, reason) if pause else _agent.resume_agent(agent_id, reason)
+    except Exception as exc:
+        return jsonify({"error": f"could not update the agent: {exc}"}), 503
+    return jsonify(dict(row, ok=True))
+
+
+@app.post("/api/agents/<agent_id>/pause")
+def pause_agent(agent_id: str):
+    return _agent_status(agent_id, True)
+
+
+@app.post("/api/agents/<agent_id>/resume")
+def resume_agent(agent_id: str):
+    return _agent_status(agent_id, False)
+
+
+# --- Telegram: one-tap approvals ------------------------------------------
+
+@app.post("/api/telegram/webhook")
+def telegram_webhook():
+    """Telegram delivers button taps here. The secret token Telegram echoes
+    in a header must match TELEGRAM_WEBHOOK_SECRET, or the update is ignored."""
+    cfg = Config.from_env()
+    if _agent.notifier is None or not cfg.telegram_secret:
+        return jsonify({"error": "telegram not configured"}), 503
+    if request.headers.get("X-Telegram-Bot-Api-Secret-Token", "") != cfg.telegram_secret:
+        return jsonify({"error": "bad secret"}), 403
+    update = request.get_json(silent=True) or {}
+    return jsonify(_agent.notifier.handle_update(update, _agent))
 
 
 @app.post("/api/reset")

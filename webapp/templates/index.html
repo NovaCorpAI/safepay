@@ -123,6 +123,40 @@
   .v-hold { color: var(--hold); background: var(--hold-bg); }
   .v-block { color: var(--block); background: var(--block-bg); }
 
+  /* Policy in plain words */
+  .pol { margin-top: 22px; }
+  .pol textarea { width: 100%; min-height: 72px; resize: vertical; background: var(--panel2);
+    color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
+    font-size: 14px; font-family: inherit; line-height: 1.45; }
+  .pol .draft { margin-top: 14px; display: none; }
+  .pol .draft.show { display: block; }
+  .pol ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+  .pol ul.q { color: var(--hold); }
+  .pol .src { font-size: 12px; color: var(--muted); margin: 8px 0 0; }
+  .pol details { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .pol details textarea { min-height: 160px; font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; margin-top: 8px; }
+  .pol .msg { font-size: 14px; margin: 10px 0 0; min-height: 1.5em; }
+  .pol .msg.ok { color: var(--allow); }
+  .pol .msg.bad { color: var(--block); }
+  .rules { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .rules li { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .rules li:last-child { border-bottom: 0; }
+  .card h2 .pill { font-size: 11px; font-weight: 800; letter-spacing: .4px; padding: 2px 8px;
+    border-radius: 6px; color: var(--accent); background: rgba(79,140,255,.14); margin-left: 8px;
+    text-transform: none; }
+
+  /* Agents */
+  .agents { margin-top: 30px; }
+  .agt { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 16px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-top: 10px; }
+  .agt .id { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  .agt .meta { color: var(--muted); font-size: 13px; }
+  .agt .act { margin-left: auto; }
+  .agt button { padding: 7px 12px; font-size: 13px; }
+  .agt.paused { border-left: 4px solid var(--block); }
+  .agt.active { border-left: 4px solid var(--allow); }
+
   /* Early access */
   .early { margin-top: 34px; border-color: rgba(79,140,255,.35); }
   .early p { margin: 0 0 6px; max-width: 70ch; }
@@ -138,22 +172,41 @@
 <div class="wrap">
   <header>
     <h1>Safe<span class="fix">Pay</span></h1>
-    <p class="tag">A safety guardrail between an autonomous AI agent and PayPal. Every payment passes policy, a live-web merchant check, and intent reasoning before any money moves.</p>
+    <p class="tag">The payables firewall for AI agents. Every vendor payment an agent wants to make passes policy, a live-web merchant check and intent reasoning before any money moves, and leaves a signed link in a hash chain. Measured against 14 real attacks, not asserted.</p>
     <div class="chips">
       <span class="chip on">PayPal: {{ paypal_mode }}</span>
       <span class="chip {{ 'on' if nebius_on else 'off' }}">Nemotron reasoning: {{ 'on' if nebius_on else 'off' }}</span>
       <span class="chip {{ 'on' if tavily_on else 'off' }}">Tavily web verify: {{ 'on' if tavily_on else 'off' }}</span>
       <span class="chip {{ 'on' if store == 'supabase' else 'off' }}" title="Where the audit chain, spend ledger and approvals live">state: {{ 'durable (Supabase)' if store == 'supabase' else 'in memory' }}</span>
+      <span class="chip {{ 'on' if telegram_on else 'off' }}" title="HOLDs are pushed to a Telegram chat with Approve / Reject buttons">Telegram approvals: {{ 'on' if telegram_on else 'off' }}</span>
     </div>
   </header>
 
+  <section class="card pol" id="policy-editor">
+    <h2>Write the policy in plain words</h2>
+    <textarea id="policy-text" placeholder="Example: Up to $300 per payment and $1,000 a day. Ask me before anything over $100. No gambling or crypto. Hold any new payee for me."></textarea>
+    <div class="btns" style="margin-top:12px">
+      <button class="primary" id="policy-draft">Draft the policy</button>
+      <span class="muted" style="font-size:13px;align-self:center">{{ 'Nemotron reads your words' if nebius_on else 'A rule parser reads your words (no Nemotron key)' }}; you review every field before it applies. The model never applies anything by itself.</span>
+    </div>
+    <div class="draft" id="policy-draft-box">
+      <b style="font-size:13px">What the draft says</b>
+      <ul id="policy-summary"></ul>
+      <ul class="q" id="policy-questions"></ul>
+      <p class="src" id="policy-source"></p>
+      <details><summary>Review the exact fields (editable JSON)</summary><textarea id="policy-json" spellcheck="false"></textarea></details>
+      <div class="btns" style="margin-top:12px">
+        <button class="primary" id="policy-apply">Apply to this run</button>
+        <button class="ghost" id="policy-reset">Back to the default policy</button>
+      </div>
+    </div>
+    <p class="msg" id="policy-msg" aria-live="polite"></p>
+  </section>
+
   <div class="grid">
-    <div class="card policy">
-      <h2>Policy in force</h2>
-      <div><span>Per-transaction limit</span><span id="p-tx"></span></div>
-      <div><span>Daily limit (per agent)</span><span id="p-day"></span></div>
-      <div><span>Allowed currencies</span><span id="p-cur"></span></div>
-      <div><span>On soft risk</span><span id="p-soft"></span></div>
+    <div class="card">
+      <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this run</span></h2>
+      <ul class="rules" id="p-rules"></ul>
     </div>
 
     <div class="card">
@@ -178,6 +231,14 @@
   </div>
 
   <div id="results"></div>
+
+  <section class="agents" id="agents" hidden>
+    <div class="lhead">
+      <h2>Agents in this run</h2>
+      <p class="tag">Every agent id the guardrail has seen. Pause one and its next request is refused before any check runs; the refusal is chained like any other decision. Resume is one click.</p>
+    </div>
+    <div id="agents-list"></div>
+  </section>
 
   <section class="approvals" id="approvals" hidden>
     <div class="lhead">
@@ -232,21 +293,100 @@
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
 <script>
   const POLICY = {{ policy | tojson }};
+  const DEFAULT_RULES = {{ rules | tojson }};
   // Each console run gets its own id. The spend ledger is per agent, so
   // namespacing the agent id isolates a run's daily cap from earlier runs when
-  // state is durable; the audit chain itself is global and never reset.
+  // state is durable; the audit chain itself is global and never reset. The
+  // policy written below is applied per run too, and follows the session.
   const newRun = () => Math.random().toString(36).slice(2, 8);
   let RUN = newRun();
   const runAgent = base => `${base || 'agent'}:${RUN}`;
-  (function initPolicy() {
-    document.getElementById('p-tx').textContent = 'USD ' + POLICY.per_tx_limit.toFixed(2);
-    document.getElementById('p-day').textContent = 'USD ' + POLICY.daily_limit.toFixed(2);
-    document.getElementById('p-cur').textContent = (POLICY.allowed_currencies || []).join(', ') || 'any';
-    document.getElementById('p-soft').textContent = POLICY.hold_on_soft_risk ? 'hold for a human' : 'allow';
-  })();
-
   const results = document.getElementById('results');
   const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  // --- Policy in plain words ---
+  let APPLIED = null;   // the policy dict applied to this session, re-applied to each new run
+  function showRules(rules, custom) {
+    document.getElementById('p-rules').innerHTML = (rules || []).map(r => `<li>${esc(r)}</li>`).join('');
+    document.getElementById('p-custom').hidden = !custom;
+  }
+  showRules(DEFAULT_RULES, false);
+  const polMsg = (text, cls) => { const m = document.getElementById('policy-msg'); m.className = 'msg ' + (cls || ''); m.textContent = text; };
+  async function applyPolicy(policy, quiet) {
+    const r = await (await fetch('/api/policy/apply', { method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ run: RUN, policy }) })).json();
+    if (r.ok) { APPLIED = r.policy; showRules(r.rules, true); if (!quiet) polMsg('Applied to this run. Every payment below is judged by these rules.', 'ok'); }
+    else if (!quiet) polMsg(r.error || 'could not apply', 'bad');
+    return r;
+  }
+  document.getElementById('policy-draft').onclick = async () => {
+    const btn = document.getElementById('policy-draft');
+    const text = document.getElementById('policy-text').value;
+    btn.disabled = true; btn.textContent = 'reading…'; polMsg('');
+    try {
+      const r = await (await fetch('/api/policy/draft', { method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ text, run: RUN }) })).json();
+      if (r.error) { polMsg(r.error, 'bad'); return; }
+      document.getElementById('policy-summary').innerHTML = (r.summary || []).map(s => `<li>${esc(s)}</li>`).join('');
+      document.getElementById('policy-questions').innerHTML = (r.questions || []).map(s => `<li>${esc(s)}</li>`).join('');
+      document.getElementById('policy-source').textContent =
+        (r.source === 'rules' ? 'Read by the rule parser' : 'Read by ' + r.source) +
+        (r.changed && r.changed.length ? ' · changes: ' + r.changed.join(', ') : ' · nothing changed from the policy in force');
+      document.getElementById('policy-json').value = JSON.stringify(r.policy, null, 2);
+      document.getElementById('policy-draft-box').classList.add('show');
+    } catch (e) { polMsg('network error', 'bad'); }
+    finally { btn.disabled = false; btn.textContent = 'Draft the policy'; }
+  };
+  document.getElementById('policy-apply').onclick = async () => {
+    let policy;
+    try { policy = JSON.parse(document.getElementById('policy-json').value); }
+    catch (e) { polMsg('the JSON is not valid: ' + e.message, 'bad'); return; }
+    try { await applyPolicy(policy, false); } catch (e) { polMsg('network error', 'bad'); }
+  };
+  document.getElementById('policy-reset').onclick = async () => {
+    try {
+      const r = await (await fetch('/api/policy/reset', { method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ run: RUN }) })).json();
+      APPLIED = null; showRules(r.rules || DEFAULT_RULES, false);
+      document.getElementById('policy-draft-box').classList.remove('show');
+      polMsg('Back to the default policy for this run.', 'ok');
+    } catch (e) { polMsg('network error', 'bad'); }
+  };
+  async function startRun() {
+    RUN = newRun();
+    await fetch('/api/reset', {method: 'POST'});
+    if (APPLIED) { try { await applyPolicy(APPLIED, true); } catch (e) {} }
+  }
+
+  // --- Agents in this run (pause / resume) ---
+  async function loadAgents() {
+    let data;
+    try { data = await (await fetch('/api/agents?run=' + encodeURIComponent(RUN))).json(); } catch (e) { return; }
+    const rows = data.agents || [];
+    const sec = document.getElementById('agents');
+    sec.hidden = !rows.length;
+    document.getElementById('agents-list').innerHTML = rows.map(a => {
+      const paused = a.status === 'paused';
+      const seen = a.last_seen ? new Date(a.last_seen * 1000).toLocaleTimeString() : '';
+      return `<div class="agt ${paused ? 'paused' : 'active'}" data-id="${esc(a.agent_id)}">
+        <span class="v-pill ${paused ? 'v-block' : 'v-allow'}">${paused ? 'PAUSED' : 'ACTIVE'}</span>
+        <span class="id">${esc(a.agent_id)}</span>
+        <span class="meta">${a.decisions || 0} decision${a.decisions == 1 ? '' : 's'} · last ${esc(seen)}${paused && a.reason ? ' · ' + esc(a.reason) : ''}</span>
+        <span class="act"><button class="${paused ? 'approve' : 'danger'}" data-act="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Pause agent'}</button></span>
+      </div>`;
+    }).join('');
+    document.querySelectorAll('#agents-list button[data-act]').forEach(b => {
+      b.onclick = async () => {
+        const id = b.closest('.agt').dataset.id; b.disabled = true;
+        try {
+          await fetch(`/api/agents/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ reason: b.dataset.act === 'pause' ? 'paused in console' : '' }) });
+        } catch (e) {}
+        loadAgents();
+      };
+    });
+  }
 
   function pending(intent) {
     const el = document.createElement('div');
@@ -323,6 +463,7 @@
     } finally {
       loadAudit();
       loadApprovals();
+      loadAgents();
     }
   }
 
@@ -333,8 +474,7 @@
 
   document.getElementById('run-demo').onclick = async () => {
     setBusy(true);
-    RUN = newRun();
-    await fetch('/api/reset', {method: 'POST'});
+    await startRun();
     results.innerHTML = '';
     const data = await (await fetch('/api/scenarios')).json();
     for (const intent of data.intents) {
@@ -360,11 +500,11 @@
   };
 
   document.getElementById('reset').onclick = async () => {
-    RUN = newRun();
-    await fetch('/api/reset', {method: 'POST'});
+    await startRun();
     results.innerHTML = '';
     loadAudit();
     loadApprovals();
+    loadAgents();
   };
 
   // --- Pending approvals (human in the loop over /api/approvals) ---

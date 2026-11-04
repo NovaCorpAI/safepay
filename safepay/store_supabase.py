@@ -89,6 +89,9 @@ class PostgREST:
                              prefer="resolution=merge-duplicates,return=representation")
         return rows[0] if rows else row
 
+    def delete(self, table: str, params: dict) -> list[dict]:
+        return self._request("DELETE", table, params=params, prefer="return=representation")
+
 
 def _day_start(now: float | None = None) -> float:
     now = time.time() if now is None else now

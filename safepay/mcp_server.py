@@ -135,6 +135,23 @@ def payout_status(batch_id: str) -> dict[str, Any]:
             "already_recorded": out["duplicate"]}
 
 
+def draft_policy_text(text: str) -> dict[str, Any]:
+    """Plain words -> a validated policy draft (nothing applied)."""
+    try:
+        return _agent.draft_policy(text)
+    except ValueError as exc:
+        return {"error": str(exc)}
+
+
+def list_agents() -> dict[str, Any]:
+    return {"agents": _agent.agents()}
+
+
+def set_agent_paused(agent_id: str, paused: bool, reason: str = "") -> dict[str, Any]:
+    row = _agent.pause_agent(agent_id, reason) if paused else _agent.resume_agent(agent_id, reason)
+    return {"agent_id": agent_id, "status": row.get("status"), "reason": row.get("reason", "")}
+
+
 def audit_status() -> dict[str, Any]:
     """Re-verify the hash-chained audit log of every decision so far."""
     ok, bad = _agent.audit_log.verify()
@@ -223,6 +240,32 @@ try:
         money actually moved (SUCCESS), failed or was returned, and append that
         settlement to the audit chain. A failed payout releases its budget."""
         return payout_status(batch_id)
+
+    @_MCP.tool()
+    def safepay_draft_policy(text: str) -> dict[str, Any]:
+        """Turn an operator's plain-language spending rules ("$300 per payment,
+        1,000 a day, ask me over 100, no gambling") into a validated SafePay
+        policy draft with a summary and open questions. Nothing is applied:
+        the operator reviews it and applies it in the console."""
+        return draft_policy_text(text)
+
+    @_MCP.tool()
+    def safepay_agents() -> dict[str, Any]:
+        """Every agent id the guardrail has seen, with its status (active or
+        paused), how many decisions it asked for, and when it was last seen."""
+        return list_agents()
+
+    @_MCP.tool()
+    def safepay_pause_agent(agent_id: str, reason: str = "") -> dict[str, Any]:
+        """Pause an agent: its next payment request is refused before any
+        check runs, and the refusal is chained. For incidents and kill
+        switches. Resume with safepay_resume_agent."""
+        return set_agent_paused(agent_id, True, reason)
+
+    @_MCP.tool()
+    def safepay_resume_agent(agent_id: str) -> dict[str, Any]:
+        """Resume a paused agent."""
+        return set_agent_paused(agent_id, False)
 
     @_MCP.tool()
     def safepay_audit_status() -> dict[str, Any]:

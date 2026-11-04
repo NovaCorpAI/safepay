@@ -17,10 +17,12 @@ from . import attest
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
+from .control import ACTIVE, PAUSED, MemoryControl, run_of
 from .guardrail import Guardrail
 from .models import Decision, PaymentIntent, PolicyConfig, Verdict
 from .nebius_client import NebiusChat
 from .paypal_client import PayPalClient
+from .policy_draft import coerce_policy, describe_policy, draft_policy
 from .search import WebSearch
 
 
@@ -42,6 +44,7 @@ class SafePayAgent:
         # otherwise they live in memory (local runs, tests), with the audit
         # chain optionally mirrored to the file in SAFEPAY_AUDIT_LOG.
         if self.config.supabase_live:
+            from .control import SupabaseControl
             from .store_supabase import (
                 PostgREST, SupabaseApprovalQueue, SupabaseAuditLog, SupabaseSpendLedger,
             )
@@ -49,15 +52,24 @@ class SafePayAgent:
             ledger = SupabaseSpendLedger(db)
             self.audit_log = audit_log or SupabaseAuditLog(db)
             self.approvals = SupabaseApprovalQueue(db)
+            self.control = SupabaseControl(db)
             self.store = "supabase"
         else:
             ledger = None  # Guardrail builds an in-memory SpendLedger
             self.audit_log = audit_log or AuditLog(os.environ.get("SAFEPAY_AUDIT_LOG"))
             self.approvals = ApprovalQueue()
+            self.control = MemoryControl()
             self.store = "memory"
 
-        self.guardrail = Guardrail(self.policy, web, chat, ledger=ledger)
+        self.guardrail = Guardrail(self.policy, web, chat, ledger=ledger, control=self.control)
         self.paypal = PayPalClient(self.config)
+        # One-tap approvals: a HOLD is also pushed to a Telegram chat when
+        # configured. Best effort: a chat outage never changes a verdict.
+        self.notifier = None
+        if self.config.telegram_live:
+            from .telegram import TelegramNotifier
+            self.notifier = TelegramNotifier(self.config.telegram_token,
+                                             self.config.telegram_chat_id)
 
     def _release(self, decision: Decision) -> None:
         """Execute an ALLOW decision's payment and charge the ledger."""
@@ -99,16 +111,58 @@ class SafePayAgent:
             "approval_id": approval_id,
         }
 
+    def policy_for(self, agent_id: str) -> PolicyConfig:
+        """The policy that applies to an agent: the one its console run set,
+        else the default. Falls back to the default if the store is down."""
+        run = run_of(agent_id)
+        try:
+            raw = self.control.policy_for(run) if run else None
+        except Exception:
+            raw = None
+        return PolicyConfig.from_dict(raw) if raw else self.policy
+
     def pay(self, intent: PaymentIntent) -> dict[str, Any]:
         """Evaluate one intent; execute on ALLOW, queue for a human on HOLD."""
-        decision = self.guardrail.evaluate(intent)
+        decision = self.guardrail.evaluate(intent, policy=self.policy_for(intent.agent_id))
         approval_id = None
         if decision.verdict == Verdict.ALLOW:
             self._release(decision)
         elif decision.verdict == Verdict.HOLD:
             approval_id = self.approvals.enqueue(decision).id
+            if self.notifier is not None:
+                self.notifier.send_hold(approval_id, decision.to_dict())
         record = self.audit_log.append(decision)
         return self._result(decision, record, approval_id)
+
+    # --- operator controls: policy in plain words, agents on a leash -------
+
+    def draft_policy(self, text: str, run: str = "") -> dict[str, Any]:
+        """Plain words -> a validated policy draft (nothing applied)."""
+        base = self.policy_for(f"console:{run}") if run else self.policy
+        return draft_policy(text, self.guardrail.chat, base)
+
+    def apply_policy(self, run: str, raw: dict[str, Any]) -> dict[str, Any]:
+        """Validate a policy dict and make it the policy for a console run."""
+        if not run:
+            raise ValueError("a run id is required")
+        policy = coerce_policy(raw, self.policy)
+        self.control.set_policy(run, policy.to_dict())
+        return {"run": run, "policy": policy.to_dict(), "rules": describe_policy(policy)}
+
+    def clear_policy(self, run: str) -> dict[str, Any]:
+        if run:
+            self.control.clear_policy(run)
+        return {"run": run, "policy": self.policy.to_dict(),
+                "rules": describe_policy(self.policy)}
+
+    def agents(self, run: str | None = None) -> list[dict[str, Any]]:
+        return self.control.agents(run)
+
+    def pause_agent(self, agent_id: str, reason: str = "") -> dict[str, Any]:
+        return self.control.set_agent_status(agent_id, PAUSED, reason or "paused by the operator")
+
+    def resume_agent(self, agent_id: str, reason: str = "") -> dict[str, Any]:
+        return self.control.set_agent_status(agent_id, ACTIVE, reason)
 
     def approve(self, approval_id: str, note: str = "") -> dict[str, Any]:
         """A human releases a held payment: execute it, charge the ledger, and

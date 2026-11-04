@@ -87,8 +87,32 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--daily-limit", type=float, default=2000.0)
     p.add_argument("--audit-log", help="append the signed decision chain to this JSONL file")
     p.add_argument("--verify-log", help="verify an existing audit-log chain and exit")
+    p.add_argument("--draft-policy", metavar="TEXT",
+                   help="turn plain-language rules into a policy JSON and exit (nothing applied)")
     p.add_argument("--json", action="store_true", help="emit full JSON records")
     args = p.parse_args(argv)
+
+    # Policy in plain words: print the validated draft and exit.
+    if args.draft_policy:
+        from .policy_draft import PolicyDraftError, draft_policy
+        agent = SafePayAgent(policy=PolicyConfig(per_tx_limit=args.per_tx_limit,
+                                                 daily_limit=args.daily_limit))
+        try:
+            out = draft_policy(args.draft_policy, agent.guardrail.chat, agent.policy)
+        except PolicyDraftError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        if args.json:
+            json.dump(out, sys.stdout, indent=2)
+            print()
+        else:
+            print(f"read by: {out['source']}")
+            for line in out["rules"]:
+                print(f"  {line}")
+            for q in out["questions"]:
+                print(f"  ? {q}")
+            print(json.dumps(out["policy"], indent=2))
+        return 0
 
     # Verify-and-exit: no payments, just walk an existing chain.
     if args.verify_log:

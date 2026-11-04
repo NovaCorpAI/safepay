@@ -162,6 +162,15 @@ class PolicyConfig:
     # (the "new beneficiary" control banks apply). Off by default so the soft
     # checks are what judges an unknown payee; on for a locked-down agent.
     hold_unknown_vendors: bool = False
+    # "Ask me before anything over X": a payment above this amount (and still
+    # inside per_tx_limit) is held for a human even when every check passes.
+    # 0 = off. Small routine payments go through; big ones wait for a tap.
+    hold_above: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "PolicyConfig":
+        names = {f.name for f in fields(cls)}
+        return cls(**{k: v for k, v in (d or {}).items() if k in names})

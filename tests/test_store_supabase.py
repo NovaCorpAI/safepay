@@ -27,7 +27,8 @@ class FakeDB:
     """In-memory stand-in for PostgREST with the subset of semantics we rely on."""
 
     def __init__(self):
-        self.tables: dict[str, list[dict]] = {"audit": [], "ledger": [], "approvals": []}
+        self.tables: dict[str, list[dict]] = {"audit": [], "ledger": [], "approvals": [],
+                                              "agents": [], "settings": []}
 
     @staticmethod
     def _match(row, params):
@@ -64,6 +65,20 @@ class FakeDB:
                 r.update(data)
                 out.append(dict(r))
         return out
+
+    def upsert(self, table, row, params=None):
+        key = (params or {}).get("on_conflict", "id")
+        for r in self.tables[table]:
+            if r.get(key) == row.get(key):
+                r.update(row)
+                return dict(r)
+        self.tables[table].append(dict(row))
+        return dict(row)
+
+    def delete(self, table, params):
+        gone = [r for r in self.tables[table] if self._match(r, params)]
+        self.tables[table] = [r for r in self.tables[table] if not self._match(r, params)]
+        return gone
 
 
 def _decision(amount=10.0, verdict=Verdict.ALLOW):
@@ -152,6 +167,8 @@ def test_agent_uses_supabase_stores_when_configured(monkeypatch):
     monkeypatch.setattr(PostgREST, "select", lambda self, t, p: fake.select(t, p))
     monkeypatch.setattr(PostgREST, "insert", lambda self, t, r: fake.insert(t, r))
     monkeypatch.setattr(PostgREST, "patch", lambda self, t, p, d: fake.patch(t, p, d))
+    monkeypatch.setattr(PostgREST, "upsert", lambda self, t, r, p=None: fake.upsert(t, r, p))
+    monkeypatch.setattr(PostgREST, "delete", lambda self, t, p: fake.delete(t, p))
     agent = SafePayAgent(config=cfg, policy=PolicyConfig(per_tx_limit=500, daily_limit=1000))
     assert agent.store == "supabase"
     out = agent.pay(PaymentIntent(recipient="v@x.example", amount=420, category="software",
@@ -167,6 +184,14 @@ def test_agent_uses_supabase_stores_when_configured(monkeypatch):
     assert out2["decision"]["verdict"] == "allow"
     assert out3["decision"]["verdict"] == "block"          # daily cap seen across instances
     assert agent2.audit_log.verify() == (True, None)
+    # The registry and a per-run policy are shared the same way.
+    assert agent2.agents()[0]["agent_id"] == "a1" and agent2.agents()[0]["decisions"] == 3
+    agent.pause_agent("a1", "testing")
+    out4 = agent2.pay(PaymentIntent(recipient="v@x.example", amount=1, agent_id="a1"))
+    assert out4["decision"]["verdict"] == "block" and out4["decision"]["checks"][0]["name"] == "agent"
+    agent.apply_policy("r1", {"per_tx_limit": 10})
+    out5 = agent2.pay(PaymentIntent(recipient="v@x.example", amount=20, agent_id="b:r1"))
+    assert out5["decision"]["verdict"] == "block" and "per-transaction" in out5["decision"]["reasons"][0]
 
 
 # --- live smoke (read-only, skipped without credentials) ----------------------
