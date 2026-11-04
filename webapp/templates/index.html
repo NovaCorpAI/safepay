@@ -62,13 +62,13 @@
   .head .to { color: var(--muted); font-size: 14px; }
   .head .risk { margin-left: auto; font-size: 12px; color: var(--muted); }
   .checks { border-top: 1px solid var(--line); padding: 6px 16px 12px; }
-  .check { display: flex; gap: 10px; padding: 8px 0; font-size: 14px; border-bottom: 1px dashed var(--line); }
+  .check { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 14px; border-bottom: 1px dashed var(--line); }
   .check:last-child { border-bottom: 0; }
   .check .mk { flex: 0 0 auto; width: 18px; text-align: center; font-weight: 800; }
   .check .mk.ok { color: var(--allow); }
   .check .mk.no { color: var(--hold); }
   .check .nm { flex: 0 0 86px; color: var(--muted); text-transform: capitalize; }
-  .check .dt { flex: 1 1 auto; }
+  .check .dt { flex: 1 1 0; min-width: 0; }
   .check .ev-btn { flex: 0 0 auto; background: transparent; border: 1px solid var(--line);
     color: var(--muted); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
   .check .ev-btn:hover { color: var(--fg); }
@@ -168,6 +168,12 @@
   .agt button { padding: 7px 12px; font-size: 13px; }
   .agt.paused { border-left: 4px solid var(--block); }
   .agt.active { border-left: 4px solid var(--allow); }
+
+  /* Ledger charts (AG Charts Community) */
+  .charts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 14px; }
+  @media (max-width: 860px) { .charts { grid-template-columns: 1fr; } }
+  .chart { height: 230px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+    overflow: hidden; }
 
   /* Early access */
   .early { margin-top: 34px; border-color: rgba(79,140,255,.35); }
@@ -276,6 +282,11 @@
       <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history. Money that leaves the PayPal account without a SafePay decision (a PayPal webhook or "Reconcile with PayPal" finds it) is chained as an <b>outside</b> link and the operator is alerted.<span id="reconcile-msg" class="muted"></span>{% if tamper_demo %} "Tamper (demo)" shows what verification reports if a row were edited (on a copy; the stored chain is never touched), and "Verify chain" re-checks the real one.{% endif %}</p>
     </div>
     <div id="audit-grid" class="ag-theme-quartz-dark"></div>
+    <div class="charts" id="charts" hidden>
+      <div class="chart" id="chart-verdicts"></div>
+      <div class="chart" id="chart-agents"></div>
+      <div class="chart" id="chart-risk"></div>
+    </div>
   </section>
 
   <section class="card early" id="early">
@@ -305,6 +316,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-charts-community@9.3.1/dist/umd/ag-charts-community.min.js"></script>
 <script>
   const POLICY = {{ policy | tojson }};
   const DEFAULT_RULES = {{ rules | tojson }};
@@ -643,6 +655,49 @@
         + (data.simulated ? ' (simulated on a copy; the stored chain is intact, press Verify chain)' : '');
     }
   }
+  // --- Ledger charts (AG Charts Community, MIT): what the chain says at a glance ---
+  const charts = {};
+  const CHART_BASE = {
+    theme: { baseTheme: 'ag-default-dark', palette: { fills: ['#22c55e', '#f59e0b', '#ef4444', '#4f8cff', '#9fb0cc'],
+      strokes: ['#22c55e', '#f59e0b', '#ef4444', '#4f8cff', '#9fb0cc'] },
+      overrides: { common: { background: { fill: '#121a30' }, title: { fontSize: 12, color: '#9fb0cc' } } } },
+    padding: { top: 10, right: 12, bottom: 8, left: 12 },
+  };
+  function drawChart(id, options) {
+    const el = document.getElementById(id);
+    const opts = { ...CHART_BASE, ...options, container: el };
+    if (!window.agCharts) return;
+    if (charts[id]) agCharts.AgCharts.update(charts[id], opts); else charts[id] = agCharts.AgCharts.create(opts);
+  }
+  function updateCharts(data) {
+    const recs = (data.records || []).map(r => r.payload || {});
+    const decisions = recs.filter(p => (p.event || 'decision') === 'decision');
+    document.getElementById('charts').hidden = !decisions.length;
+    if (!decisions.length) return;
+    const mix = ['allow', 'hold', 'block'].map(v => ({ verdict: v.toUpperCase(), count: decisions.filter(p => p.verdict === v).length }));
+    // Approved spend per agent: ALLOW decisions (the budget the caps count),
+    // plus what moved outside the firewall, so the gap is visible at a glance.
+    const byAgent = {};
+    decisions.forEach(p => { if (p.verdict === 'allow') {
+      const a = ((p.intent || {}).agent_id || '?').split(':')[0]; byAgent[a] = (byAgent[a] || 0) + Number((p.intent || {}).amount || 0); } });
+    const outside = recs.filter(p => p.event === 'outside').reduce((s, p) => s + Number((p.intent || {}).amount || 0), 0);
+    const agents = Object.entries(byAgent).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([agent, paid]) => ({ agent, paid }));
+    if (outside) agents.push({ agent: 'outside SafePay', paid: outside });
+    const byCat = {};
+    decisions.forEach(p => { const c = (p.intent || {}).category || 'uncategorized'; (byCat[c] = byCat[c] || []).push(Number(p.risk || 0)); });
+    const risk = Object.entries(byCat).map(([category, rs]) => ({ category, risk: rs.reduce((s, x) => s + x, 0) / rs.length }))
+      .sort((a, b) => b.risk - a.risk).slice(0, 6);
+    drawChart('chart-verdicts', { title: { text: 'Verdicts' }, data: mix,
+      series: [{ type: 'donut', angleKey: 'count', calloutLabelKey: 'verdict', innerRadiusRatio: 0.6, fills: ['#22c55e', '#f59e0b', '#ef4444'] }],
+      legend: { enabled: false } });
+    drawChart('chart-agents', { title: { text: 'Approved per agent (USD)' }, data: agents,
+      series: [{ type: 'bar', xKey: 'agent', yKey: 'paid', fill: '#4f8cff' }],
+      axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', label: { fontSize: 10 } }] });
+    drawChart('chart-risk', { title: { text: 'Average risk by category' }, data: risk,
+      series: [{ type: 'bar', xKey: 'category', yKey: 'risk', fill: '#f59e0b' }],
+      axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', min: 0, max: 1, label: { fontSize: 10 } }] });
+  }
+
   function showAudit(data) {
     const rows = auditRows(data);
     if (!auditApi) {
@@ -654,6 +709,7 @@
       auditApi.setGridOption('rowData', rows);
     }
     setStatus(data);
+    try { updateCharts(data); } catch (e) { console.warn('charts', e); }
   }
   async function loadAudit() {
     let data;

@@ -122,7 +122,12 @@ run" lists every agent seen with a Freeze / Resume switch. "Reset ledger"
 starts the daily-cap scenario fresh. Below the results, the
 **audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
 with a live verification badge; "Tamper (demo)" edits a row in place to show the
-chain break turn the badge red, and "Verify chain" re-checks it.
+chain break turn the badge red, and "Verify chain" re-checks it. Three AG
+Charts under the table read the same chain: the verdict mix, approved spend
+per agent (with anything that moved outside the firewall as its own bar), and
+average risk by category. Each check on a card opens to show what it looked
+at: the web sources and snippets the merchant check judged, the model's
+verdict, the rule numbers.
 
 ### Hosted demo
 
