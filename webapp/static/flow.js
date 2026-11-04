@@ -105,9 +105,15 @@
       caption(`<b>Link #${seq}</b> · settlement from PayPal · ${money(p)} to ${esc(who(p))} · <b>${esc(st)}</b>`);
       fire('paypal', v, st); await travel('paypal-chain', C[v] || C.accent, 800); fire('chain', v, 'settled #' + seq); await wait(900); return;
     }
-    const approved = /approved by human/.test(reasons), rejected = /rejected by human/.test(reasons);
+    // A decision record does not store its reasons, but its shape gives a
+    // human resolution away: the guardrail never turns a soft concern into
+    // ALLOW or (without a critical finding) into BLOCK; only a person does.
+    const softFail = (p.checks || []).some(c => !c.passed && c.name !== 'policy' && c.name !== 'agent' && c.name !== 'firewall');
+    const hardFail = (p.checks || []).some(c => !c.passed && (c.name === 'policy' || c.name === 'agent'));
+    const approved = /approved by human/.test(reasons) || (ev === 'decision' && v === 'allow' && softFail);
+    const rejected = /rejected by human/.test(reasons) || (ev === 'decision' && v === 'block' && softFail && !hardFail);
     if (approved || rejected) {
-      caption(`<b>Link #${seq}</b> · a person ${approved ? 'approved' : 'rejected'} the held payment · ${money(p)} to ${esc(who(p))} · ${esc(short(reasons.split('·').pop(), 60))}`);
+      caption(`<b>Link #${seq}</b> · a person <span style="color:${approved ? C.allow : C.block}">${approved ? 'approved' : 'rejected'}</span> the held payment · ${money(p)} to ${esc(who(p))}`);
       fire('human', approved ? 'allow' : 'block', approved ? 'approved' : 'rejected');
       if (approved) { await travel('human-paypal', C.allow, 700); fire('paypal', 'allow', p.executed ? 'paid' : 'not paid'); await travel('paypal-chain', C.allow, 800); }
       else await travel('human-chain', C.block, 800);

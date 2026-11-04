@@ -14,12 +14,21 @@ on a wallet-holding agent, not a claim.
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
 
-![Write the policy in plain words: Nemotron drafts the rules, the operator reviews and applies](docs/img/policy-in-plain-words.jpg)
+![SafePay home: live figures from the audit chain](docs/img/home.jpg)
 
 ## See it
 
 Screenshots from the hosted demo (https://safepay.agentposhq.com), real
 sandbox payouts, real web and model checks.
+
+**The Flow.** Every payment travels as a pulse through the layers; the page
+replays the real links of the audit chain and animates new ones as they land.
+
+![The Flow: a payment pulse travelling from the agent through policy, live web and reasoning to the verdict, PayPal, a human, and the chain](docs/img/flow.jpg)
+
+| Write the policy in plain words: Nemotron drafts, you review and apply | The Ledger page: the hash chain, scoped to your session |
+|---|---|
+| ![Policy in plain words](docs/img/policy-in-plain-words.jpg) | ![Ledger page](docs/img/ledger-page.jpg) |
 
 | A casino payout held: the web check found a first-hand complaint, the reasoning check found a goal mismatch, and every source is one click away | Freeze an agent, the way a bank freezes a card |
 |---|---|

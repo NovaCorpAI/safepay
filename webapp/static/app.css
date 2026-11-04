@@ -143,8 +143,9 @@ button:disabled { opacity: .5; cursor: default; transform: none; }
 .flow { background: linear-gradient(180deg, var(--panel) 0%, var(--bg2) 100%); border: 1px solid var(--line);
   border-radius: var(--radius); padding: 10px 10px 14px; position: relative; overflow: hidden; }
 .flow svg { width: 100%; height: auto; display: block; }
-.flow .cap { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 6px 10px 0; font-size: 13px;
-  color: var(--muted); min-height: 2em; }
+.flow .cap { display: flex; gap: 10px 16px; align-items: flex-start; padding: 6px 10px 0; font-size: 13px;
+  color: var(--muted); min-height: 3em; }
+.flow .cap > span:first-child { flex: 1 1 0; min-width: 0; }
 .flow .cap b { color: var(--fg); font-weight: 600; }
 .flow .cap .ctl { margin-left: auto; display: flex; gap: 8px; }
 .flow .cap .ctl button { padding: 6px 10px; font-size: 12px; }
