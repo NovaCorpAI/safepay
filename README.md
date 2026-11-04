@@ -1,5 +1,8 @@
 # SafePay
 
+[![PyPI](https://img.shields.io/pypi/v/safepay)](https://pypi.org/project/safepay/)
+[![Live demo](https://img.shields.io/badge/demo-safepay.agentposhq.com-blue)](https://safepay.agentposhq.com)
+
 **A safety guardrail between an autonomous AI agent and PayPal.** SafePay sits in
 front of an agent's payment and decides, before any money moves, whether to
 **allow**, **hold**, or **block** it. It then executes allowed payments through the

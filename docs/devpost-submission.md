@@ -149,4 +149,5 @@ from the included render.yaml blueprint with gunicorn).
 - Demo video: (YouTube link, under 3 min, to add)
 - Live demo: https://safepay.agentposhq.com (no login, no setup)
 - Render instance: https://safepay-ygzp.onrender.com (same console, Render blueprint)
-- Run it yourself: `python webapp/app.py` per the README
+- Package: https://pypi.org/project/safepay/ (`pip install safepay`, then `safepay --demo`)
+- Run the console yourself: `python webapp/app.py` per the README
