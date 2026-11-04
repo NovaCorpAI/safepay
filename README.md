@@ -304,7 +304,10 @@ dashboard for `PAYMENT.PAYOUTSBATCH.*` and `PAYMENT.PAYOUTS-ITEM.*` pointing
 at `https://<your host>/api/paypal/webhook`, and set `PAYPAL_WEBHOOK_ID`. Every
 delivery is verified with PayPal's signature API before it is acted on, and
 even then only the batch id is taken from the event: the state is re-read from
-the Payouts API, never trusted from the body.
+the Payouts API, never trusted from the body. The hosted demo has this webhook
+live: a payout released there gets its settlement link from PayPal's push, no
+button needed. If a delivery fails verification, the reason PayPal gives (for
+example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
 
 ## Durable state (Supabase)
 
