@@ -2,6 +2,9 @@ openai>=1.40.0
 tavily-python>=0.5.0
 requests>=2.31.0
 flask>=3.0.0
+# The PayPal Agent Toolkit gate (console card, MCP tool). 1.1.0 is the light
+# release; later ones pin whole agent frameworks.
+paypal-agent-toolkit==1.1.0
 
 # Production WSGI server for the hosted web console (e.g. on Render). The local
 # `python webapp/app.py` runner does not need it.
