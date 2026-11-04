@@ -86,6 +86,15 @@
   .exec .ok { color: var(--allow); }
   .exec .no { color: var(--hold); }
   .exec button.settle { margin-left: 8px; padding: 3px 9px; font-size: 12px; font-weight: 600; }
+  .prog { position: relative; display: flex; align-items: center; gap: 14px; padding: 8px 16px 12px;
+    font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+  .prog .step { opacity: .45; transition: opacity .3s; }
+  .prog .step::before { content: '○ '; }
+  .prog .step.on { opacity: 1; color: var(--fg); }
+  .prog .step.on::before { content: '● '; color: var(--accent); }
+  .prog .elapsed { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .prog .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--line); }
+  .prog .bar i { display: block; height: 100%; width: 2%; background: var(--accent); transition: width 12s linear; }
   .stamp { padding: 8px 16px; font-size: 12px; color: var(--muted);
     display: flex; justify-content: space-between; gap: 10px; }
   .stamp .sig { color: var(--accent); }
@@ -214,7 +223,7 @@
       <p class="src" id="policy-source"></p>
       <details><summary>Review the exact fields (editable JSON)</summary><textarea id="policy-json" spellcheck="false"></textarea></details>
       <div class="btns" style="margin-top:12px">
-        <button class="primary" id="policy-apply">Apply to this run</button>
+        <button class="primary" id="policy-apply">Apply to this session</button>
         <button class="ghost" id="policy-reset">Back to the default policy</button>
       </div>
     </div>
@@ -223,7 +232,7 @@
 
   <div class="grid">
     <div class="card">
-      <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this run</span></h2>
+      <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this session</span></h2>
       <ul class="rules" id="p-rules"></ul>
       <p class="src" style="font-size:12px;color:var(--muted);margin:10px 0 0" title="sha256 of these rules; every decision in the ledger carries the hash of the policy it was judged under">rules hash <code id="p-hash"></code></p>
     </div>
@@ -246,14 +255,15 @@
   <div class="btns">
     <button class="primary" id="run-demo">Run demo scenarios</button>
     <button class="ghost" id="run-one">Evaluate custom intent</button>
-    <button class="ghost" id="reset">Reset ledger</button>
+    <button class="ghost" id="reset" title="Start a fresh session: new spend budget and agent ids for the demo. The audit chain is never deleted.">New session</button>
+    <span class="chip" id="session-chip" title="Your console session. Agents, the policy and the budget are scoped to it; the audit chain is shared and never reset.">session …</span>
   </div>
 
   <div id="results"></div>
 
   <section class="agents" id="agents" hidden>
     <div class="lhead">
-      <h2>Agents in this run</h2>
+      <h2>Agents in this session</h2>
       <p class="tag">Every agent id the guardrail has seen. Freeze one, the way a bank freezes a card, and its next request is refused before any check runs; the refusal is chained like any other decision. Resume is one click.</p>
     </div>
     <div id="agents-list"></div>
@@ -273,6 +283,7 @@
       <h2>Audit ledger</h2>
       <span class="status idle" id="audit-status">no decisions yet</span>
       <div class="lbtns">
+        <button class="ghost" id="scope" title="The chain is shared by every session of this demo. By default you see your own session's links (plus anything that moved outside the firewall).">Show all sessions</button>
         <button class="ghost" id="reconcile" title="Ask PayPal for every debit in the last 24 hours and flag any that SafePay never released">Reconcile with PayPal</button>
         <button class="ghost" id="verify-chain">Verify chain</button>
         {% if tamper_demo %}
@@ -344,7 +355,7 @@
     const r = await (await fetch('/api/policy/apply', { method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ run: RUN, policy }) })).json();
     if (r.ok) { APPLIED = r.policy; showRules(r.rules, true, r.policy_hash); loadAudit();
-      if (!quiet) polMsg(`Applied to this run and chained as link #${r.seq}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
+      if (!quiet) polMsg(`Applied to this session and chained as link #${r.seq}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
     else if (!quiet) polMsg(r.error || 'could not apply', 'bad');
     return r;
   }
@@ -378,17 +389,20 @@
         body: JSON.stringify({ run: RUN }) })).json();
       APPLIED = null; showRules(r.rules || DEFAULT_RULES, false, r.policy_hash);
       document.getElementById('policy-draft-box').classList.remove('show');
-      polMsg(r.seq != null ? `Back to the default policy for this run (chained as link #${r.seq}).` : 'Back to the default policy for this run.', 'ok');
+      polMsg(r.seq != null ? `Back to the default policy for this session (chained as link #${r.seq}).` : 'Back to the default policy for this session.', 'ok');
       loadAudit();
     } catch (e) { polMsg('network error', 'bad'); }
   };
+  function showSession() { document.getElementById('session-chip').textContent = 'session ' + RUN; }
+  showSession();
   async function startRun() {
     RUN = newRun();
+    showSession();
     await fetch('/api/reset', {method: 'POST'});
     if (APPLIED) { try { await applyPolicy(APPLIED, true); } catch (e) {} }
   }
 
-  // --- Agents in this run (pause / resume) ---
+  // --- Agents in this session (freeze / resume) ---
   async function loadAgents() {
     let data;
     try { data = await (await fetch('/api/agents?run=' + encodeURIComponent(RUN))).json(); } catch (e) { return; }
@@ -418,16 +432,30 @@
     });
   }
 
+  // A card while the checks run. One request does all three, so the steps
+  // light up on the clock (policy is instant; the web and the model take a
+  // few seconds each) and the elapsed time is real.
   function pending(intent) {
     const el = document.createElement('div');
     el.className = 'result';
     el.innerHTML = `<div class="head"><span class="badge"><span class="spin"></span></span>
       <span class="amt">USD ${Number(intent.amount).toFixed(2)}</span>
       <span class="to">to ${esc(intent.recipient)}</span>
-      <span class="risk">evaluating…</span></div>`;
+      <span class="risk">evaluating…</span></div>
+      <div class="prog"><span class="step" data-s="policy">policy</span><span class="step" data-s="web">live web</span>
+        <span class="step" data-s="reasoning">reasoning</span><span class="elapsed">0.0 s</span><div class="bar"><i></i></div></div>`;
     results.appendChild(el);
+    const t0 = Date.now();
+    const steps = el.querySelectorAll('.step'), bar = el.querySelector('.bar i'), elapsed = el.querySelector('.elapsed');
+    requestAnimationFrame(() => { bar.style.width = '92%'; });
+    el._timer = setInterval(() => {
+      const s = (Date.now() - t0) / 1000;
+      elapsed.textContent = s.toFixed(1) + ' s';
+      steps.forEach(st => { const at = { policy: 0.2, web: 1.2, reasoning: 5 }[st.dataset.s]; st.classList.toggle('on', s >= at); });
+    }, 100);
     return el;
   }
+  function stopProgress(el) { if (el._timer) { clearInterval(el._timer); el._timer = null; } }
 
   // What each check actually looked at: web sources for the merchant check,
   // the model's verdict for reasoning, the rule numbers for policy.
@@ -445,6 +473,7 @@
     }).join('');
   }
   function render(el, r) {
+    stopProgress(el);
     const d = r.decision;
     el.className = 'result ' + d.verdict;
     const checks = d.checks.map((c, i) => {
@@ -518,6 +547,7 @@
       });
       render(el, await resp.json());
     } catch (e) {
+      stopProgress(el);
       el.querySelector('.risk').textContent = 'error';
     } finally {
       loadAudit();
@@ -643,12 +673,24 @@
       };
     });
   }
-  function setStatus(data) {
+  // The chain is shared by every session of the demo; the judge sees their
+  // own session's links by default (plus what moved outside the firewall).
+  let SHOW_ALL = false;
+  const inSession = p => {
+    const a = String((p.intent || {}).agent_id || '');
+    return p.event === 'outside' || a.endsWith(':' + RUN) || a === 'operator:' + RUN;
+  };
+  function scoped(data) {
+    if (SHOW_ALL) return data;
+    return { ...data, records: (data.records || []).filter(r => inSession(r.payload || {})), shown: 'session' };
+  }
+  function setStatus(data, shown) {
     const el = document.getElementById('audit-status');
     if (!data.count) { el.className = 'status idle'; el.textContent = 'no decisions yet'; return; }
+    const scope = SHOW_ALL ? '' : ` · showing ${shown} from this session`;
     if (data.ok) {
       el.className = 'status ok';
-      el.textContent = '✓ chain verified — ' + data.count + ' records intact';
+      el.textContent = '✓ chain verified — ' + data.count + ' records intact' + scope;
     } else {
       el.className = 'status bad';
       el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq
@@ -698,8 +740,11 @@
       axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', min: 0, max: 1, label: { fontSize: 10 } }] });
   }
 
+  let LAST_AUDIT = null;
   function showAudit(data) {
-    const rows = auditRows(data);
+    LAST_AUDIT = data;
+    const view = scoped(data);
+    const rows = auditRows(view);
     if (!auditApi) {
       auditApi = agGrid.createGrid(document.getElementById('audit-grid'), {
         columnDefs: auditColumns, rowData: rows,
@@ -708,8 +753,8 @@
     } else {
       auditApi.setGridOption('rowData', rows);
     }
-    setStatus(data);
-    try { updateCharts(data); } catch (e) { console.warn('charts', e); }
+    setStatus(data, rows.length);
+    try { updateCharts(view); } catch (e) { console.warn('charts', e); }
   }
   async function loadAudit() {
     let data;
@@ -717,6 +762,11 @@
     showAudit(data);
   }
   document.getElementById('verify-chain').onclick = loadAudit;
+  document.getElementById('scope').onclick = () => {
+    SHOW_ALL = !SHOW_ALL;
+    document.getElementById('scope').textContent = SHOW_ALL ? 'This session only' : 'Show all sessions';
+    if (LAST_AUDIT) showAudit(LAST_AUDIT);
+  };
   document.getElementById('reconcile').onclick = async () => {
     const btn = document.getElementById('reconcile'), msg = document.getElementById('reconcile-msg');
     btn.disabled = true; msg.textContent = ' Asking PayPal…';

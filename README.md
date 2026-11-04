@@ -23,7 +23,7 @@ sandbox payouts, real web and model checks.
 
 | A casino payout held: the web check found a first-hand complaint, the reasoning check found a goal mismatch, and every source is one click away | Freeze an agent, the way a bank freezes a card |
 |---|---|
-| ![HOLD card with the merchant and reasoning evidence opened](docs/img/hold-casino-evidence.jpg) | ![Agents in this run with the Freeze agent switch](docs/img/freeze-agent.jpg) |
+| ![HOLD card with the merchant and reasoning evidence opened](docs/img/hold-casino-evidence.jpg) | ![Agents in this session with the Freeze agent switch](docs/img/freeze-agent.jpg) |
 | **Pending approvals and the hash-chained ledger (AG Grid), chain verified** | **The same ledger after the tamper demo: one edited row and the chain breaks** |
 | ![Pending approvals above the audit ledger, chain verified badge](docs/img/approvals-and-ledger.jpg) | ![Chain BROKEN badge after the tamper demo](docs/img/chain-broken.jpg) |
 
@@ -133,8 +133,10 @@ python webapp/app.py
 Write the policy in plain words at the top and apply it, then load the demo
 scenarios or enter a custom payment and watch each intent resolve: the checks,
 the verdict, the PayPal sandbox batch, and the signed stamp. "Agents in this
-run" lists every agent seen with a Freeze / Resume switch. "Reset ledger"
-starts the daily-cap scenario fresh. Below the results, the
+session" lists every agent seen with a Freeze / Resume switch. "New session"
+starts the daily-cap scenario fresh: the policy, the agents and the budget are
+scoped to your console session, and the ledger shows your session's links by
+default ("Show all sessions" shows the whole shared chain). Below the results, the
 **audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
 with a live verification badge; "Tamper (demo)" edits a row in place to show the
 chain break turn the badge red, and "Verify chain" re-checks it. Three AG
@@ -326,7 +328,7 @@ that is validated and coerced field by field (unknown fields dropped, caps
 clamped, a `hold_above` over the hard cap turned off); the model never applies
 anything, a person does; and text that tries to instruct the reviewer ("ignore
 the limits") is refused before any model reads it. The applied policy belongs
-to your console run and follows it: the agents in that run are judged by it,
+to your console session and follows it: the agents in that session are judged by it,
 other sessions are not.
 
 ## Human in the loop (HOLD is a workflow, not a dead end)
@@ -431,7 +433,7 @@ in Supabase and are shared by every instance:
 Create the tables once with `supabase/schema.sql` (RLS on, no policies: only
 the service role key, kept server-side, can touch them). The console shows
 `state: durable (Supabase)` when it is on. The audit chain is never deleted;
-"Reset ledger" in the console starts a new run id for the demo agents instead.
+"New session" in the console starts a new session id for the demo agents instead.
 
 The console also has an **Early access** form (`POST /api/early-access`) for
 teams that want SafePay in front of their own agents' payouts. Sign-ups go to

@@ -30,8 +30,8 @@ none of that. SafePay is the payables firewall for AI agents."
 ## 0:15 - 0:40 | Policy in plain words (do this live)
 
 On screen: type into the policy box and click "Draft the policy". The draft
-summary appears in a few seconds; click "Apply to this run". The "Policy in
-force" card updates with a "custom for this run" pill.
+summary appears in a few seconds; click "Apply to this session". The "Policy in
+force" card updates with a "custom for this session" pill.
 
 Type: "Up to $500 per payment and $1,000 a day. Ask me before anything over
 $300. No gambling or crypto."
@@ -87,7 +87,7 @@ Narration, card by card:
    it would breach the daily cap across the whole run. SafePay tracks spend
    across a burst of payments, not just one in isolation."
 
-Kill switch (about 8 seconds): scroll to "Agents in this run", click "Freeze
+Kill switch (about 8 seconds): scroll to "Agents in this session", click "Freeze
 agent", evaluate the custom intent: BLOCK, "agent frozen", no check ran.
 "And when something looks wrong, one click freezes the agent, the way a bank
 freezes a card: its next request is refused before any check runs."
@@ -133,7 +133,7 @@ Thanks for watching."
 ## Shot list / checklist
 
 - [ ] Header with the chips visible and green.
-- [ ] Policy typed live, drafted and applied ("custom for this run" pill).
+- [ ] Policy typed live, drafted and applied ("custom for this session" pill).
 - [ ] Full "Run demo scenarios" sequence, all seven cards.
 - [ ] Clear read on the HOLD casino card (the differentiator).
 - [ ] One approval taken (Telegram if configured, else the console panel).
