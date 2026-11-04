@@ -169,6 +169,8 @@ class PayPalClient:
         header = body.get("batch_header", {})
         items = body.get("items") or []
         item = items[0] if items else {}
+        pi = item.get("payout_item") or {}
+        amt = pi.get("amount") or {}
         status = str(item.get("transaction_status") or header.get("batch_status") or "PENDING")
         return {
             "mode": "sandbox",
@@ -179,7 +181,55 @@ class PayPalClient:
             "time_processed": item.get("time_processed") or header.get("time_completed"),
             "errors": item.get("errors"),
             "final": status in self.FINAL_OK or status in self.FINAL_FAILED,
+            "receiver": pi.get("receiver"),
+            "amount": float(amt["value"]) if amt.get("value") not in (None, "") else None,
+            "currency": amt.get("currency"),
+            "note": pi.get("note"),
         }
+
+    def list_transactions(self, start: str, end: str) -> list[dict[str, Any]]:
+        """Debits the account made in a window, from Transaction Search
+        (`/v1/reporting/transactions`), normalized to {transaction_id, event_code,
+        status, amount, currency, time, counterparty, subject}. The app needs the
+        Transaction Search feature enabled in the developer dashboard; PayPal
+        answers 403 otherwise and the error says so. Data lags by up to a few
+        hours on PayPal's side. Simulated mode has no account: empty list."""
+        if not self.live:
+            return []
+        import requests
+
+        resp = requests.get(
+            f"{self._cfg.paypal_base_url}/v1/reporting/transactions",
+            headers={"Authorization": f"Bearer {self._access_token()}"},
+            params={"start_date": start, "end_date": end, "page_size": 500,
+                    "fields": "transaction_info,payer_info"},
+            timeout=60,
+        )
+        if resp.status_code == 403:
+            raise PayPalError(
+                "Transaction Search is not enabled for this app (PayPal 403): turn on "
+                "'Transaction search' under the app's features in the developer dashboard")
+        if resp.status_code != 200:
+            raise PayPalError(
+                f"PayPal transaction search failed ({resp.status_code}): {resp.text[:300]}")
+        out = []
+        for t in resp.json().get("transaction_details") or []:
+            ti = t.get("transaction_info") or {}
+            amt = ti.get("transaction_amount") or {}
+            try:
+                value = float(amt.get("value"))
+            except (TypeError, ValueError):
+                continue
+            out.append({
+                "transaction_id": ti.get("transaction_id"),
+                "event_code": ti.get("transaction_event_code"),
+                "status": ti.get("transaction_status"),
+                "amount": value, "currency": amt.get("currency_code"),
+                "time": ti.get("transaction_initiation_date"),
+                "counterparty": (t.get("payer_info") or {}).get("email_address"),
+                "subject": ti.get("transaction_subject") or ti.get("transaction_note"),
+            })
+        return out
 
     def verify_webhook(self, headers: dict[str, str], event: dict[str, Any],
                        webhook_id: str) -> bool:

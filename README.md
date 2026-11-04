@@ -177,13 +177,14 @@ The toolkit is an optional dependency; the core package and tests never need it.
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
 Desktop, Cursor, an agent framework) can route its payments through the guardrail
-without importing any SafePay code. It exposes twelve tools: `safepay_evaluate`
+without importing any SafePay code. It exposes thirteen tools: `safepay_evaluate`
 (judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
 ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow),
 `safepay_pending_approvals`, `safepay_approve` and `safepay_reject` (the human
 in the loop for HOLD decisions), `safepay_payout_status` (settlement),
 `safepay_draft_policy` (plain words to a policy draft), `safepay_agents`,
-`safepay_pause_agent` and `safepay_resume_agent` (the kill switch), and
+`safepay_pause_agent` and `safepay_resume_agent` (the kill switch),
+`safepay_reconcile` (flag money that moved outside the firewall), and
 `safepay_audit_status` (re-verify the tamper-evident chain).
 
 ```bash
@@ -367,6 +368,29 @@ the Payouts API, never trusted from the body. The hosted demo has this webhook
 live: a payout released there gets its settlement link from PayPal's push, no
 button needed. If a delivery fails verification, the reason PayPal gives (for
 example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
+
+## Outside the firewall (money that moved without a decision)
+
+A guardrail that only sees what passes through it is blind to what goes
+around it: an agent that calls PayPal directly, a leaked credential, a bug
+in a loop. SafePay watches the account two ways:
+
+- **PayPal's own webhook.** A payouts event for a batch SafePay never
+  released is not ignored. It is chained as an **outside** link (verdict
+  BLOCK: not authorized by the firewall, with the receiver, amount and
+  PayPal status re-read from the Payouts API) and the operator gets a
+  Telegram alert. On the hosted demo this is live: a payout sent straight
+  to the sandbox account shows up in the ledger within seconds.
+- **Reconciliation.** "Reconcile with PayPal" in the console
+  (`POST /api/reconcile`, the `safepay_reconcile` MCP tool,
+  `SafePayAgent.reconcile()`) pulls the account's debits for the last 24 hours
+  from Transaction Search and compares them with the chain; any debit no
+  decision released is chained the same way. Transaction Search has to be
+  enabled for the PayPal app (the error says so if it is not), and PayPal's
+  data lags by up to a few hours.
+
+Both paths are idempotent per payout, so a webhook retry or a second
+reconcile never flags the same money twice.
 
 ## Durable state (Supabase)
 

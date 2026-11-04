@@ -62,7 +62,10 @@ def check_merchant(
 
     # Neutral query: do not seed the search with the very words we then look for.
     hits = web.search(f"{target} company reviews reputation", max_results=5)
-    evidence = [{"title": h.title, "url": h.url} for h in hits]
+    # What the reviewer saw, kept with the decision so a person can read the
+    # same sources from the console or the audit record.
+    evidence = [{"title": h.title, "url": h.url, "snippet": (h.content or "")[:240]}
+                for h in hits]
 
     if not hits:
         # An unknown payee with no web footprint is the exact case this check

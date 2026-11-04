@@ -19,7 +19,7 @@ from .auditlog import AuditLog
 from .config import Config
 from .control import ACTIVE, PAUSED, MemoryControl, run_of
 from .guardrail import Guardrail
-from .models import Decision, PaymentIntent, PolicyConfig, Verdict
+from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
 from .paypal_client import PayPalClient
 from .policy_draft import coerce_policy, describe_policy, draft_policy
@@ -283,6 +283,98 @@ class SafePayAgent:
         record = self.audit_log.append(decision)
         return {"settlement": execution, "status": status, "audit": record,
                 "duplicate": False, "seq": record["payload"].get("seq")}
+
+    # --- outside the firewall: money that moved without a SafePay decision --
+
+    def _known_batches(self) -> dict[str, dict[str, Any]]:
+        """payout_batch_id -> the chain payload that first recorded it."""
+        out: dict[str, dict[str, Any]] = {}
+        for rec in self.audit_log.records:
+            p = rec.get("payload", {})
+            b = (p.get("execution") or {}).get("payout_batch_id")
+            if b and b not in out:
+                out[b] = p
+        return out
+
+    def flag_outside(self, batch_id: str, source: str = "webhook",
+                     state: dict[str, Any] | None = None) -> dict[str, Any]:
+        """A payout left the PayPal account without passing through SafePay:
+        PayPal reported it (webhook) or reconciliation found it. Record it as
+        an "outside" link (verdict BLOCK: not authorized by the firewall), and
+        alert the operator. Idempotent per batch."""
+        known = self._known_batches()
+        if batch_id in known:
+            p = known[batch_id]
+            return {"outside": p.get("event") == "outside", "duplicate": True,
+                    "seq": p.get("seq"), "batch": batch_id}
+        state = state or self.paypal.get_payout(batch_id)
+        status = str(state.get("item_status") or state.get("batch_status") or "PENDING")
+        amount = float(state.get("amount") or 0.0)
+        receiver = state.get("receiver") or "unknown recipient"
+        why = (f"payout {batch_id} left the PayPal account without a SafePay decision "
+               f"(reported by {source}; PayPal status {status})")
+        check = CheckResult(name="firewall", passed=False, severity=Severity.CRITICAL,
+                            detail=why, risk=1.0,
+                            evidence=[{"rule": "outside_firewall", "source": source,
+                                       "payout_batch_id": batch_id, "status": status}])
+        decision = Decision(
+            verdict=Verdict.BLOCK,
+            intent=PaymentIntent(recipient=receiver, amount=amount,
+                                 currency=state.get("currency") or "USD",
+                                 category="outside", purpose=state.get("note") or "",
+                                 agent_id="outside-safepay"),
+            checks=[check], reasons=[f"firewall: {why}"],
+            executed=status in self.paypal.FINAL_OK,
+            execution=dict(state, payout_batch_id=batch_id, source=source, outside=True),
+            event="outside", policy_hash=attest.policy_hash(self.policy),
+        )
+        record = self.audit_log.append(decision)
+        if self.notifier is not None:
+            self.notifier.send_alert(
+                f"SafePay ALERT · money moved outside the firewall\n"
+                f"{decision.intent.currency} {amount:.2f} to {receiver}\n"
+                f"Payout {batch_id}, PayPal status {status}, reported by {source}.\n"
+                f"No agent asked SafePay for this payment. Chain link #{record['payload'].get('seq')}.")
+        return {"outside": True, "duplicate": False, "seq": record["payload"].get("seq"),
+                "batch": batch_id, "audit": record, "status": status, "amount": amount,
+                "receiver": receiver}
+
+    def reconcile(self, hours: float = 24.0, source: str = "reconcile") -> dict[str, Any]:
+        """Compare PayPal's own transaction list with the chain: every debit
+        PayPal shows that no SafePay decision released is flagged as outside
+        the firewall. Needs Transaction Search enabled for the app."""
+        import datetime as _dt
+        end = _dt.datetime.now(_dt.timezone.utc)
+        start = end - _dt.timedelta(hours=max(1.0, float(hours)))
+        fmt = "%Y-%m-%dT%H:%M:%S-0000"
+        txs = self.paypal.list_transactions(start.strftime(fmt), end.strftime(fmt))
+        # Transaction ids SafePay knows: settlements record them; for released
+        # payouts not yet settled, ask PayPal once per batch.
+        known_tx: set[str] = set()
+        for batch, p in self._known_batches().items():
+            tid = (p.get("execution") or {}).get("transaction_id")
+            if not tid:
+                try:
+                    tid = self.paypal.get_payout(batch).get("transaction_id")
+                except Exception:
+                    tid = None
+            if tid:
+                known_tx.add(str(tid))
+        debits = [t for t in txs if t["amount"] < 0 and str(t.get("event_code") or "").startswith("T00")]
+        outside = []
+        for t in debits:
+            if str(t.get("transaction_id")) in known_tx:
+                continue
+            state = {"item_status": t.get("status"), "batch_status": t.get("status"),
+                     "transaction_id": t.get("transaction_id"), "amount": -t["amount"],
+                     "currency": t.get("currency"), "receiver": t.get("counterparty"),
+                     "note": t.get("subject"), "time_processed": t.get("time"), "mode": "sandbox"}
+            res = self.flag_outside(f"tx:{t.get('transaction_id')}", source, state)
+            outside.append({"transaction_id": t.get("transaction_id"), "amount": -t["amount"],
+                            "counterparty": t.get("counterparty"), "seq": res.get("seq"),
+                            "duplicate": res.get("duplicate")})
+        return {"window_hours": hours, "transactions": len(txs), "debits": len(debits),
+                "known": len(known_tx), "outside": outside}
 
     def pay_many(self, intents: list[PaymentIntent]) -> list[dict[str, Any]]:
         """Run a sequence, so the daily cap is enforced across the burst."""

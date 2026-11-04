@@ -69,6 +69,18 @@
   .check .mk.no { color: var(--hold); }
   .check .nm { flex: 0 0 86px; color: var(--muted); text-transform: capitalize; }
   .check .dt { flex: 1 1 auto; }
+  .check .ev-btn { flex: 0 0 auto; background: transparent; border: 1px solid var(--line);
+    color: var(--muted); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .check .ev-btn:hover { color: var(--fg); }
+  .ev { flex: 1 1 100%; display: none; margin: 4px 0 2px 28px; padding: 8px 12px; font-size: 12.5px;
+    color: var(--muted); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; }
+  .ev.show { display: block; }
+  .ev .src { margin: 0 0 6px; }
+  .ev .src:last-child { margin-bottom: 0; }
+  .ev a { color: var(--accent); text-decoration: none; }
+  .ev .snip { color: var(--fg); opacity: .8; }
+  .ev .kv { display: inline-block; margin-right: 12px; }
+  .ev .kv b { color: var(--fg); font-weight: 600; }
   .exec { padding: 10px 16px; font-size: 13px; color: var(--muted);
     background: var(--panel2); border-top: 1px solid var(--line); }
   .exec .ok { color: var(--allow); }
@@ -255,12 +267,13 @@
       <h2>Audit ledger</h2>
       <span class="status idle" id="audit-status">no decisions yet</span>
       <div class="lbtns">
+        <button class="ghost" id="reconcile" title="Ask PayPal for every debit in the last 24 hours and flag any that SafePay never released">Reconcile with PayPal</button>
         <button class="ghost" id="verify-chain">Verify chain</button>
         {% if tamper_demo %}
         <button class="danger" id="tamper-chain">Tamper (demo)</button>
         {% endif %}
       </div>
-      <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history.{% if tamper_demo %} "Tamper (demo)" shows what verification reports if a row were edited (on a copy; the stored chain is never touched), and "Verify chain" re-checks the real one.{% endif %}</p>
+      <p class="tag">Every decision is appended to a hash-chained log: each record carries the hash of the one before it, so editing or dropping any row breaks every hash that follows. "Verify chain" re-checks the whole history. Money that leaves the PayPal account without a SafePay decision (a PayPal webhook or "Reconcile with PayPal" finds it) is chained as an <b>outside</b> link and the operator is alerted.<span id="reconcile-msg" class="muted"></span>{% if tamper_demo %} "Tamper (demo)" shows what verification reports if a row were edited (on a copy; the stored chain is never touched), and "Verify chain" re-checks the real one.{% endif %}</p>
     </div>
     <div id="audit-grid" class="ag-theme-quartz-dark"></div>
   </section>
@@ -404,12 +417,34 @@
     return el;
   }
 
+  // What each check actually looked at: web sources for the merchant check,
+  // the model's verdict for reasoning, the rule numbers for policy.
+  function evidenceHtml(c) {
+    const ev = Array.isArray(c.evidence) ? c.evidence : [];
+    if (!ev.length) return '';
+    return ev.map(e => {
+      if (e && e.url) {
+        return `<div class="src"><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.title || e.url)}</a>
+          ${e.snippet ? `<div class="snip">${esc(e.snippet)}</div>` : ''}</div>`;
+      }
+      const kv = Object.entries(e || {}).map(([k, v]) =>
+        `<span class="kv"><b>${esc(k)}</b> ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</span>`).join('');
+      return `<div class="src">${kv}</div>`;
+    }).join('');
+  }
   function render(el, r) {
     const d = r.decision;
     el.className = 'result ' + d.verdict;
-    const checks = d.checks.map(c => `
+    const checks = d.checks.map((c, i) => {
+      const ev = evidenceHtml(c);
+      const n = Array.isArray(c.evidence) ? c.evidence.length : 0;
+      const label = c.name === 'merchant' ? `${n} web source${n === 1 ? '' : 's'}`
+                  : c.name === 'reasoning' ? 'model verdict' : `${n} rule${n === 1 ? '' : 's'}`;
+      return `
       <div class="check"><span class="mk ${c.passed ? 'ok':'no'}">${c.passed ? '✓':'!'}</span>
-      <span class="nm">${esc(c.name)}</span><span class="dt">${esc(c.detail)}</span></div>`).join('');
+      <span class="nm">${esc(c.name)}</span><span class="dt">${esc(c.detail)}</span>
+      ${ev ? `<button class="ev-btn" data-ev="${i}" title="what this check looked at">${label} ▾</button><div class="ev" data-evbox="${i}">${ev}</div>` : ''}</div>`;
+    }).join('');
     let exec = '';
     if (d.executed && d.execution) {
       const b = d.execution.payout_batch_id || '';
@@ -434,6 +469,13 @@
       <div class="stamp"><span>${esc(r.stamp)}</span><span class="sig">${sig ? 'signed' : 'unsigned'}</span></div>`;
     const sb = el.querySelector('button.settle');
     if (sb) sb.onclick = () => settle(sb);
+    el.querySelectorAll('button.ev-btn').forEach(b => {
+      b.onclick = () => {
+        const box = el.querySelector(`.ev[data-evbox="${b.dataset.ev}"]`);
+        const open = box.classList.toggle('show');
+        b.textContent = b.textContent.replace(open ? '▾' : '▴', open ? '▴' : '▾');
+      };
+    });
   }
 
   // Close the loop: what PayPal says happened to the payout, appended to the chain.
@@ -619,6 +661,18 @@
     showAudit(data);
   }
   document.getElementById('verify-chain').onclick = loadAudit;
+  document.getElementById('reconcile').onclick = async () => {
+    const btn = document.getElementById('reconcile'), msg = document.getElementById('reconcile-msg');
+    btn.disabled = true; msg.textContent = ' Asking PayPal…';
+    try {
+      const r = await (await fetch('/api/reconcile', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{"hours": 24}' })).json();
+      if (r.error) msg.textContent = ' ' + r.error;
+      else msg.textContent = ` PayPal lists ${r.debits} debit${r.debits === 1 ? '' : 's'} in the last 24 h; ${r.outside.length} outside the firewall` +
+        (r.outside.length ? ' (chained, see "outside" links).' : '.');
+      loadAudit();
+    } catch (e) { msg.textContent = ' network error'; }
+    finally { btn.disabled = false; }
+  };
   const tamperBtn = document.getElementById('tamper-chain');
   if (tamperBtn) {
     tamperBtn.onclick = async () => {

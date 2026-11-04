@@ -110,6 +110,10 @@ def test_verified_webhook_settles_the_named_batch(client, monkeypatch):
     # The state is re-read from PayPal (simulated: SUCCESS), not trusted from the body.
     assert out == {"ok": True, "status": "SUCCESS", "duplicate": False}
     assert client.post("/api/paypal/webhook", json=event).get_json()["duplicate"] is True
+    # A payout SafePay never released is not ignored: it is money that moved
+    # outside the firewall, chained as an "outside" link.
     unknown = {"event_type": "PAYMENT.PAYOUTSBATCH.SUCCESS",
                "resource": {"batch_header": {"payout_batch_id": "SAFEPAY-nope"}}}
-    assert client.post("/api/paypal/webhook", json=unknown).get_json()["ignored"] == "unknown batch"
+    out = client.post("/api/paypal/webhook", json=unknown).get_json()
+    assert out["outside"] is True and out["duplicate"] is False
+    assert client.get("/api/audit").get_json()["records"][-1]["payload"]["event"] == "outside"

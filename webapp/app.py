@@ -311,10 +311,34 @@ def paypal_webhook():
     try:
         out = _agent.settle(batch_id, source="webhook")
     except ValueError:
-        return jsonify({"ok": True, "ignored": "unknown batch"})
+        # PayPal reports a payout SafePay never released: that is money moving
+        # outside the firewall, the one thing an operator must hear about.
+        try:
+            flagged = _agent.flag_outside(batch_id, source="webhook")
+        except Exception as exc:
+            return jsonify({"error": f"PayPal lookup failed: {exc}"}), 502
+        return jsonify({"ok": True, "outside": True, "seq": flagged.get("seq"),
+                        "duplicate": flagged.get("duplicate")})
     except Exception as exc:
         return jsonify({"error": f"PayPal lookup failed: {exc}"}), 502
     return jsonify({"ok": True, "status": out["status"], "duplicate": out["duplicate"]})
+
+
+@app.post("/api/reconcile")
+def reconcile():
+    """Compare PayPal's transaction list with the chain and flag any debit
+    SafePay never released. Needs Transaction Search enabled for the app."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    try:
+        hours = float(data.get("hours", 24))
+    except (TypeError, ValueError):
+        hours = 24.0
+    try:
+        return jsonify(dict(_agent.reconcile(hours=min(hours, 24 * 31)), ok=True))
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
 
 
 @app.get("/api/audit")

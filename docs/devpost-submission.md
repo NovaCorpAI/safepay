@@ -67,7 +67,13 @@ or rejects it, in the console, through the MCP tools, or with one tap on a
 Telegram card, and that decision is appended to the chain as its own link
 naming who took it. Every agent the guardrail has seen is listed with a
 Freeze switch, the way a bank freezes a card: a frozen agent's next request is
-refused before any check runs, the kill switch for an incident. When PayPal later reports what
+refused before any check runs, the kill switch for an incident. And the
+firewall watches what goes around it: a payout PayPal reports that SafePay
+never released, or a debit found by reconciling the account against
+Transaction Search, is chained as an "outside" link and the operator is
+alerted on Telegram. Every decision carries the hash of the policy it was
+judged under, and policy changes are chained too, so an auditor can prove
+which rules governed any payment. When PayPal later reports what
 happened to a released payout (succeeded, failed, returned), SafePay appends
 that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is

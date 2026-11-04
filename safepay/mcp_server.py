@@ -152,6 +152,14 @@ def set_agent_paused(agent_id: str, paused: bool, reason: str = "") -> dict[str,
     return {"agent_id": agent_id, "status": row.get("status"), "reason": row.get("reason", "")}
 
 
+def reconcile_account(hours: float = 24.0) -> dict[str, Any]:
+    """Flag every debit PayPal shows that SafePay never released."""
+    try:
+        return _agent.reconcile(hours=hours, source="mcp")
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 def audit_status() -> dict[str, Any]:
     """Re-verify the hash-chained audit log of every decision so far."""
     ok, bad = _agent.audit_log.verify()
@@ -266,6 +274,15 @@ try:
     def safepay_resume_agent(agent_id: str) -> dict[str, Any]:
         """Resume a paused agent."""
         return set_agent_paused(agent_id, False)
+
+    @_MCP.tool()
+    def safepay_reconcile(hours: float = 24.0) -> dict[str, Any]:
+        """Compare PayPal's own transaction list for the last `hours` with
+        SafePay's chain. Any debit PayPal shows that no SafePay decision
+        released is money that moved outside the firewall: it is chained as
+        an "outside" link and the operator is alerted. Needs Transaction
+        Search enabled for the PayPal app."""
+        return reconcile_account(hours)
 
     @_MCP.tool()
     def safepay_audit_status() -> dict[str, Any]:

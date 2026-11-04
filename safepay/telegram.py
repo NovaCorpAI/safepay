@@ -85,6 +85,11 @@ class TelegramNotifier:
             ]]},
         })
 
+    def send_alert(self, text: str) -> dict[str, Any]:
+        """A plain message (no buttons): money moved outside SafePay, a frozen
+        agent kept asking, anything the operator should see now."""
+        return self._call("sendMessage", {"chat_id": self.chat_id, "text": text[:4000]})
+
     # --- inbound: a tap --------------------------------------------------
 
     def handle_update(self, update: dict[str, Any], agent: Any) -> dict[str, Any]:
