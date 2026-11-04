@@ -1,4 +1,4 @@
-"""Agents on a leash: the registry, pause/resume, and the hard 'agent paused'
+"""Freeze an agent: the registry, pause/resume, and the hard 'agent frozen'
 rule in the guardrail (memory store)."""
 
 from __future__ import annotations

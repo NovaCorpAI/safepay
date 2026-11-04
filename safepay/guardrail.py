@@ -49,10 +49,10 @@ class Guardrail:
         if self.control is not None:
             reg = self.control.touch_agent(intent.agent_id)
             if reg.get("status") == PAUSED:
-                why = reg.get("reason") or "paused by the operator"
+                why = reg.get("reason") or "frozen by the operator"
                 checks.append(CheckResult(
                     name="agent", passed=False, severity=Severity.CRITICAL,
-                    detail=f"agent '{intent.agent_id}' is paused ({why}); nothing is evaluated",
+                    detail=f"agent '{intent.agent_id}' is frozen ({why}); nothing is evaluated",
                     risk=1.0, evidence=[{"rule": "agent_paused", "status": PAUSED}],
                 ))
                 return Decision(verdict=Verdict.BLOCK, intent=intent, checks=checks,

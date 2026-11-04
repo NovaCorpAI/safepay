@@ -257,9 +257,9 @@ try:
 
     @_MCP.tool()
     def safepay_pause_agent(agent_id: str, reason: str = "") -> dict[str, Any]:
-        """Pause an agent: its next payment request is refused before any
-        check runs, and the refusal is chained. For incidents and kill
-        switches. Resume with safepay_resume_agent."""
+        """Freeze an agent, the way a bank freezes a card: its next payment
+        request is refused before any check runs, and the refusal is chained.
+        For incidents and kill switches. Resume with safepay_resume_agent."""
         return set_agent_paused(agent_id, True, reason)
 
     @_MCP.tool()

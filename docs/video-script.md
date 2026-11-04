@@ -87,10 +87,10 @@ Narration, card by card:
    it would breach the daily cap across the whole run. SafePay tracks spend
    across a burst of payments, not just one in isolation."
 
-Kill switch (about 8 seconds): scroll to "Agents in this run", click "Pause
-agent", evaluate the custom intent: BLOCK, "agent paused", no check ran.
-"And when something looks wrong, one click pauses the agent: its next request
-is refused before any check runs."
+Kill switch (about 8 seconds): scroll to "Agents in this run", click "Freeze
+agent", evaluate the custom intent: BLOCK, "agent frozen", no check ran.
+"And when something looks wrong, one click freezes the agent, the way a bank
+freezes a card: its next request is refused before any check runs."
 
 Optional, if there is time (about 6 seconds): on the first Notion card click
 "check settlement". "SafePay closes the loop: it asks PayPal whether the money
@@ -137,7 +137,7 @@ Thanks for watching."
 - [ ] Full "Run demo scenarios" sequence, all seven cards.
 - [ ] Clear read on the HOLD casino card (the differentiator).
 - [ ] One approval taken (Telegram if configured, else the console panel).
-- [ ] Pause agent, then a BLOCK with "agent paused".
+- [ ] Freeze agent, then a BLOCK with "agent frozen".
 - [ ] Benchmark table on screen for 5 seconds.
 - [ ] At least one card's PayPal batch id and "signed" stamp visible.
 - [ ] Optional: terminal B-roll of a signed audit record.

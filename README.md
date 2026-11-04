@@ -27,10 +27,10 @@ up on scam-report pages. A static allow-list is too blunt, and letting the model
 decide alone is exactly what goes wrong.
 
 SafePay is the missing layer: a payments firewall that an operator describes in
-plain words once, and that every agent payment has to pass through. Most
-"give your agent a leash" tools stop at spending caps. SafePay also looks
-outward (is this payee what it claims to be?) and inward (does this payment
-serve the task the agent was given?), and it proves how well that works.
+plain words once, and that every agent payment has to pass through. Spending
+caps are where most tools stop. SafePay also looks outward (is this payee what
+it claims to be?) and inward (does this payment serve the task the agent was
+given?), and it proves how well that works.
 
 ## How it works
 
@@ -118,7 +118,7 @@ python webapp/app.py
 Write the policy in plain words at the top and apply it, then load the demo
 scenarios or enter a custom payment and watch each intent resolve: the checks,
 the verdict, the PayPal sandbox batch, and the signed stamp. "Agents in this
-run" lists every agent seen with a Pause / Resume switch. "Reset ledger"
+run" lists every agent seen with a Freeze / Resume switch. "Reset ledger"
 starts the daily-cap scenario fresh. Below the results, the
 **audit ledger** (an AG Grid table over `/api/audit`) shows the hash-chained log
 with a live verification badge; "Tamper (demo)" edits a row in place to show the
@@ -332,13 +332,14 @@ Telegram setup, once: create a bot with @BotFather, message it, then
 Telegram echoes the secret in a header on every delivery; anything else is
 refused.
 
-## Agents on a leash (pause and resume)
+## Freeze an agent (the kill switch)
 
-Every agent id the guardrail has seen is listed in the console with its
-status, how many decisions it asked for and when it was last seen. **Pause
-agent** is the kill switch: the agent's next request is refused before any
-check runs ("agent paused" is the one rule that beats every other), the
-refusal is chained like any decision, and nothing moves until **Resume**. The
+A bank lets you freeze a card the moment something looks wrong; SafePay does
+the same for an agent. Every agent id the guardrail has seen is listed in the
+console with its status, how many decisions it asked for and when it was last
+seen. **Freeze agent** is the kill switch: the agent's next request is refused
+before any check runs (a frozen agent is the one rule that beats every other),
+the refusal is chained like any decision, and nothing moves until **Resume**. The
 same controls are `GET /api/agents`, `POST /api/agents/<id>/pause` and
 `/resume`, and the `safepay_agents`, `safepay_pause_agent` and
 `safepay_resume_agent` MCP tools, so a supervising agent or an on-call
@@ -380,7 +381,7 @@ in Supabase and are shared by every instance:
 - the daily cap, per-recipient cap and velocity rule are computed from real
   history over a true UTC day,
 - approvals survive restarts and resolve atomically,
-- the per-run policy and the agent registry (pause / resume) are shared too
+- the per-run policy and the agent registry (freeze / resume) are shared too
   (`safepay_settings`, `safepay_agents`).
 
 Create the tables once with `supabase/schema.sql` (RLS on, no policies: only

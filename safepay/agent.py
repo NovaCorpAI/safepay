@@ -134,7 +134,7 @@ class SafePayAgent:
         record = self.audit_log.append(decision)
         return self._result(decision, record, approval_id)
 
-    # --- operator controls: policy in plain words, agents on a leash -------
+    # --- operator controls: policy in plain words, freeze / resume an agent --
 
     def draft_policy(self, text: str, run: str = "") -> dict[str, Any]:
         """Plain words -> a validated policy draft (nothing applied)."""
@@ -159,7 +159,7 @@ class SafePayAgent:
         return self.control.agents(run)
 
     def pause_agent(self, agent_id: str, reason: str = "") -> dict[str, Any]:
-        return self.control.set_agent_status(agent_id, PAUSED, reason or "paused by the operator")
+        return self.control.set_agent_status(agent_id, PAUSED, reason or "frozen by the operator")
 
     def resume_agent(self, agent_id: str, reason: str = "") -> dict[str, Any]:
         return self.control.set_agent_status(agent_id, ACTIVE, reason)

@@ -31,8 +31,8 @@ their own. The upside is obvious, and so is the failure mode. The moment an
 agent can move money, a bad prompt, a spoofed merchant, or a subtle goal drift
 turns into a real payment. A static allow list is too blunt for open ended
 tasks, and letting the model approve its own spending is exactly what goes
-wrong. Most tools in this space stop at spending caps: a leash. We wanted the
-layer that also looks outward (is this payee what it claims to be?) and inward
+wrong. Spending caps are where most tools stop. We wanted the layer that also
+looks outward (is this payee what it claims to be?) and inward
 (does this payment serve the task the agent was given?), that an operator sets
 up in plain words once, and that proves how well it works instead of asserting
 it.
@@ -66,8 +66,8 @@ waits for a person, who approves it (SafePay then pays and charges the ledger)
 or rejects it, in the console, through the MCP tools, or with one tap on a
 Telegram card, and that decision is appended to the chain as its own link
 naming who took it. Every agent the guardrail has seen is listed with a
-Pause switch: a paused agent's next request is refused before any check runs,
-the kill switch for an incident. When PayPal later reports what
+Freeze switch, the way a bank freezes a card: a frozen agent's next request is
+refused before any check runs, the kill switch for an incident. When PayPal later reports what
 happened to a released payout (succeeded, failed, returned), SafePay appends
 that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is

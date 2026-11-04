@@ -235,7 +235,7 @@
   <section class="agents" id="agents" hidden>
     <div class="lhead">
       <h2>Agents in this run</h2>
-      <p class="tag">Every agent id the guardrail has seen. Pause one and its next request is refused before any check runs; the refusal is chained like any other decision. Resume is one click.</p>
+      <p class="tag">Every agent id the guardrail has seen. Freeze one, the way a bank freezes a card, and its next request is refused before any check runs; the refusal is chained like any other decision. Resume is one click.</p>
     </div>
     <div id="agents-list"></div>
   </section>
@@ -369,10 +369,10 @@
       const paused = a.status === 'paused';
       const seen = a.last_seen ? new Date(a.last_seen * 1000).toLocaleTimeString() : '';
       return `<div class="agt ${paused ? 'paused' : 'active'}" data-id="${esc(a.agent_id)}">
-        <span class="v-pill ${paused ? 'v-block' : 'v-allow'}">${paused ? 'PAUSED' : 'ACTIVE'}</span>
+        <span class="v-pill ${paused ? 'v-block' : 'v-allow'}">${paused ? 'FROZEN' : 'ACTIVE'}</span>
         <span class="id">${esc(a.agent_id)}</span>
         <span class="meta">${a.decisions || 0} decision${a.decisions == 1 ? '' : 's'} · last ${esc(seen)}${paused && a.reason ? ' · ' + esc(a.reason) : ''}</span>
-        <span class="act"><button class="${paused ? 'approve' : 'danger'}" data-act="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Pause agent'}</button></span>
+        <span class="act"><button class="${paused ? 'approve' : 'danger'}" data-act="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Freeze agent'}</button></span>
       </div>`;
     }).join('');
     document.querySelectorAll('#agents-list button[data-act]').forEach(b => {
@@ -381,7 +381,7 @@
         try {
           await fetch(`/api/agents/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ reason: b.dataset.act === 'pause' ? 'paused in console' : '' }) });
+            body: JSON.stringify({ reason: b.dataset.act === 'pause' ? 'frozen in console' : '' }) });
         } catch (e) {}
         loadAgents();
       };

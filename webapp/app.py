@@ -174,7 +174,7 @@ def policy_reset():
         return jsonify({"error": f"could not reset the policy: {exc}"}), 503
 
 
-# --- agents on a leash: pause / resume -------------------------------------
+# --- freeze / resume an agent (the kill switch) ----------------------------
 
 @app.get("/api/agents")
 def agents():
