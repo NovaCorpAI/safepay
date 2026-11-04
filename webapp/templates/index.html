@@ -167,8 +167,17 @@
     border-radius: 6px; color: var(--accent); background: rgba(79,140,255,.14); margin-left: 8px;
     text-transform: none; }
 
+  /* Operator token */
+  .optok { margin-top: 14px; max-width: 560px; }
+  .optok .row2 { grid-template-columns: 1fr auto; align-items: end; }
+  .optok .note { font-size: 12px; color: var(--muted); margin: 6px 0 0; min-height: 1.2em; }
+
   /* Agents */
   .agents { margin-top: 30px; }
+  .agt .key { flex: 1 1 100%; font-size: 12.5px; color: var(--muted); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .agt .key code { color: var(--fg); user-select: all; word-break: break-all; }
+  .agt .act { display: flex; gap: 8px; }
   .agt { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 10px 16px;
     border: 1px solid var(--line); border-radius: 12px; background: var(--panel); margin-top: 10px; }
   .agt .id { font-weight: 700; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
@@ -206,6 +215,13 @@
       <span class="chip {{ 'on' if tavily_on else 'off' }}">Tavily web verify: {{ 'on' if tavily_on else 'off' }}</span>
       <span class="chip {{ 'on' if store == 'supabase' else 'off' }}" title="Where the audit chain, spend ledger and approvals live">state: {{ 'durable (Supabase)' if store == 'supabase' else 'in memory' }}</span>
       <span class="chip {{ 'on' if telegram_on else 'off' }}" title="HOLDs are pushed to a Telegram chat with Approve / Reject buttons">Telegram approvals: {{ 'on' if telegram_on else 'off' }}</span>
+      <span class="chip {{ 'on' if toolkit_on else 'off' }}" title="The PayPal Agent Toolkit gate: an order is created only after SafePay allows it">Agent Toolkit gate: {{ 'on' if toolkit_on else 'off' }}</span>
+      <span class="chip {{ 'on' if operator_locked else 'off' }}" id="op-chip" title="Operator actions (apply a policy, freeze an agent, approve a payment, issue a key) need the operator token when SAFEPAY_OPERATOR_TOKEN is set on the host">operator actions: {{ 'token required' if operator_locked else 'open (demo)' }}</span>
+    </div>
+    <div class="optok" id="optok" {% if not operator_locked %}hidden{% endif %}>
+      <label for="op-input">Operator token</label>
+      <div class="row2"><input id="op-input" type="password" autocomplete="off" placeholder="paste the operator token (kept in this tab only)"><button class="ghost" id="op-save">Use token</button></div>
+      <p class="note" id="op-msg"></p>
     </div>
   </header>
 
@@ -251,6 +267,20 @@
       <label>Task the agent was given</label><input id="f-goal" value="pay the team's approved SaaS invoices">
     </div>
   </div>
+
+  <section class="card pol" id="toolkit-card">
+    <h2>Agentic commerce: an order through the PayPal Agent Toolkit</h2>
+    <p class="muted" style="font-size:14px;margin:0 0 4px;max-width:78ch">The agent wants to buy something. PayPal's guidance for the Toolkit's order flow is to create the order and invoke pay only after a person approves; SafePay is that approver, made automatic: the Toolkit's <code>create_order</code> runs only after the guardrail says ALLOW, and the buyer-approval link the Orders flow requires stays intact. Held or blocked, the Toolkit is never called.</p>
+    <div class="row2">
+      <div><label>Merchant</label><input id="t-merchant" value="Statista"></div>
+      <div><label>Amount (USD)</label><input id="t-amount" type="number" value="20"></div>
+    </div>
+    <div class="row2">
+      <div><label>What the agent is buying</label><input id="t-purpose" value="Market research report on agentic commerce"></div>
+      <div><label>Category</label><input id="t-category" value="software"></div>
+    </div>
+    <div class="btns" style="margin-top:12px"><button class="ghost" id="run-order">Create the order through the gate</button></div>
+  </section>
 
   <div class="btns">
     <button class="primary" id="run-demo">Run demo scenarios</button>
@@ -342,6 +372,29 @@
   const results = document.getElementById('results');
   const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
+  // --- Operator token (only when the host locks operator actions) and agent keys ---
+  let OP = '';
+  try { OP = sessionStorage.getItem('safepay_op') || ''; } catch (e) {}
+  const KEYS = {};   // agent id -> key issued in this tab, sent as Authorization on its payments
+  function opFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, OP ? { 'X-SafePay-Operator': OP } : {});
+    return fetch(url, opts).then(resp => {
+      if (resp.status === 401) {
+        const box = document.getElementById('optok');
+        box.hidden = false;
+        document.getElementById('op-msg').textContent = 'This host requires the operator token for that action.';
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return resp;
+    });
+  }
+  document.getElementById('op-save').onclick = () => {
+    OP = document.getElementById('op-input').value.trim();
+    try { OP ? sessionStorage.setItem('safepay_op', OP) : sessionStorage.removeItem('safepay_op'); } catch (e) {}
+    document.getElementById('op-msg').textContent = OP ? 'Token set for this tab. Retry the action.' : 'Token cleared.';
+  };
+
   // --- Policy in plain words ---
   let APPLIED = null;   // the policy dict applied to this session, re-applied to each new run
   function showRules(rules, custom, hash) {
@@ -352,7 +405,7 @@
   showRules(DEFAULT_RULES, false, DEFAULT_HASH);
   const polMsg = (text, cls) => { const m = document.getElementById('policy-msg'); m.className = 'msg ' + (cls || ''); m.textContent = text; };
   async function applyPolicy(policy, quiet) {
-    const r = await (await fetch('/api/policy/apply', { method: 'POST', headers: {'Content-Type': 'application/json'},
+    const r = await (await opFetch('/api/policy/apply', { method: 'POST', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ run: RUN, policy }) })).json();
     if (r.ok) { APPLIED = r.policy; showRules(r.rules, true, r.policy_hash); loadAudit();
       if (!quiet) polMsg(`Applied to this session and chained as link #${r.seq}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
@@ -385,7 +438,7 @@
   };
   document.getElementById('policy-reset').onclick = async () => {
     try {
-      const r = await (await fetch('/api/policy/reset', { method: 'POST', headers: {'Content-Type': 'application/json'},
+      const r = await (await opFetch('/api/policy/reset', { method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ run: RUN }) })).json();
       APPLIED = null; showRules(r.rules || DEFAULT_RULES, false, r.policy_hash);
       document.getElementById('policy-draft-box').classList.remove('show');
@@ -412,20 +465,34 @@
     document.getElementById('agents-list').innerHTML = rows.map(a => {
       const paused = a.status === 'paused';
       const seen = a.last_seen ? new Date(a.last_seen * 1000).toLocaleTimeString() : '';
+      const keyed = !!a.has_key;
       return `<div class="agt ${paused ? 'paused' : 'active'}" data-id="${esc(a.agent_id)}">
         <span class="v-pill ${paused ? 'v-block' : 'v-allow'}">${paused ? 'FROZEN' : 'ACTIVE'}</span>
         <span class="id">${esc(a.agent_id)}</span>
-        <span class="meta">${a.decisions || 0} decision${a.decisions == 1 ? '' : 's'} · last ${esc(seen)}${paused && a.reason ? ' · ' + esc(a.reason) : ''}</span>
-        <span class="act"><button class="${paused ? 'approve' : 'danger'}" data-act="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Freeze agent'}</button></span>
+        <span class="meta">${a.decisions || 0} decision${a.decisions == 1 ? '' : 's'} · last ${esc(seen)}${paused && a.reason ? ' · ' + esc(a.reason) : ''}${keyed ? ' · key bound' : ''}</span>
+        <span class="act">
+          <button class="ghost" data-act="${keyed ? 'revoke' : 'key'}" title="${keyed ? 'Revoke this agent\'s key: it can call again without one' : 'Bind this agent id to a key it must present; a request with the key is this agent whatever its body says'}">${keyed ? 'Revoke key' : 'Issue key'}</button>
+          <button class="${paused ? 'approve' : 'danger'}" data-act="${paused ? 'resume' : 'pause'}">${paused ? 'Resume' : 'Freeze agent'}</button>
+        </span>
+        ${KEYS[a.agent_id] && keyed ? `<div class="key">Key for this agent, shown once and kept in this tab: <code>${esc(KEYS[a.agent_id])}</code>. SafePay stores only its hash. Its payments from this tab now carry it; a call without it is refused.</div>` : ''}
       </div>`;
     }).join('');
     document.querySelectorAll('#agents-list button[data-act]').forEach(b => {
       b.onclick = async () => {
         const id = b.closest('.agt').dataset.id; b.disabled = true;
         try {
-          await fetch(`/api/agents/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ reason: b.dataset.act === 'pause' ? 'frozen in console' : '' }) });
+          if (b.dataset.act === 'key') {
+            const r = await (await opFetch(`/api/agents/${encodeURIComponent(id)}/key`, { method: 'POST',
+              headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ label: 'issued in console' }) })).json();
+            if (r.ok) KEYS[id] = r.key;
+          } else if (b.dataset.act === 'revoke') {
+            await opFetch(`/api/agents/${encodeURIComponent(id)}/key`, { method: 'DELETE' });
+            delete KEYS[id];
+          } else {
+            await opFetch(`/api/agents/${encodeURIComponent(id)}/${b.dataset.act}`, { method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ reason: b.dataset.act === 'pause' ? 'frozen in console' : '' }) });
+          }
         } catch (e) {}
         loadAgents();
       };
@@ -487,7 +554,15 @@
       ${ev ? `<button class="ev-btn" data-ev="${i}" title="what this check looked at">${label} ▾</button><div class="ev" data-evbox="${i}">${ev}</div>` : ''}</div>`;
     }).join('');
     let exec = '';
-    if (d.executed && d.execution) {
+    if (d.execution && d.execution.method === 'create_order') {
+      let res = d.execution.result;
+      try { if (typeof res === 'string') res = JSON.parse(res); } catch (e) { res = { raw: String(res) }; }
+      res = res || {};
+      const link = (res.links || []).find(l => l && ['approve', 'payer-action'].includes(l.rel));
+      exec = d.executed
+        ? `<div class="exec"><span class="ok">● order created</span> through the PayPal Agent Toolkit · ${esc(res.id || '?')} (${esc(res.status || '?')})${link ? ` · <a href="${esc(link.href)}" target="_blank" rel="noopener" style="color:var(--accent)">buyer approval link</a>` : ''}</div>`
+        : `<div class="exec"><span class="no">● order not created</span>, the Toolkit was called but failed: ${esc(d.execution.error || '?')}</div>`;
+    } else if (d.executed && d.execution) {
       const b = d.execution.payout_batch_id || '';
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] ·
         batch ${esc(b || '?')} (<span class="bstat">${esc(d.execution.batch_status || '?')}</span>)
@@ -497,7 +572,7 @@
     } else if (d.verdict === 'hold' && r.approval_id) {
       exec = `<div class="exec">○ held, money did not move. Awaiting a human: <b>${esc(r.approval_id)}</b> (see Pending approvals below)</div>`;
     } else if (d.verdict !== 'allow') {
-      exec = `<div class="exec">○ not executed, money did not move</div>`;
+      exec = `<div class="exec">○ not executed, ${d.event === 'order' ? 'the Toolkit was never called, no order exists' : 'money did not move'}</div>`;
     }
     const sig = r.audit.signature.signed;
     el.innerHTML = `
@@ -541,11 +616,22 @@
   async function evaluate(intent) {
     const el = pending(intent);
     try {
+      const agentId = runAgent(intent.agent_id);
+      const headers = {'Content-Type': 'application/json'};
+      if (KEYS[agentId]) headers['Authorization'] = 'Bearer ' + KEYS[agentId];
       const resp = await fetch('/api/evaluate', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ ...intent, agent_id: runAgent(intent.agent_id) })
+        method: 'POST', headers,
+        body: JSON.stringify({ ...intent, agent_id: agentId })
       });
-      render(el, await resp.json());
+      const body = await resp.json();
+      if (!resp.ok || body.error) {
+        stopProgress(el);
+        el.className = 'result block';
+        el.querySelector('.risk').textContent = 'refused';
+        el.insertAdjacentHTML('beforeend', `<div class="exec"><span class="no">● refused before any check</span>: ${esc(body.error || resp.status)}</div>`);
+        return;
+      }
+      render(el, body);
     } catch (e) {
       stopProgress(el);
       el.querySelector('.risk').textContent = 'error';
@@ -557,9 +643,40 @@
   }
 
   function setBusy(b) {
-    for (const id of ['run-demo','run-one','reset'])
+    for (const id of ['run-demo','run-one','reset','run-order'])
       document.getElementById(id).disabled = b;
   }
+
+  // Agentic commerce: the same gate, in front of the PayPal Agent Toolkit.
+  document.getElementById('run-order').onclick = async () => {
+    setBusy(true);
+    const intent = {
+      recipient: 'orders@' + (document.getElementById('t-merchant').value || 'merchant').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.example',
+      amount: parseFloat(document.getElementById('t-amount').value || '0'),
+      currency: 'USD',
+      category: document.getElementById('t-category').value,
+      merchant_name: document.getElementById('t-merchant').value || null,
+      purpose: document.getElementById('t-purpose').value,
+      task_goal: document.getElementById('f-goal').value,
+      agent_id: 'shopping-agent'
+    };
+    const el = pending(intent);
+    try {
+      const agentId = runAgent(intent.agent_id);
+      const headers = {'Content-Type': 'application/json'};
+      if (KEYS[agentId]) headers['Authorization'] = 'Bearer ' + KEYS[agentId];
+      const resp = await fetch('/api/toolkit/order', { method: 'POST', headers,
+        body: JSON.stringify({ ...intent, agent_id: agentId }) });
+      const body = await resp.json();
+      if (!resp.ok || body.error) {
+        stopProgress(el); el.className = 'result block'; el.querySelector('.risk').textContent = 'refused';
+        el.insertAdjacentHTML('beforeend', `<div class="exec"><span class="no">● refused before any check</span>: ${esc(body.error || resp.status)}</div>`);
+      } else {
+        render(el, body);
+      }
+    } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; }
+    finally { setBusy(false); loadAudit(); loadApprovals(); loadAgents(); }
+  };
 
   document.getElementById('run-demo').onclick = async () => {
     setBusy(true);
@@ -625,7 +742,7 @@
         const row = b.closest('.apr'); const id = row.dataset.id; const act = b.dataset.act;
         row.querySelectorAll('button').forEach(x => x.disabled = true);
         try {
-          const resp = await fetch(`/api/approvals/${id}/${act}`, {
+          const resp = await opFetch(`/api/approvals/${id}/${act}`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ note: act === 'approve' ? 'approved in console' : 'rejected in console' })
           });
@@ -771,7 +888,7 @@
     const btn = document.getElementById('reconcile'), msg = document.getElementById('reconcile-msg');
     btn.disabled = true; msg.textContent = ' Asking PayPal…';
     try {
-      const r = await (await fetch('/api/reconcile', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{"hours": 24}' })).json();
+      const r = await (await opFetch('/api/reconcile', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{"hours": 24}' })).json();
       if (r.error) msg.textContent = ' ' + r.error;
       else msg.textContent = ` PayPal lists ${r.debits} debit${r.debits === 1 ? '' : 's'} in the last 24 h; ${r.outside.length} outside the firewall` +
         (r.outside.length ? ' (chained, see "outside" links).' : '.');
@@ -783,7 +900,7 @@
   if (tamperBtn) {
     tamperBtn.onclick = async () => {
       let r;
-      try { r = await (await fetch('/api/audit/tamper', { method: 'POST' })).json(); } catch (e) { return; }
+      try { r = await (await opFetch('/api/audit/tamper', { method: 'POST' })).json(); } catch (e) { return; }
       if (r && r.records) showAudit(r);   // the tampered copy; Verify chain reloads the real one
     };
   }

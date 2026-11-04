@@ -111,13 +111,23 @@ class GuardedToolkit:
         reasoning: bool = False,
         web: bool = False,
         ledger: SpendLedger | None = None,
+        guardrail: Guardrail | None = None,
+        audit_log: Any | None = None,
     ) -> None:
         self.config = config or Config.from_env()
         self.policy = policy or PolicyConfig()
 
-        chat = NebiusChat(self.config) if (reasoning and self.config.nebius_live) else None
-        search = WebSearch(self.config.tavily_api_key) if web else WebSearch(None)
-        self.guardrail = Guardrail(self.policy, search, chat, ledger=ledger)
+        if guardrail is not None:
+            # Share an agent's guardrail: same ledger, registry, web and model,
+            # so a toolkit order counts against the same caps as a payout.
+            self.guardrail = guardrail
+        else:
+            chat = NebiusChat(self.config) if (reasoning and self.config.nebius_live) else None
+            search = WebSearch(self.config.tavily_api_key) if web else WebSearch(None)
+            self.guardrail = Guardrail(self.policy, search, chat, ledger=ledger)
+        # With an audit log, gated calls are appended to that chain instead
+        # of producing a standalone record.
+        self.audit_log = audit_log
 
         self._api = None  # built lazily on the first toolkit-backed call
 
@@ -152,7 +162,8 @@ class GuardedToolkit:
         return self.guardrail.evaluate(intent)
 
     def run(
-        self, method: str, params: dict[str, Any], intent: PaymentIntent | None = None
+        self, method: str, params: dict[str, Any], intent: PaymentIntent | None = None,
+        policy: PolicyConfig | None = None,
     ) -> dict[str, Any]:
         """Gate one toolkit tool call.
 
@@ -171,7 +182,7 @@ class GuardedToolkit:
                 f"method '{method}' moves money; a PaymentIntent is required to gate it"
             )
 
-        decision = self.guardrail.evaluate(intent)
+        decision = self.guardrail.evaluate(intent, policy=policy)
         executed_result: Any = None
 
         if decision.verdict == Verdict.ALLOW:
@@ -188,7 +199,9 @@ class GuardedToolkit:
                 decision.execution = {"method": method, "error": str(exc)}
                 decision.reasons.append(f"toolkit error: {exc}")
 
-        record = attest.audit_record(decision)
+        decision.event = "order"
+        record = (self.audit_log.append(decision) if self.audit_log is not None
+                  else attest.audit_record(decision))
         return {
             "gated": True,
             "method": method,
@@ -199,7 +212,8 @@ class GuardedToolkit:
         }
 
     def create_order(
-        self, intent: PaymentIntent, order_params: dict[str, Any] | None = None
+        self, intent: PaymentIntent, order_params: dict[str, Any] | None = None,
+        policy: PolicyConfig | None = None,
     ) -> dict[str, Any]:
         """The headline flow: gate, then create a real sandbox order on ALLOW.
 
@@ -210,4 +224,4 @@ class GuardedToolkit:
         toolkit is never called and no order exists.
         """
         params = order_params or order_params_from_intent(intent)
-        return self.run("create_order", params, intent=intent)
+        return self.run("create_order", params, intent=intent, policy=policy)

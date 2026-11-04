@@ -176,10 +176,8 @@ approves." SafePay is that approver, made automatic: it judges the intent, and
 the toolkit's money-moving tool is called only on ALLOW.
 
 ```bash
-python -m venv .venv-agent
-.venv-agent/Scripts/pip install -r requirements.txt -r requirements-agent.txt
 set -a; . ./.env; set +a
-.venv-agent/Scripts/python examples/agent_toolkit_demo.py
+python examples/agent_toolkit_demo.py
 ```
 
 Allowed intents create a real sandbox order (with its buyer approval link);
@@ -193,7 +191,12 @@ out = gate.create_order(intent)               # evaluate, then create on ALLOW
 # out["decision"], out["result"] (the order), out["audit"] (signed)
 ```
 
-The toolkit is an optional dependency; the core package and tests never need it.
+In the console, the "Agentic commerce" card does the same through
+`POST /api/toolkit/order`: the gate shares the agent's guardrail and audit
+chain, so an order counts against the same daily cap as a payout, honours the
+session policy and the agent's key, and is chained as an **order** link. The
+light `paypal-agent-toolkit` 1.1.0 release is a core dependency (later
+releases pin whole agent frameworks); `pip install safepay` brings it.
 
 ### Use it as an MCP server (any agent)
 
@@ -248,6 +251,7 @@ first. The `mcp` package is optional; the core package and tests never need it.
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Durable, shared audit chain, ledger and approvals | In-memory state |
 | `PAYPAL_WEBHOOK_ID` | Accept PayPal Payouts webhooks at `/api/paypal/webhook` (signature verified with PayPal) | Settlements only on demand (console button, API, MCP tool) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `TELEGRAM_WEBHOOK_SECRET` | Every HOLD is pushed to a Telegram chat with Approve and pay / Reject buttons; taps come back through `/api/telegram/webhook` | Approvals in the console, API and MCP only |
+| `SAFEPAY_OPERATOR_TOKEN` | Operator actions on the console API (apply a policy, freeze an agent, approve, issue a key, reconcile, tamper demo) require it in `X-SafePay-Operator` | Operator actions are open (a judge's zero-setup demo) |
 
 Get PayPal sandbox keys at `developer.paypal.com` > Apps & Credentials >
 Sandbox > Create App. The host is pinned to the sandbox in `config.py`; SafePay
@@ -390,6 +394,23 @@ the Payouts API, never trusted from the body. The hosted demo has this webhook
 live: a payout released there gets its settlement link from PayPal's push, no
 button needed. If a delivery fails verification, the reason PayPal gives (for
 example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
+
+## Who is asking: agent keys and the operator token
+
+Two identities meet at the firewall, and neither should be a free-text
+field. **Agents** can be bound to a key: "Issue key" on an agent in the
+console (`POST /api/agents/<id>/key`) returns a `spk_...` key once and SafePay
+keeps only its sha256. From then on a request that presents the key
+(`Authorization: Bearer spk_...`) is that agent whatever its body claims, and
+a request for that agent without the key is refused before any check runs.
+An agent without a key keeps working as before, so the demo stays
+zero-setup; "Revoke key" or issuing a new one kills the old key at once.
+**Operators** can be required to present `SAFEPAY_OPERATOR_TOKEN` in the
+`X-SafePay-Operator` header for every operator action (apply a policy,
+freeze an agent, approve or reject, issue a key, reconcile, the tamper demo).
+Unset, those actions are open, which is what the public demo wants; set, the
+console asks for the token once and keeps it in the tab. Paying is never an
+operator action: agents keep working either way.
 
 ## Outside the firewall (money that moved without a decision)
 

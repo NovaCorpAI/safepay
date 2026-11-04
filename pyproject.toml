@@ -25,6 +25,10 @@ dependencies = [
     "openai>=1.40.0",
     "tavily-python>=0.5.0",
     "flask>=3.0.0",
+    # The PayPal Agent Toolkit gate (safepay_create_order, the console's
+    # agentic-commerce card). 1.1.0 is the light release (pydantic, httpx);
+    # later releases pin langchain, crewai and openai-agents.
+    "paypal-agent-toolkit==1.1.0",
 ]
 
 [project.optional-dependencies]

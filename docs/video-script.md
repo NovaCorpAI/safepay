@@ -92,6 +92,13 @@ agent", evaluate the custom intent: BLOCK, "agent frozen", no check ran.
 "And when something looks wrong, one click freezes the agent, the way a bank
 freezes a card: its next request is refused before any check runs."
 
+Agentic commerce (about 10 seconds): in the "Agentic commerce" card click
+"Create the order through the gate". ALLOW, then "order created through the
+PayPal Agent Toolkit" with the order id and the buyer approval link.
+"And the same gate sits in front of the PayPal Agent Toolkit: the agent's
+create order call runs only after SafePay allows it, and the buyer approval
+step PayPal requires stays intact."
+
 Optional, if there is time (about 6 seconds): on the first Notion card click
 "check settlement". "SafePay closes the loop: it asks PayPal whether the money
 actually moved and writes the answer into the same chain."

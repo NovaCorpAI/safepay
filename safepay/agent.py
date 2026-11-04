@@ -193,6 +193,29 @@ class SafePayAgent:
     def resume_agent(self, agent_id: str, reason: str = "") -> dict[str, Any]:
         return self.control.set_agent_status(agent_id, ACTIVE, reason)
 
+    # --- agent keys -------------------------------------------------------
+
+    def issue_key(self, agent_id: str, label: str = "") -> dict[str, Any]:
+        """Bind an agent id to a key. Returned once; only its hash is kept."""
+        return self.control.issue_key(agent_id, label)
+
+    def revoke_key(self, agent_id: str) -> bool:
+        return self.control.revoke_key(agent_id)
+
+    def resolve_agent(self, claimed_agent_id: str, key: str | None) -> str:
+        """The agent id a request is allowed to act as. With a key, it is the
+        agent the key names, whatever the body claims. Without one, an agent
+        that has a key is refused (ValueError); an unregistered id passes."""
+        if key:
+            bound = self.control.agent_for_key(key)
+            if not bound:
+                raise ValueError("invalid agent key")
+            return bound
+        if claimed_agent_id and self.control.has_key(claimed_agent_id):
+            raise ValueError(f"agent '{claimed_agent_id}' has a key and must present it "
+                             "(Authorization: Bearer spk_...)")
+        return claimed_agent_id
+
     def approve(self, approval_id: str, note: str = "") -> dict[str, Any]:
         """A human releases a held payment: execute it, charge the ledger, and
         append the approval to the audit chain as its own link."""

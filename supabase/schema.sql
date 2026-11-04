@@ -65,7 +65,8 @@ create table if not exists safepay_agents (
   first_seen double precision not null,
   last_seen  double precision not null,
   status_ts  double precision,
-  decisions  integer not null default 0
+  decisions  integer not null default 0,
+  has_key    boolean not null default false   -- an agent key is issued (hash in settings)
 );
 create index if not exists safepay_agents_run on safepay_agents (run, first_seen);
 

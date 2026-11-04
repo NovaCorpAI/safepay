@@ -33,7 +33,8 @@ from .models import PaymentIntent, PolicyConfig
 _config = Config.from_env()
 _policy = PolicyConfig()
 _agent = SafePayAgent(config=_config, policy=_policy)
-_gate = GuardedToolkit(config=_config, policy=_policy, ledger=_agent.guardrail.ledger)
+_gate = GuardedToolkit(config=_config, policy=_policy, guardrail=_agent.guardrail,
+                       audit_log=_agent.audit_log)
 
 
 def _intent(

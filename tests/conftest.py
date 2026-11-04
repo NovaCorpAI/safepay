@@ -17,6 +17,9 @@ _DURABLE = ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY")
 
 for _k in _OFFLINE:
     os.environ[_k] = ""
+# The console's per-IP rate limit is for a public host; the suite makes more
+# than 30 evaluations a minute from one "IP" and must not trip it.
+os.environ["SAFEPAY_RATE_LIMIT"] = "0"
 if os.environ.get("SAFEPAY_LIVE_TESTS") != "1":
     for _k in _DURABLE:
         os.environ[_k] = ""

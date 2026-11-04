@@ -45,6 +45,7 @@ _load_dotenv(ROOT / ".env")
 from flask import Flask, jsonify, request, render_template  # noqa: E402
 
 from safepay.agent import SafePayAgent  # noqa: E402
+from safepay.agent_toolkit import GuardedToolkit, toolkit_available  # noqa: E402
 from safepay.attest import policy_hash  # noqa: E402
 from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
@@ -64,14 +65,20 @@ def _policy_from_scenarios() -> PolicyConfig:
     return PolicyConfig(**{k: v for k, v in raw.items() if k in pf})
 
 
-# One shared agent (shared ledger) for the life of the process.
+# One shared agent (shared ledger) for the life of the process, and the
+# PayPal Agent Toolkit gate sharing its guardrail and audit chain, so a
+# toolkit order counts against the same caps and lands in the same ledger.
 _policy = _policy_from_scenarios()
 _agent = SafePayAgent(policy=_policy)
+_gate = GuardedToolkit(config=_agent.config, policy=_policy,
+                       guardrail=_agent.guardrail, audit_log=_agent.audit_log)
 
 
 def _reset_agent() -> None:
-    global _agent
+    global _agent, _gate
     _agent = SafePayAgent(policy=_policy)
+    _gate = GuardedToolkit(config=_agent.config, policy=_policy,
+                           guardrail=_agent.guardrail, audit_log=_agent.audit_log)
 
 
 # Early-access sign-ups. Same backend rule as the agent's state: Supabase when
@@ -101,6 +108,37 @@ def _rate_limited() -> bool:
     return False
 
 
+# --- who may do what --------------------------------------------------------
+#
+# Operator actions (apply a policy, freeze an agent, approve a payment, issue
+# a key, reconcile, tamper) can be locked with SAFEPAY_OPERATOR_TOKEN: when it
+# is set, every such request must carry it in the X-SafePay-Operator header.
+# Unset, the console is open, which is what a judge's zero-setup demo wants.
+# Agents, separately, can be bound to keys (see /api/agents/<id>/key): a
+# request with a key acts as the agent the key names, and an agent that has
+# a key is refused without it.
+
+def _operator_ok() -> bool:
+    token = (os.environ.get("SAFEPAY_OPERATOR_TOKEN") or "").strip()
+    return not token or request.headers.get("X-SafePay-Operator", "") == token
+
+
+def operator_required(fn):
+    from functools import wraps
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        if not _operator_ok():
+            return jsonify({"error": "operator token required (X-SafePay-Operator)"}), 401
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def _agent_key() -> str:
+    auth = request.headers.get("Authorization", "")
+    return auth[7:].strip() if auth.startswith("Bearer ") else ""
+
+
 @app.get("/")
 def index():
     cfg = Config.from_env()
@@ -115,6 +153,8 @@ def index():
         policy_hash=policy_hash(_policy),
         tamper_demo=_tamper_demo_enabled(),
         store=_agent.store,
+        operator_locked=bool((os.environ.get("SAFEPAY_OPERATOR_TOKEN") or "").strip()),
+        toolkit_on=toolkit_available() and cfg.paypal_live,
     )
 
 
@@ -140,6 +180,7 @@ def policy_draft():
 
 
 @app.post("/api/policy/apply")
+@operator_required
 def policy_apply():
     """Make a (reviewed) policy the one in force for this console run."""
     if _rate_limited():
@@ -168,6 +209,7 @@ def policy_in_force():
 
 
 @app.post("/api/policy/reset")
+@operator_required
 def policy_reset():
     data = request.get_json(silent=True) or {}
     run = str(data.get("run", ""))[:16].strip()
@@ -189,6 +231,8 @@ def agents():
 
 
 def _agent_status(agent_id: str, pause: bool):
+    if not _operator_ok():
+        return jsonify({"error": "operator token required (X-SafePay-Operator)"}), 401
     if _rate_limited():
         return jsonify({"error": "rate limited, try again shortly"}), 429
     data = request.get_json(silent=True) or {}
@@ -208,6 +252,31 @@ def pause_agent(agent_id: str):
 @app.post("/api/agents/<agent_id>/resume")
 def resume_agent(agent_id: str):
     return _agent_status(agent_id, False)
+
+
+@app.post("/api/agents/<agent_id>/key")
+@operator_required
+def issue_key(agent_id: str):
+    """Bind an agent id to a key. The key is in this response and nowhere
+    else; SafePay keeps only its hash. Issuing again replaces the old key."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    try:
+        out = _agent.issue_key(agent_id, str(data.get("label", ""))[:80])
+    except Exception as exc:
+        return jsonify({"error": f"could not issue the key: {exc}"}), 503
+    return jsonify(dict(out, ok=True))
+
+
+@app.delete("/api/agents/<agent_id>/key")
+@operator_required
+def revoke_key(agent_id: str):
+    try:
+        gone = _agent.revoke_key(agent_id)
+    except Exception as exc:
+        return jsonify({"error": f"could not revoke the key: {exc}"}), 503
+    return jsonify({"ok": True, "agent_id": agent_id, "revoked": gone})
 
 
 # --- Telegram: one-tap approvals ------------------------------------------
@@ -237,9 +306,36 @@ def evaluate():
         return jsonify({"error": "rate limited, try again shortly"}), 429
     data = request.get_json(force=True) or {}
     allowed = {f.name for f in fields(PaymentIntent)}
+    try:
+        data["agent_id"] = _agent.resolve_agent(str(data.get("agent_id") or "agent-demo"),
+                                                _agent_key())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
     intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
     result = _agent.pay(intent)
     return jsonify(result)
+
+
+@app.post("/api/toolkit/order")
+def toolkit_order():
+    """Agentic commerce: the agent wants to buy something through the PayPal
+    Agent Toolkit. SafePay judges the intent first; only on ALLOW does the
+    toolkit create the (real, sandbox) order, whose buyer-approval link the
+    Orders flow still requires. The decision is chained like any other."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(force=True) or {}
+    allowed = {f.name for f in fields(PaymentIntent)}
+    try:
+        data["agent_id"] = _agent.resolve_agent(str(data.get("agent_id") or "agent-demo"),
+                                                _agent_key())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
+    out = _gate.create_order(intent, policy=_agent.policy_for(intent.agent_id))
+    out["toolkit_available"] = toolkit_available()
+    out["paypal_mode"] = _agent.paypal.mode
+    return jsonify(out)
 
 
 @app.get("/api/approvals")
@@ -256,6 +352,8 @@ def approvals():
 
 
 def _resolve(approval_id: str, action: str):
+    if not _operator_ok():
+        return jsonify({"error": "operator token required (X-SafePay-Operator)"}), 401
     if _rate_limited():
         return jsonify({"error": "rate limited, try again shortly"}), 429
     data = request.get_json(silent=True) or {}
@@ -325,6 +423,7 @@ def paypal_webhook():
 
 
 @app.post("/api/reconcile")
+@operator_required
 def reconcile():
     """Compare PayPal's transaction list with the chain and flag any debit
     SafePay never released. Needs Transaction Search enabled for the app."""
@@ -379,6 +478,7 @@ def _tamper_demo_enabled() -> bool:
 
 
 @app.post("/api/audit/tamper")
+@operator_required
 def audit_tamper():
     """Demo only: show what verification reports if a record were edited. It
     works on a COPY of the chain, so the stored history stays intact (an audit
