@@ -139,7 +139,7 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"   # also the cache-buster on /static assets
 
 
 def _page(name: str):
