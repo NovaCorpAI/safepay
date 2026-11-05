@@ -219,6 +219,29 @@ from the included render.yaml blueprint with gunicorn).
 Add frames from the video for the policy in plain words, the casino HOLD with
 its evidence open, the Telegram card and the tamper demo.
 
+## Testing instructions (paste in Devpost's "testing instructions" field)
+Live demo: https://safepay.agentposhq.com . No login, no keys. Every PayPal
+call goes to the real PayPal sandbox; the web check (Tavily) and the
+reasoning (NVIDIA Nemotron on Nebius) run live. Each browser gets its own
+session.
+
+1. Console: type a policy in plain words, e.g. "Up to $500 per payment and
+   $1,000 a day. Ask me before anything over $300. No gambling or crypto."
+   Press Draft the policy, review the fields, then Apply to this session.
+2. Press Run demo scenarios. Seven payments resolve: a Notion invoice paid; the
+   same invoice to a lookalike domain blocked; USD 900 blocked by the cap; a
+   casino payout held (open the merchant and reasoning checks to see the web
+   sources and the model verdict); two cloud invoices held over your "ask me"
+   line (approve one in Pending approvals); the last blocked by the daily cap.
+   Then press Create the order through the gate: a real PayPal Agent Toolkit
+   order, created only because SafePay allowed it.
+3. Ledger: press Tamper (demo) and watch the chain badge turn red, then Verify
+   chain. The Flow page replays the chain as pulses through the layers.
+
+Without the browser: pip install safepay, then safepay --demo (no keys).
+Repository, tests (CI on every push) and the threat model:
+https://github.com/NovaCorpAI/safepay (SECURITY.md).
+
 ## Links
 - Repo: https://github.com/NovaCorpAI/safepay
 - Demo video: (YouTube link, under 3 min, to add)

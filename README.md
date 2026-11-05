@@ -1,18 +1,47 @@
 # SafePay
 
+[![ci](https://github.com/NovaCorpAI/safepay/actions/workflows/ci.yml/badge.svg)](https://github.com/NovaCorpAI/safepay/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/safepay)](https://pypi.org/project/safepay/)
-[![Live demo](https://img.shields.io/badge/demo-safepay.agentposhq.com-blue)](https://safepay.agentposhq.com)
+[![Live demo](https://img.shields.io/badge/demo-safepay.agentposhq.com-2b3a8c)](https://safepay.agentposhq.com)
+[![Security](https://img.shields.io/badge/threat%20model-SECURITY.md-a8842c)](SECURITY.md)
 
-**The payables firewall for AI agents.** SafePay sits between an agent that pays
-vendors and PayPal, and decides, before any money moves, whether to **allow**,
-**hold**, or **block** the payment. It checks the payee on the live web, catches
-lookalike vendors and inflated invoices, holds what a person should see, pays
-the rest through PayPal Payouts, and leaves a signed link in a hash chain for
-every decision. And it is measured: a reproducible benchmark of 14 real attacks
-on a wallet-holding agent, not a claim.
+**The firewall any AI agent plugs in before it pays with PayPal.** SafePay is
+not another agent: it is the layer under all of them. Whatever the agent is
+built with (an MCP client such as Claude or Cursor, the PayPal Agent Toolkit,
+LangChain, plain Python or HTTP), every payment it wants to make passes through
+SafePay, which decides before any money moves whether to **allow**, **hold**,
+or **block** it. It checks the payee on the live web, catches lookalike vendors,
+inflated invoices and injected instructions, holds what a person should see,
+pays the rest through PayPal, and leaves a signed link in a hash chain for every
+decision. And it is measured: a reproducible benchmark of real attacks on a
+wallet-holding agent, not a claim.
 
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
+
+## Judge in 3 clicks
+
+**https://safepay.agentposhq.com** · no login, no keys; every PayPal call goes
+to the real PayPal sandbox, and the web check (Tavily) and the reasoning
+(NVIDIA Nemotron on Nebius) run live. Each browser gets its own session.
+
+1. **Console → type a policy in plain words → Draft → Apply.** For example
+   "Up to $500 per payment and $1,000 a day. Ask me before anything over $300.
+   No gambling or crypto." Nemotron drafts the rules; you see every field before
+   it applies, and the change is chained as a policy link.
+2. **Run demo scenarios.** Seven payments resolve one by one: a real Notion
+   invoice paid; the same invoice to a lookalike domain blocked; a USD 900
+   charge blocked by the cap; a casino payout held (the web found a scam
+   complaint, the reasoning found it does not serve the task: open each check to
+   see the sources); two cloud invoices over your "ask me" line held for you
+   (approve one, here or with the Telegram card); the last one blocked by the
+   daily cap. Then **Create the order through the gate**: a real PayPal Agent
+   Toolkit order, created only because SafePay allowed it.
+3. **Ledger → Tamper (demo) → Verify chain.** Every decision is a link in a
+   signed hash chain; edit one row (on a copy) and the badge turns red. The
+   **Flow** page replays the same chain as pulses through the layers.
+
+Run it yourself: `pip install safepay && safepay --demo` (no keys needed).
 
 ![SafePay home: live figures from the audit chain](docs/img/home.jpg)
 
