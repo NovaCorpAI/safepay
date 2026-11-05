@@ -156,12 +156,19 @@ policy blocks it or the same payment was judged in the last day.
 
 - Open source: free forever, self-hosted.
 - Sandbox: free, 1,000 decisions a month, PayPal sandbox only.
-- Team: USD 149 a month, 10,000 decisions, then USD 0.015 each. Live PayPal
-  (Payouts, Agent Toolkit orders), unlimited agents and keys, Telegram
-  approvals, outside-the-firewall alerts, one-year chain retention.
-- Business: USD 799 a month, 60,000 decisions, then USD 0.010 each. Operator
-  roles and SSO, automated reconciliation against PayPal, seven-year chain
-  retention for audit and disputes, 99.9% SLA.
+- Team: USD 149 a month, 10,000 decisions, then USD 0.015 each. Payouts
+  and Agent Toolkit orders through the gate, unlimited agents and keys,
+  Telegram approvals, outside-the-firewall alerts. Email support within two
+  business days.
+- Business: USD 799 a month, 60,000 decisions, then USD 0.010 each. Priority
+  support (four business hours, one hour for a severe incident), a shared
+  Slack channel and quarterly policy reviews.
+
+These are launch prices for the first teams. The pricing page marks every
+feature that is not built yet as "Soon" (a live PayPal account, Slack
+approvals, operator roles and SSO, daily automated reconciliation, long
+retention, an uptime SLA) and says those are not billed until they ship;
+everything else works today.
 - Platforms and payment providers: embedded and white-label, per-tenant
   policies, the chain anchored to a public ledger, priced on volume.
 - Services: onboarding (policy and integration, two weeks, USD 2,500,
