@@ -256,7 +256,9 @@ link expands into a full-width detail row with its checks and the hash that ties
 it to the link before; verdict chips, search and clicks on three AG Charts drive
 one external filter that the pinned totals row and the CSV export follow;
 a pinned Act column approves or rejects held payments and freezes agents from the
-row; the /proof page is a second grid of PayPal ids re-checked live; Community
+row; /studio is an AG Studio report over the whole chain (links and checks, measures
+for released and stopped money) with an AG Studio assistant run by NVIDIA Nemotron
+through a key-holding proxy; the /proof page is a second grid of PayPal ids re-checked live; Community
 edition only); Best Use of Render (a live instance
 of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).

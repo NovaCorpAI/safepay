@@ -510,3 +510,7 @@ button.ga:disabled { opacity: .6; cursor: default; }
 .sitem { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel2); }
 .sitem input { width: 64px; flex: none; }
 .sitem span { flex: 1; min-width: 0; }
+
+/* --- studio ------------------------------------------------------------ */
+.studio-host { height: calc(100vh - 140px); min-height: 640px; margin-top: 14px; border: 1px solid var(--line2);
+  border-radius: var(--radius); overflow: hidden; background: var(--panel); }

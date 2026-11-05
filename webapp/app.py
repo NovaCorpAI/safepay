@@ -241,6 +241,73 @@ def agentpos_quote():
         return jsonify({"error": f"the store is not answering: {exc}"}), 502
 
 
+@app.get("/studio")
+def studio_page():
+    return _page("studio")
+
+
+_STUDIO_KEYS = {"input", "instructions", "tools", "tool_choice", "text", "reasoning",
+                "parallel_tool_calls"}
+
+
+@app.post("/api/studio/responses")
+def studio_llm():
+    """AG Studio's assistant, answered by NVIDIA Nemotron on Nebius. The page's
+    adapter speaks the OpenAI Responses API; this forwards one turn with the
+    server's key (never the browser's), pins the model, caps the output, and
+    counts the turn against the same daily budget as the paid checks."""
+    import requests as _rq
+    from flask import Response, stream_with_context
+    if _rate_limited():
+        return jsonify({"error": {"message": "rate limited, try again shortly"}}), 429
+    cfg = Config.from_env()
+    if not cfg.nebius_live:
+        return jsonify({"error": {"message": "the assistant needs NEBIUS_API_KEY on this instance"}}), 503
+    # Its own daily cap, so a chatty report never eats the budget the payment
+    # checks run on (SAFEPAY_STUDIO_DAILY_TURNS, default 300; 0 = unlimited).
+    cap = int(os.environ.get("SAFEPAY_STUDIO_DAILY_TURNS", "300") or 0)
+    turns_key = "studio-turns:" + time.strftime("%Y-%m-%d", time.gmtime())
+    try:
+        turns = int(_agent.cache.get(turns_key) or 0)
+    except Exception:
+        turns = 0
+    if cap and turns >= cap:
+        return jsonify({"error": {"message": f"today's assistant budget ({cap} turns) is spent; the report still works"}}), 429
+    raw = request.get_data(cache=True) or b""
+    if len(raw) > 600_000:
+        return jsonify({"error": {"message": "conversation too long; start a new one"}}), 413
+    data = request.get_json(silent=True) or {}
+    body = {k: v for k, v in data.items() if k in _STUDIO_KEYS}
+    body.update(model=os.environ.get("NEBIUS_STUDIO_MODEL") or cfg.nebius_model, stream=True,
+                max_output_tokens=min(int(data.get("max_output_tokens") or 4000), 4000),
+                reasoning={"effort": os.environ.get("NEBIUS_STUDIO_EFFORT") or "low"})
+    try:
+        _agent.cache.set(turns_key, turns + 1)
+    except Exception:
+        pass
+    if os.environ.get("SAFEPAY_STUDIO_DEBUG"):
+        with open(os.environ["SAFEPAY_STUDIO_DEBUG"], "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"input": body.get("input")}, ensure_ascii=False) + chr(10))
+    try:
+        up = _rq.post(cfg.nebius_base_url.rstrip("/") + "/responses", json=body, stream=True,
+                      headers={"Authorization": f"Bearer {cfg.nebius_api_key}"}, timeout=(10, 120))
+    except Exception as exc:
+        return jsonify({"error": {"message": f"model unreachable: {exc}"}}), 502
+    if up.status_code != 200:
+        return jsonify({"error": {"message": f"model answered {up.status_code}"}}), 502
+
+    def relay():
+        try:
+            for chunk in up.iter_content(chunk_size=None):
+                if chunk:
+                    yield chunk
+        finally:
+            up.close()
+
+    return Response(stream_with_context(relay()), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.get("/proof")
 def proof_page():
     return _page("proof")

@@ -34,3 +34,17 @@ def test_check_validates():
             assert False
         except ValueError:
             pass
+
+
+def test_studio_proxy_guards(monkeypatch):
+    import webapp.app as appmod
+    c = appmod.app.test_client()
+    monkeypatch.setenv("NEBIUS_API_KEY", " ")
+    assert c.post("/api/studio/responses", json={"input": []}).status_code == 503
+    monkeypatch.setenv("NEBIUS_API_KEY", "k")
+    monkeypatch.setenv("SAFEPAY_STUDIO_DAILY_TURNS", "1")
+    import time
+    appmod._agent.cache.set("studio-turns:" + time.strftime("%Y-%m-%d", time.gmtime()), 1)
+    r = c.post("/api/studio/responses", json={"input": []})
+    assert r.status_code == 429 and "budget" in r.get_json()["error"]["message"]
+    assert c.get("/studio").status_code == 200

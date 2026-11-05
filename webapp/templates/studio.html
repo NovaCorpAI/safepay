@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Studio{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Studio</span>
+  <h1>Ask the chain.</h1>
+  <p>The whole audit chain as an AG Studio report: every link and every check, with measures for money released and stopped, holds, blocks and risk. Rearrange it, add widgets, filter it, or ask the assistant (NVIDIA Nemotron on Nebius) in plain words: "which agents had payments held this week, and why?". The assistant can read and change this report; it has no tool that pays, approves or edits a decision.</p>
+</div>
+<section class="section">
+  <div class="lhead">
+    <h2>The ledger, as a report</h2>
+    <span class="status idle" id="studio-status">loading the chain…</span>
+    <div class="lbtns">
+      <button class="ghost" data-page="overview">Overview</button>
+      <button class="ghost" data-page="checks">Checks</button>
+      <button class="ghost" data-page="blank">Blank page</button>
+    </div>
+  </div>
+  <div id="studio" class="studio-host"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/ag-studio@3.1.0/dist/umd/ag-studio.min.js" crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='agstudio-adapter.js') }}?v={{ version }}"></script>
+<script src="{{ url_for('static', filename='studio.js') }}?v={{ version }}"></script>
+{% endblock %}

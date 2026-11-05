@@ -67,6 +67,18 @@ export with full hashes always agree on what is shown. The grid is also the
 operator's desk: a pinned Act column approves or rejects a held payment, or
 freezes and resumes an agent, from its row.
 
+**Ask the chain (AG Studio).** `/studio` turns the whole audit chain into an
+AG Studio report: a links table and a checks table (joined on the link), measures
+for money released and stopped, holds, blocks, average risk and failed checks,
+and two finished pages (what SafePay let through and stopped; which checks catch
+what) plus a blank one. Its assistant is NVIDIA Nemotron on Nebius, wired
+through AG Studio's own Direct LLM Runner and OpenAI-Responses adapter to a
+server proxy that holds the key, pins the model and keeps its own daily cap.
+One focused analyst agent with five Studio tools (view schema, view page, run a
+query, add and position a widget) answers "how much did SafePay stop, by verdict
+and agent, and which checks caused it?" in about six turns, from the data; it has
+no tool that pays, approves or changes a decision.
+
 **Proof.** `/proof` lists every PayPal sandbox object the chain says SafePay
 created (payout batches, orders, authorizations, captures) in an AG Grid, and
 "Ask PayPal" re-reads each one from PayPal's own API, so the status shown is
