@@ -1,23 +1,34 @@
-/* SafePay console: one design system for every page.
-   Dark, quiet, with three verdict colours doing all the talking. */
+/* SafePay: the notary's ledger.
+   Every payment an agent makes is sealed before money moves, so the identity
+   borrows from the places money has always been certified: warm ledger
+   paper, fountain-pen indigo, a perforated seal, a serif for the record and
+   a monospace for the figures. The verdict colours are the inks a clerk
+   would use: forest for paid, ochre for held, crimson for refused. The Flow
+   is the one dark surface, an instrument panel set into the page. */
 :root {
-  --bg: #0a0f1f; --bg2: #0d1326; --panel: #121a30; --panel2: #0f1626; --line: #22304d; --line2: #2d3c5e;
-  --fg: #e8edf7; --muted: #9fb0cc; --dim: #6b7a99; --accent: #4f8cff; --accent2: #7cb0ff;
-  --allow: #22c55e; --hold: #f59e0b; --block: #ef4444;
-  --allow-bg: rgba(34,197,94,.12); --hold-bg: rgba(245,158,11,.12); --block-bg: rgba(239,68,68,.12);
-  --accent-bg: rgba(79,140,255,.14);
-  --radius: 14px; --radius-sm: 9px;
-  --font: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
-  color-scheme: dark;
+  --bg: #f3eee4; --bg2: #ebe4d6; --panel: #fbf8f2; --panel2: #f4efe5; --line: #ddd3c1; --line2: #c9bda7;
+  --fg: #1d1b17; --ink2: #3f3a32; --muted: #6f685b; --dim: #948b7b; --accent: #2b3a8c; --accent2: #2b3a8c;
+  --seal: #2b3a8c; --gold: #a8842c;
+  --allow: #2e7d4f; --hold: #b07a12; --block: #b3261e;
+  --allow-bg: rgba(46,125,79,.11); --hold-bg: rgba(176,122,18,.12); --block-bg: rgba(179,38,30,.10);
+  --accent-bg: rgba(43,58,140,.09);
+  --radius: 6px; --radius-sm: 5px;
+  --font: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --serif: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --shadow: 0 1px 0 rgba(29,27,23,.04), 0 6px 18px -10px rgba(29,27,23,.18);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); line-height: 1.5;
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); line-height: 1.55;
   -webkit-font-smoothing: antialiased; }
+/* Ledger paper: faint ruling and a red margin line, as on an accounts book. */
 body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background: radial-gradient(900px 500px at 15% -10%, rgba(79,140,255,.14), transparent 60%),
-              radial-gradient(700px 400px at 100% 0%, rgba(34,197,94,.07), transparent 55%); }
+  background:
+    linear-gradient(90deg, transparent calc(50% - 600px), rgba(179,38,30,.10) calc(50% - 600px), rgba(179,38,30,.10) calc(50% - 599px), transparent calc(50% - 599px)),
+    repeating-linear-gradient(180deg, transparent 0 31px, rgba(43,58,140,.045) 31px 32px),
+    radial-gradient(1200px 600px at 80% -10%, rgba(168,132,44,.10), transparent 60%); }
 a { color: var(--accent2); }
 code, .mono { font-family: var(--mono); font-size: .92em; }
 h1, h2, h3 { margin: 0; letter-spacing: -.01em; text-wrap: balance; }
@@ -28,18 +39,20 @@ p { margin: 0; }
   padding-inline: max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
 
 /* --- top bar --------------------------------------------------------- */
-.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; backdrop-filter: blur(12px);
-  background: rgba(10,15,31,.78); border-bottom: 1px solid var(--line); }
-.topbar .wrap { display: flex; align-items: center; gap: 18px; height: 60px; }
-.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--fg); font-weight: 800;
-  font-size: 18px; letter-spacing: -.02em; }
-.brand .mark { width: 28px; height: 28px; }
-.brand .fix { color: var(--accent); }
-.nav { display: flex; gap: 2px; margin-left: 8px; }
-.nav a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; padding: 8px 12px;
-  border-radius: 999px; }
-.nav a:hover { color: var(--fg); background: var(--panel2); }
-.nav a.active { color: var(--fg); background: var(--accent-bg); }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; backdrop-filter: blur(10px);
+  background: rgba(243,238,228,.9); border-bottom: 3px double var(--line2); }
+.topbar .wrap { display: flex; align-items: center; gap: 22px; height: 66px; }
+.brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--fg); }
+.brand .mark { width: 36px; height: 36px; flex: 0 0 auto; }
+.brand .word { font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+.brand .fix { color: var(--seal); font-style: italic; font-weight: 500; }
+.brand .tagline { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); margin-top: 3px; font-weight: 500; }
+.nav { display: flex; gap: 4px; margin-left: 6px; }
+.nav a { color: var(--ink2); text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px;
+  border-bottom: 2px solid transparent; }
+.nav a:hover { color: var(--fg); border-bottom-color: var(--line2); }
+.nav a.active { color: var(--seal); border-bottom-color: var(--seal); font-weight: 600; }
 .topbar .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .chip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line);
   color: var(--muted); background: var(--panel2); white-space: nowrap; }
@@ -279,3 +292,83 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 10px 22px; padding-block: 18
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: var(--fg); }
 footer .r { margin-left: auto; }
+
+/* ===================================================================== */
+/* Identity layer: the notary's ledger. Overrides the scaffolding above. */
+/* ===================================================================== */
+.ag-theme-quartz, .ag-theme-quartz-dark {
+  --ag-background-color: var(--panel); --ag-odd-row-background-color: #f7f2e8;
+  --ag-header-background-color: var(--bg2); --ag-border-color: var(--line2);
+  --ag-foreground-color: var(--fg); --ag-header-foreground-color: var(--ink2);
+  --ag-font-size: 13px; --ag-row-border-color: var(--line); --ag-font-family: var(--font);
+  --ag-accent-color: var(--seal); --ag-row-hover-color: rgba(43,58,140,.05);
+  border: 1px solid var(--line2); border-radius: var(--radius);
+}
+h1, h2.serif, .page-head h1, .hero h1 { font-family: var(--serif); font-weight: 600; letter-spacing: -.015em; }
+.page-head h1 { font-size: 34px; line-height: 1.12; }
+.hero h1 { font-size: clamp(34px, 4.8vw, 52px); line-height: 1.04; font-weight: 600; }
+.hero h1 .fix { color: var(--seal); font-style: italic; font-weight: 500; }
+.hero .lead, .page-head p { color: var(--ink2); }
+.eyebrow { color: var(--seal); font-family: var(--mono); font-weight: 500; letter-spacing: .16em; }
+.eyebrow::before { content: "§ "; color: var(--gold); }
+.section > h2, .lhead > h2, .card > h2 { font-family: var(--mono); font-weight: 500; letter-spacing: .14em;
+  color: var(--ink2); font-size: 11.5px; display: flex; align-items: center; gap: 10px; }
+.section > h2::after { content: ""; flex: 1; height: 1px; background: var(--line2); }
+.card, .layer, .stat, .result, .agt, .apr, .chart { background: var(--panel); border-color: var(--line2);
+  border-radius: var(--radius); box-shadow: var(--shadow); }
+.card.accent { border-color: var(--seal); border-top: 3px solid var(--seal); }
+.layer .k { font-family: var(--serif); font-size: 18px; font-weight: 600; }
+.layer .k i { border-radius: 2px; transform: rotate(45deg); }
+.layer p, .stat .l { color: var(--muted); }
+.stat .n { font-family: var(--serif); font-weight: 600; font-size: 34px; }
+.stat { border-top: 3px solid var(--fg); }
+.stat.ok { border-top-color: var(--allow); } .stat.warn { border-top-color: var(--hold); } .stat.bad { border-top-color: var(--block); }
+.stat .n { color: var(--fg); } .stat.ok .n { color: var(--allow); } .stat.warn .n { color: var(--hold); } .stat.bad .n { color: var(--block); }
+.status-strip { background: transparent; border-bottom: 1px solid var(--line); }
+.status-strip .lbl { font-family: var(--mono); color: var(--muted); }
+.chip { background: var(--panel); border-color: var(--line2); color: var(--muted); border-radius: 3px; font-family: var(--mono);
+  font-size: 11px; letter-spacing: .02em; }
+.chip.on { color: var(--allow); border-color: rgba(46,125,79,.45); background: var(--allow-bg); }
+.chip.session { color: var(--seal); border-color: rgba(43,58,140,.35); background: var(--accent-bg); }
+input, select, textarea { background: #fffdf8; border-color: var(--line2); border-radius: var(--radius-sm); color: var(--fg); }
+input:focus, select:focus, textarea:focus { outline: 2px solid rgba(43,58,140,.25); border-color: var(--seal); }
+textarea#policy-text { font-family: var(--serif); font-size: 17px; line-height: 1.5; min-height: 92px;
+  background: #fffdf8 repeating-linear-gradient(180deg, transparent 0 25px, rgba(43,58,140,.08) 25px 26px); }
+button { border-radius: var(--radius-sm); background: var(--panel2); color: var(--fg); font-weight: 600; }
+.primary { background: var(--seal); color: #fbf8f2; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+.primary:hover { background: #22307a; }
+.ghost { border: 1px solid var(--line2); background: transparent; color: var(--fg); }
+.ghost:hover { background: var(--panel2); border-color: var(--ink2); }
+.danger, .reject { color: var(--block); border: 1px solid rgba(179,38,30,.45); background: transparent; }
+.approve { background: var(--allow); color: #fbf8f2; }
+.hero .cta a.btn.primary { background: var(--seal); color: #fbf8f2; border-radius: var(--radius-sm); }
+.hero .cta a.btn.ghost { border-radius: var(--radius-sm); }
+.badge, .v-pill { font-family: var(--mono); font-weight: 600; letter-spacing: .08em; border-radius: 3px; }
+/* Verdicts read as rubber stamps */
+.result .head .badge { border: 1.5px solid currentColor; background: transparent; transform: rotate(-3deg); padding: 3px 9px; }
+.result .head .amt { font-family: var(--mono); font-weight: 600; }
+.allow { border-left-color: var(--allow); } .hold { border-left-color: var(--hold); } .block { border-left-color: var(--block); }
+.exec { background: var(--panel2); } .stamp { font-family: var(--mono); font-size: 11.5px; }
+.stamp .sig { color: var(--seal); }
+.apr { border-color: rgba(176,122,18,.4); }
+.ev { background: #fffdf8; border-color: var(--line2); }
+.rules li { border-bottom-color: var(--line2); }
+.rules li::before { content: "¶ "; color: var(--gold); }
+.status.ok { color: var(--allow); background: var(--allow-bg); border-color: rgba(46,125,79,.4); }
+.status.bad { color: var(--block); background: var(--block-bg); border-color: rgba(179,38,30,.4); }
+.proof table { font-family: var(--font); }
+.proof td.n { font-family: var(--mono); }
+.proof th { font-family: var(--mono); color: var(--ink2); }
+footer { border-top: 3px double var(--line2); }
+code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
+
+/* The Flow: a dark instrument panel set into the paper. */
+.flow { --fg: #f3eee4; --muted: #b3aa98; --line2: #4a4538; --panel2: #24221c; --accent: #8fa1ff; --accent2: #b6c2ff;
+  background: radial-gradient(800px 300px at 50% 0%, #2a2820 0%, #1b1a16 70%); border: 1px solid #0f0e0b;
+  border-radius: var(--radius); box-shadow: inset 0 0 0 1px rgba(243,238,228,.05), 0 18px 40px -22px rgba(29,27,23,.55); color: #f3eee4; }
+.flow .lbl { font-family: var(--serif); font-size: 15px; font-weight: 600; letter-spacing: .01em; }
+.flow .sub { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; }
+.flow .detail { font-family: var(--mono); fill: #f2c46b; }
+.flow .cap { color: #b3aa98; } .flow .cap b { color: #f3eee4; font-family: var(--mono); }
+.flow .legend { color: #b3aa98; } .flow .dim { color: #8d846f; }
+.flow .ghost { color: #f3eee4; border-color: #4a4538; } .flow .ghost:hover { background: #2a2820; }

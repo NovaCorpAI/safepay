@@ -349,8 +349,10 @@
     else { el.className = 'status bad'; el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq + (data.simulated ? ' (simulated on a copy; the stored chain is intact, press Verify chain)' : ''); }
   }
   const charts = {};
-  const CHART_BASE = { theme: { baseTheme: 'ag-default-dark', palette: { fills: ['#22c55e', '#f59e0b', '#ef4444', '#4f8cff', '#9fb0cc'], strokes: ['#22c55e', '#f59e0b', '#ef4444', '#4f8cff', '#9fb0cc'] },
-    overrides: { common: { background: { fill: '#121a30' }, title: { fontSize: 12, color: '#9fb0cc' } } } }, padding: { top: 10, right: 12, bottom: 8, left: 12 } };
+  const INK = { allow: '#2e7d4f', hold: '#b07a12', block: '#b3261e', seal: '#2b3a8c', gold: '#a8842c', muted: '#6f685b' };
+  const CHART_BASE = { theme: { baseTheme: 'ag-default', palette: { fills: [INK.allow, INK.hold, INK.block, INK.seal, INK.gold], strokes: [INK.allow, INK.hold, INK.block, INK.seal, INK.gold] },
+    overrides: { common: { background: { fill: '#fbf8f2' }, title: { fontSize: 13, color: '#3f3a32', fontFamily: 'Fraunces, Georgia, serif', fontWeight: 600 } } } },
+    padding: { top: 10, right: 12, bottom: 8, left: 12 } };
   function drawChart(id, options) {
     const el = $(id); if (!el || !window.agCharts) return;
     const opts = { ...CHART_BASE, ...options, container: el };
@@ -371,10 +373,10 @@
     const byCat = {};
     decisions.forEach(p => { const c = (p.intent || {}).category || 'uncategorized'; (byCat[c] = byCat[c] || []).push(Number(p.risk || 0)); });
     const risk = Object.entries(byCat).map(([category, rs]) => ({ category, risk: rs.reduce((s, x) => s + x, 0) / rs.length })).sort((a, b) => b.risk - a.risk).slice(0, 6);
-    drawChart('chart-verdicts', { title: { text: 'Verdicts' }, data: mix, series: [{ type: 'donut', angleKey: 'count', calloutLabelKey: 'verdict', innerRadiusRatio: 0.6, fills: ['#22c55e', '#f59e0b', '#ef4444'] }], legend: { enabled: false } });
-    drawChart('chart-agents', { title: { text: 'Approved per agent (USD)' }, data: agents, series: [{ type: 'bar', xKey: 'agent', yKey: 'paid', fill: '#4f8cff' }],
+    drawChart('chart-verdicts', { title: { text: 'Verdicts' }, data: mix, series: [{ type: 'donut', angleKey: 'count', calloutLabelKey: 'verdict', innerRadiusRatio: 0.6, fills: [INK.allow, INK.hold, INK.block] }], legend: { enabled: false } });
+    drawChart('chart-agents', { title: { text: 'Approved per agent (USD)' }, data: agents, series: [{ type: 'bar', xKey: 'agent', yKey: 'paid', fill: INK.seal }],
       axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', label: { fontSize: 10 } }] });
-    drawChart('chart-risk', { title: { text: 'Average risk by category' }, data: risk, series: [{ type: 'bar', xKey: 'category', yKey: 'risk', fill: '#f59e0b' }],
+    drawChart('chart-risk', { title: { text: 'Average risk by category' }, data: risk, series: [{ type: 'bar', xKey: 'category', yKey: 'risk', fill: INK.gold }],
       axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', min: 0, max: 1, label: { fontSize: 10 } }] });
   }
   function showAudit(data) {

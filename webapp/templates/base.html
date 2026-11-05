@@ -6,17 +6,18 @@
 <title>{% block title %}SafePay{% endblock %}</title>
 <meta name="description" content="SafePay, the payables firewall for AI agents: policy in plain words, live-web merchant checks and intent reasoning before any PayPal payment moves, with a signed hash chain of every decision.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 {% block head %}{% endblock %}
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}?v={{ version }}">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2l11 4v9c0 7-4.7 12.6-11 15C9.7 27.6 5 22 5 15V6z' fill='%234f8cff'/%3E%3Cpath d='M10 16.5l4 4 8-9' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="{{ url_for('static', filename='seal.svg') }}" type="image/svg+xml">
 </head>
 <body data-page="{{ page }}">
 <script>window.SAFEPAY = {{ cfg | tojson }};</script>
 <div class="topbar">
   <div class="wrap">
     <a class="brand" href="/" aria-label="SafePay home">
-      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2l11 4v9c0 7-4.7 12.6-11 15C9.7 27.6 5 22 5 15V6z" fill="#4f8cff"/><path d="M10 16.5l4 4 8-9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Safe<span class="fix">Pay</span></span>
+      <img class="mark" src="{{ url_for('static', filename='seal.svg') }}" alt="" width="36" height="36">
+      <span><span class="word">Safe<span class="fix">Pay</span></span><span class="tagline">every payment, sealed</span></span>
     </a>
     <nav class="nav" aria-label="Pages">
       <a href="/" class="{{ 'active' if page == 'home' else '' }}">Flow</a>

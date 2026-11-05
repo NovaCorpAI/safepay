@@ -9,7 +9,8 @@
   const svg = root.querySelector('svg'); const NS = 'http://www.w3.org/2000/svg';
   const cap = document.getElementById('flow-cap');
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const C = { allow: '#22c55e', hold: '#f59e0b', block: '#ef4444', accent: '#4f8cff', muted: '#9fb0cc' };
+  // Inks for the dark instrument panel (brighter cousins of the page's).
+  const C = { allow: '#4cc38a', hold: '#f2b544', block: '#f0594f', accent: '#8fa1ff', muted: '#b3aa98' };
 
   // Layout in a 1000 x 400 box.
   const N = {
