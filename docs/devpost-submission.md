@@ -170,14 +170,11 @@ of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).
 
 ## Image gallery (upload in this order)
-0. `docs/img/flow.jpg` (thumbnail): the Flow, a payment pulse travelling through the layers.
-0b. `docs/img/home.jpg`: the home page with live figures from the chain.
-1. `docs/img/policy-in-plain-words.jpg`: the policy written as a sentence, drafted by Nemotron.
-2. `docs/img/hold-casino-evidence.jpg`: the casino HOLD with the web sources and the model verdict opened.
-3. `docs/img/approvals-and-ledger.jpg`: pending approvals above the verified hash chain (AG Grid).
-4. `docs/img/chain-broken.jpg`: the tamper demo, chain BROKEN at the edited row.
-5. `docs/img/freeze-agent.jpg`: the Freeze agent switch.
-6. `docs/img/ledger-charts.jpg`: AG Charts, including the bar for money that moved outside SafePay.
+1. `docs/img/flow.jpg` (thumbnail): the Flow, a payment pulse travelling through the layers.
+2. `docs/img/home.jpg`: the home page, "every payment, sealed", with live figures from the chain.
+3. `docs/img/ledger-page.jpg`: the hash chain in AG Grid and the three AG Charts.
+Add frames from the video for the policy in plain words, the casino HOLD with
+its evidence open, the Telegram card and the tamper demo.
 
 ## Links
 - Repo: https://github.com/NovaCorpAI/safepay

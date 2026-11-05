@@ -26,17 +26,11 @@ replays the real links of the audit chain and animates new ones as they land.
 
 ![The Flow: a payment pulse travelling from the agent through policy, live web and reasoning to the verdict, PayPal, a human, and the chain](docs/img/flow.jpg)
 
-| Write the policy in plain words: Nemotron drafts, you review and apply | The Ledger page: the hash chain, scoped to your session |
-|---|---|
-| ![Policy in plain words](docs/img/policy-in-plain-words.jpg) | ![Ledger page](docs/img/ledger-page.jpg) |
+**The Ledger.** The hash chain as an AG Grid table, with AG Charts reading
+the same chain: the verdict mix, approved spend per agent (money that moved
+outside SafePay as its own bar) and average risk by category.
 
-| A casino payout held: the web check found a first-hand complaint, the reasoning check found a goal mismatch, and every source is one click away | Freeze an agent, the way a bank freezes a card |
-|---|---|
-| ![HOLD card with the merchant and reasoning evidence opened](docs/img/hold-casino-evidence.jpg) | ![Agents in this session with the Freeze agent switch](docs/img/freeze-agent.jpg) |
-| **Pending approvals and the hash-chained ledger (AG Grid), chain verified** | **The same ledger after the tamper demo: one edited row and the chain breaks** |
-| ![Pending approvals above the audit ledger, chain verified badge](docs/img/approvals-and-ledger.jpg) | ![Chain BROKEN badge after the tamper demo](docs/img/chain-broken.jpg) |
-
-![AG Charts under the ledger: verdict mix, approved spend per agent with the money that moved outside SafePay as its own bar, average risk by category](docs/img/ledger-charts.jpg)
+![The Ledger page: the audit chain in AG Grid and three AG Charts](docs/img/ledger-page.jpg)
 
 ---
 
