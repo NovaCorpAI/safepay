@@ -63,7 +63,15 @@ before it (marked "matches" or "break"). Verdict chips, a search box and a
 click on any of the three AG Charts (verdict mix, approved spend per agent,
 average risk by category) all drive one filter, so the grid, the pinned totals
 row (released vs stopped, outside the firewall, chain breaks) and the CSV
-export with full hashes always agree on what is shown.
+export with full hashes always agree on what is shown. The grid is also the
+operator's desk: a pinned Act column approves or rejects a held payment, or
+freezes and resumes an agent, from its row.
+
+**Proof.** `/proof` lists every PayPal sandbox object the chain says SafePay
+created (payout batches, orders, authorizations, captures) in an AG Grid, and
+"Ask PayPal" re-reads each one from PayPal's own API, so the status shown is
+PayPal's, not ours. The page also maps every PayPal API SafePay calls to the
+code that calls it.
 
 ![The Ledger page: the audit chain in AG Grid and three AG Charts](docs/img/ledger-page.jpg)
 

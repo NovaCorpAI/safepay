@@ -248,7 +248,9 @@ Sponsor: Best Use of AG Grid (the audit ledger is an AG Grid table where each
 link expands into a full-width detail row with its checks and the hash that ties
 it to the link before; verdict chips, search and clicks on three AG Charts drive
 one external filter that the pinned totals row and the CSV export follow;
-Community edition only); Best Use of Render (a live instance
+a pinned Act column approves or rejects held payments and freezes agents from the
+row; the /proof page is a second grid of PayPal ids re-checked live; Community
+edition only); Best Use of Render (a live instance
 of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).
 
@@ -287,7 +289,9 @@ session.
    and the rest voided when the mandate closes.
    On any paid card, the "sealed SP-..." link opens the public verification
    page the payee reaches from the PayPal note.
-3. Ledger: press Tamper (demo) and watch the chain badge turn red, then Verify
+3. Proof: every PayPal sandbox id in the chain; press Ask PayPal on any row
+   and PayPal's own API answers. Ledger: approve a held payment from the
+   grid's Act column, then press Tamper (demo) and watch the chain badge turn red, then Verify
    chain. The Flow page replays the chain as pulses through the layers.
 
 Without the browser: pip install safepay, then safepay --demo (no keys).

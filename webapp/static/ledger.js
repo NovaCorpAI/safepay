@@ -15,6 +15,42 @@
   const filter = { verdict: '', agent: '', category: '', text: '' };
   const open = new Set();
   let api = null, rows = [];
+  // Live state the grid acts on: pending approvals and each agent's status.
+  const live = { pending: [], status: {} };
+  async function loadLive() {
+    try {
+      const [a, g] = await Promise.all([fetch('/api/approvals').then(r => r.json()), fetch('/api/agents').then(r => r.json())]);
+      live.pending = a.pending || []; live.status = {};
+      (g.agents || []).forEach(x => { live.status[x.agent_id] = x.status; });
+    } catch (e) { /* the grid still reads; it just cannot act */ }
+    if (api) api.refreshCells({ columns: ['act'], force: true });
+  }
+  // A HOLD link and its approval share agent, payee and amount, seconds apart.
+  function approvalFor(d) {
+    if (d.event !== 'decision' || d.verdict !== 'hold') return null;
+    let best = null;
+    live.pending.forEach(a => {
+      const i = (a.decision || {}).intent || {};
+      if (i.agent_id !== d.agentFull || i.recipient !== d.recipient || Number(i.amount) !== Number(d.amount)) return;
+      const dt = Math.abs((a.created_ts || 0) - d.ts);
+      if (dt < 60 && (!best || dt < best.dt)) best = { id: a.id, dt };
+    });
+    return best && best.id;
+  }
+  async function act(kind, id, btn) {
+    const C = window.SafePayConsole || {}, f = C.opFetch || fetch;
+    const url = kind === 'approve' || kind === 'reject' ? `/api/approvals/${encodeURIComponent(id)}/${kind}`
+      : `/api/agents/${encodeURIComponent(id)}/${kind === 'freeze' ? 'pause' : 'resume'}`;
+    const body = JSON.stringify(kind === 'freeze' ? { reason: 'frozen from the ledger' } : { note: 'from the ledger grid' });
+    btn.disabled = true; const was = btn.textContent; btn.textContent = '…';
+    try {
+      const r = await f(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.error) { btn.textContent = 'refused'; btn.title = j.error || String(r.status); setTimeout(() => { btn.textContent = was; btn.disabled = false; }, 2500); return; }
+    } catch (e) { btn.textContent = 'error'; btn.disabled = false; return; }
+    await loadLive();
+    if (C.loadAudit) C.loadAudit();
+  }
 
   // --- rows ------------------------------------------------------------
   const baseAgent = a => String(a || '?').split(':')[0];
@@ -88,6 +124,18 @@
     { headerName: 'Signed', field: 'signed', width: 90, valueFormatter: p => p.value ? 'HMAC' : 'unsigned' },
     { headerName: 'Policy', field: 'policy', width: 100, headerTooltip: 'hash of the rules this link was judged under', valueFormatter: p => (p.value || '').slice(0, 8) },
     { headerName: 'Hash', field: 'hash', width: 112, tooltipField: 'hash', valueFormatter: p => (p.value || '').slice(0, 10) },
+    { colId: 'act', headerName: 'Act', width: 196, pinned: 'right', sortable: false, filter: false,
+      headerTooltip: 'approve or reject a held payment, or freeze an agent, from the row (operator actions)',
+      cellRenderer: p => {
+        const d = p.data; if (!d || d._detail || d._total) return '';
+        const ap = approvalFor(d);
+        if (ap) return `<button class="ga ok" type="button" data-act="approve" data-id="${esc(ap)}">Approve and pay</button><button class="ga no" type="button" data-act="reject" data-id="${esc(ap)}">Reject</button>`;
+        if (!d.agentFull || d.event === 'outside' || d.agentFull.startsWith('operator:')) return '';
+        const st = live.status[d.agentFull]; if (!st) return '';
+        return st === 'paused'
+          ? `<button class="ga" type="button" data-act="resume" data-id="${esc(d.agentFull)}">Resume agent</button>`
+          : `<button class="ga" type="button" data-act="freeze" data-id="${esc(d.agentFull)}">Freeze agent</button>`;
+      } },
   ];
 
   function detailHtml(d) {
@@ -175,7 +223,8 @@
       },
       isExternalFilterPresent: filtering,
       doesExternalFilterPass: n => passes(n.data._detail ? n.data.parent : n.data),
-      onRowClicked: e => { if (e.data && !e.data._detail && !e.data._total && !(e.event && e.event.target.closest('a'))) toggle(e.data.seq); },
+      onRowClicked: e => { if (e.data && !e.data._detail && !e.data._total && !(e.event && e.event.target.closest('a,button'))) toggle(e.data.seq); },
+      onCellClicked: e => { const b = e.event && e.event.target.closest('button[data-act]'); if (b) act(b.dataset.act, b.dataset.id, b); },
       onCellKeyDown: e => { if (e.event && e.event.key === 'Enter' && e.data && !e.data._detail && !e.data._total) toggle(e.data.seq); },
       onFilterChanged: afterChange, onRowDataUpdated: afterChange,
       onSortChanged: saveCols, onColumnMoved: e => { if (e.finished) saveCols(); },
@@ -267,6 +316,7 @@
   // --- entry point -----------------------------------------------------------
   function show(full, view) {
     rows = toRows(full, view);
+    loadLive();
     const live = new Set(rows.map(r => r.seq)); [...open].forEach(s => { if (!live.has(s)) open.delete(s); });
     const el = $('audit-grid');
     wireToolbar();

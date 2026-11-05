@@ -190,6 +190,39 @@ def ledger_page():
     return _page("ledger")
 
 
+@app.get("/proof")
+def proof_page():
+    return _page("proof")
+
+
+@app.get("/api/proof")
+def proof_list():
+    """Every PayPal sandbox object the chain says SafePay created."""
+    from safepay import proof
+    log = _agent.audit_log
+    recs = log.records
+    ok, _bad = log.verify()
+    rows = proof.items(recs)
+    counts = {k: sum(1 for r in rows if r["kind"] == k) for k in proof.KINDS}
+    return jsonify({"items": rows, "counts": counts, "chain_ok": ok, "links": len(recs),
+                    "paypal_mode": _agent.paypal.mode})
+
+
+@app.post("/api/proof/check")
+def proof_check():
+    """Ask PayPal, now, for one object's status."""
+    from safepay import proof
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(proof.check(_agent.paypal, str(data.get("kind") or ""), str(data.get("id") or "")))
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"PayPal did not answer: {exc}"}), 502
+
+
 @app.get("/pricing")
 def pricing_page():
     return _page("pricing")

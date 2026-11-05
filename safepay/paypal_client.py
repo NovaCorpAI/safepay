@@ -161,6 +161,16 @@ class PayPalClient:
             raise PayPalError(f"PayPal {path.split('/')[-1]} failed ({resp.status_code}): {issue}")
         return resp.json() if resp.content else {}
 
+    def get_json(self, path: str) -> dict[str, Any]:
+        """GET a PayPal REST resource (sandbox host), JSON body or PayPalError."""
+        import requests
+
+        resp = requests.get(f"{self._cfg.paypal_base_url}{path}",
+                            headers={"Authorization": f"Bearer {self._access_token()}"}, timeout=30)
+        if resp.status_code != 200:
+            raise PayPalError(f"PayPal GET failed ({resp.status_code})")
+        return resp.json()
+
     def authorize(self, amount: float, currency: str = "USD", description: str = "",
                   idempotency_key: str | None = None) -> dict[str, Any]:
         """Create an order with intent AUTHORIZE and authorize it at once.

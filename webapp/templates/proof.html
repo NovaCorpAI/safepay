@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Proof{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-grid.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/styles/ag-theme-quartz.min.css">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Proof</span>
+  <h1>Don't trust the screenshot. Ask PayPal.</h1>
+  <p>Every payout batch, order, authorization and capture below was created in the PayPal sandbox by SafePay, read from the audit chain itself. "Ask PayPal" re-reads each one from PayPal's own API, so the status you see is PayPal's answer, not ours.</p>
+</div>
+
+<section class="section">
+  <div class="lhead">
+    <h2>PayPal objects named in the chain</h2>
+    <span class="status idle" id="proof-status">loading…</span>
+    <div class="lbtns"><button class="ghost" id="proof-all" title="Ask PayPal about the first 12 rows shown">Ask PayPal about the first 12</button></div>
+  </div>
+  <div class="stats stats4" id="proof-counts"></div>
+  <div class="ltools"><input type="search" id="proof-search" placeholder="Filter by id, kind, seal…" aria-label="Filter"></div>
+  <div id="proof-grid" class="ag-theme-quartz" style="height:520px;margin-top:12px"></div>
+</section>
+
+<section class="section">
+  <h2>Every PayPal API SafePay calls</h2>
+  <div class="card"><div class="over"><table class="apis">
+    <tr><th>PayPal surface</th><th>What SafePay does with it</th><th>Code</th></tr>
+    <tr><td>OAuth 2.0 client credentials</td><td>One token per instance, cached, sandbox host pinned</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/paypal_client.py" target="_blank" rel="noopener">paypal_client.py</a></td></tr>
+    <tr><td>Payouts API (create, get batch)</td><td>Releases an ALLOW decision with an idempotency key and the seal in the note; settlement re-reads the batch</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/paypal_client.py" target="_blank" rel="noopener">send_payout, get_payout</a></td></tr>
+    <tr><td>Orders v2, intent AUTHORIZE + Payments v2 (capture, void)</td><td>Mandates: authorize a judged ceiling, capture each checked draw with its own seal, void the rest</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/mandate.py" target="_blank" rel="noopener">mandate.py</a></td></tr>
+    <tr><td>PayPal Agent Toolkit (create_order)</td><td>Runs only after the guardrail says ALLOW</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/agent_toolkit.py" target="_blank" rel="noopener">agent_toolkit.py</a></td></tr>
+    <tr><td>PayPal MCP server (@paypal/mcp, 28 tools)</td><td>Proxied; create_order, pay_order, create_refund, accept_dispute_claim and create_subscription are judged first, with amounts read back from get_order, get_dispute and the plan price</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/mcp_proxy.py" target="_blank" rel="noopener">mcp_proxy.py</a></td></tr>
+    <tr><td>Webhooks + verify-webhook-signature</td><td>Payout events verified with PayPal, state re-read from the API; a payout SafePay never released is chained as "outside"</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/webapp/app.py" target="_blank" rel="noopener">/api/paypal/webhook</a></td></tr>
+    <tr><td>Transaction Search</td><td>Reconciliation: any debit without a SafePay decision is flagged</td><td><a href="https://github.com/NovaCorpAI/safepay/blob/master/safepay/agent.py" target="_blank" rel="noopener">reconcile</a></td></tr>
+  </table></div></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.4/dist/ag-grid-community.min.js"></script>
+<script src="{{ url_for('static', filename='proof.js') }}?v={{ version }}"></script>
+{% endblock %}

@@ -548,5 +548,5 @@
 
   // --- boot ------------------------------------------------------------
   loadPolicy(); loadAudit(); loadApprovals(); loadAgents();
-  window.SafePayConsole = { RUN: () => RUN, loadAudit };
+  window.SafePayConsole = { RUN: () => RUN, loadAudit, opFetch };
 })();
