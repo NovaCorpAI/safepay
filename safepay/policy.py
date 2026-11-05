@@ -9,6 +9,7 @@ is enforced across a sequence of intents, not just one in isolation.
 
 from __future__ import annotations
 
+import statistics
 import time
 
 from .models import CheckResult, PaymentIntent, PolicyConfig, Severity
@@ -28,6 +29,7 @@ class SpendLedger:
         self._spent: dict[str, float] = {}
         self._by_recipient: dict[tuple[str, str], float] = {}
         self._events: dict[str, list[float]] = {}
+        self._history: dict[str, list[dict]] = {}
 
     def spent_today(self, agent_id: str) -> float:
         return self._spent.get(agent_id, 0.0)
@@ -41,13 +43,67 @@ class SpendLedger:
 
     def record(
         self, agent_id: str, amount: float, recipient: str | None = None,
-        ts: float | None = None,
+        ts: float | None = None, merchant: str | None = None,
+        invoice_ref: str | None = None,
     ) -> None:
         self._spent[agent_id] = self._spent.get(agent_id, 0.0) + amount
         key = (agent_id, (recipient or "").lower())
         self._by_recipient[key] = self._by_recipient.get(key, 0.0) + amount
+        when = time.time() if ts is None else ts
         if amount > 0:   # a released budget (failed payout) is not a payment event
-            self._events.setdefault(agent_id, []).append(time.time() if ts is None else ts)
+            self._events.setdefault(agent_id, []).append(when)
+        self._history.setdefault(agent_id, []).append({
+            "recipient": (recipient or "").lower(), "amount": float(amount), "ts": when,
+            "merchant": (merchant or "").strip().lower(),
+            "invoice_ref": (invoice_ref or "").strip().lower()})
+
+    def history(self, agent_id: str, since: float) -> list[dict]:
+        """Raw ledger rows for this agent since `since` (negative rows are
+        released budget from failed payouts); see `paid_history`."""
+        return [r for r in self._history.get(agent_id, []) if r["ts"] >= since]
+
+
+def paid_history(rows: list[dict]) -> list[dict]:
+    """Payments that actually stand: each negative row (a failed payout's
+    released budget) cancels one earlier payment with the same recipient
+    and amount."""
+    out: list[dict] = []
+    for r in sorted(rows, key=lambda r: r.get("ts") or 0):
+        amt = float(r.get("amount") or 0)
+        if amt > 0:
+            out.append(r)
+        elif amt < 0:
+            for i in range(len(out) - 1, -1, -1):
+                o = out[i]
+                if o.get("recipient") == r.get("recipient") \
+                        and abs(float(o["amount"]) + amt) < 0.005:
+                    del out[i]
+                    break
+    return out
+
+
+def vendor_key(intent: PaymentIntent) -> str:
+    """Who is being paid, as a stable key across payments: the merchant name
+    when the agent states one, else the registrable domain of the payee."""
+    name = (intent.merchant_name or "").strip().lower()
+    if name:
+        return name
+    return registrable(domain_of(intent.recipient)) or (intent.recipient or "").lower()
+
+
+def _row_vendor(r: dict) -> str:
+    return (r.get("merchant") or registrable(domain_of(r.get("recipient")))
+            or r.get("recipient", ""))
+
+
+def _ledger_history(ledger, agent_id: str, days: int) -> list[dict]:
+    fn = getattr(ledger, "history", None)
+    if fn is None or days <= 0:
+        return []
+    try:
+        return paid_history(fn(agent_id, time.time() - days * 86400))
+    except Exception:
+        return []
 
 
 def check_policy(
@@ -138,6 +194,23 @@ def check_policy(
 
     # Vendor directory: lookalike recipient and amount anomaly.
     failures += check_vendor(intent, policy, evidence)
+
+    # Duplicate invoice: the same invoice already paid to the same vendor.
+    ref = (intent.invoice_ref or "").strip().lower()
+    if ref and policy.duplicate_window_days > 0:
+        vk = vendor_key(intent)
+        dup = next((r for r in _ledger_history(ledger, intent.agent_id,
+                                               policy.duplicate_window_days)
+                    if r.get("invoice_ref") == ref and _row_vendor(r) == vk), None)
+        if dup:
+            failures.append(
+                f"invoice '{intent.invoice_ref}' from '{intent.merchant_name or vk}' was "
+                f"already paid ({intent.currency} {float(dup['amount']):.2f} to "
+                f"{dup['recipient']}, {time.strftime('%Y-%m-%d', time.gmtime(dup['ts']))}); "
+                f"duplicate invoice")
+        evidence.append({"rule": "duplicate_invoice", "invoice_ref": ref,
+                         "window_days": policy.duplicate_window_days,
+                         "already_paid": bool(dup)})
 
     if failures:
         return CheckResult(
@@ -252,3 +325,44 @@ def check_vendor(intent: PaymentIntent, policy: PolicyConfig,
         evidence.append({"rule": "merchant_url_match", "merchant_domain": url_dom,
                          "recipient_domain": rcpt_dom})
     return failures
+
+
+def check_history(intent: PaymentIntent, policy: PolicyConfig, ledger) -> CheckResult | None:
+    """The two payment-history rules that hold (not block): a vendor already
+    paid at one account now paid at another, and an amount far above what
+    this vendor was paid before. Both read only the ledger, no model and no
+    web. None when there is no history for this vendor."""
+    days = max(policy.duplicate_window_days, 90)
+    vk = vendor_key(intent)
+    prior = [r for r in _ledger_history(ledger, intent.agent_id, days) if _row_vendor(r) == vk]
+    if not prior:
+        return None
+    rcpt = (intent.recipient or "").lower()
+    concerns: list[str] = []
+    evidence: list[dict] = []
+    if policy.hold_payee_change and (intent.merchant_name or "").strip():
+        known = sorted({r["recipient"] for r in prior if r.get("recipient")})
+        changed = bool(known) and rcpt not in known
+        if changed:
+            concerns.append(
+                f"'{intent.merchant_name}' was paid before at {', '.join(known)}, now asks "
+                f"to be paid at {rcpt}; payee change held for a human")
+        evidence.append({"rule": "payee_change", "known_payees": known, "payee": rcpt,
+                         "changed": changed})
+    amounts = [float(r["amount"]) for r in prior]
+    if policy.history_amount_factor > 0 and len(amounts) >= 2:
+        med = statistics.median(amounts)
+        if med > 0 and intent.amount > med * policy.history_amount_factor:
+            concerns.append(
+                f"amount {intent.currency} {intent.amount:.2f} is "
+                f"{intent.amount / med:.1f}x the median of {len(amounts)} earlier payments "
+                f"to '{intent.merchant_name or vk}' ({intent.currency} {med:.2f}); "
+                f"limit {policy.history_amount_factor:g}x")
+        evidence.append({"rule": "amount_vs_history", "median": med, "payments": len(amounts),
+                         "factor": policy.history_amount_factor})
+    if not concerns:
+        return CheckResult(name="history", passed=True, severity=Severity.OK, risk=0.0,
+                           detail=f"consistent with {len(prior)} earlier payment(s) to this vendor",
+                           evidence=evidence)
+    return CheckResult(name="history", passed=False, severity=Severity.WARN, risk=0.7,
+                       detail="; ".join(concerns), evidence=evidence)

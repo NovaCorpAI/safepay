@@ -46,6 +46,10 @@ class PaymentIntent:
     # PayPal-Request-Id header and a stable batch id). Left unset, each
     # execution gets a fresh id, as before.
     idempotency_key: str | None = None
+    # The vendor's invoice number, when the agent has one. Two payments of
+    # the same invoice to the same vendor are the duplicate-invoice fraud
+    # (or an agent retry loop), and are blocked.
+    invoice_ref: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -172,6 +176,18 @@ class PolicyConfig:
     # inside per_tx_limit) is held for a human even when every check passes.
     # 0 = off. Small routine payments go through; big ones wait for a tap.
     hold_above: float = 0.0
+    # Payment history rules (deterministic, read from the spend ledger):
+    # - duplicate invoice: the same invoice_ref already paid to the same
+    #   vendor inside this many days is a hard BLOCK (0 = off);
+    # - payee change: a vendor already paid at one account now asks to be
+    #   paid at another (the "we changed our bank details" fraud) is held;
+    # - amount against history: more than this factor times the median of
+    #   what this vendor was paid before (at least 2 prior payments) is held
+    #   (0 = off). The directory's expected_amount covers known vendors;
+    #   this covers the ones nobody wrote down.
+    duplicate_window_days: int = 90
+    hold_payee_change: bool = True
+    history_amount_factor: float = 2.0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

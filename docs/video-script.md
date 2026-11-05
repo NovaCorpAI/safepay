@@ -118,14 +118,14 @@ past decision, every later hash breaks. Watch: I tamper with one row, and the
 whole chain fails verification instantly. That is the record an operator, an
 auditor, or a court can trust."
 
-On screen: the benchmark table from the README (policy 6 of 14, full 13 of
-14, strict 14 of 14, zero false positives).
+On screen: the benchmark table from the README (policy 9 of 17, full 16 of
+17, strict 17 of 17, zero false positives).
 
 Narration:
-"And we measured it instead of asserting it: fourteen real attacks on a
-wallet-holding agent, run through the guardrail. Rules alone catch six; the
-full guardrail catches thirteen, strict mode fourteen, with zero false
-positives on real vendors. The benchmark is in the repo; run it yourself."
+"And we measured it instead of asserting it: seventeen real attacks on a
+wallet-holding agent, including a duplicate invoice and a 'we changed our bank
+details' email. Rules alone catch nine; the full guardrail catches sixteen,
+strict mode all seventeen, with zero false positives on real vendors. The benchmark is in the repo; run it yourself."
 
 ## 2:38 - 2:55 | Close
 

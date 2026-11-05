@@ -41,11 +41,12 @@ def _intent(
     recipient: str, amount: float, currency: str = "USD",
     category: str = "uncategorized", purpose: str = "", task_goal: str = "",
     merchant_name: str | None = None, agent_id: str = "mcp-agent",
+    invoice_ref: str | None = None,
 ) -> PaymentIntent:
     return PaymentIntent(
         recipient=recipient, amount=float(amount), currency=currency,
         category=category, purpose=purpose, task_goal=task_goal,
-        merchant_name=merchant_name, agent_id=agent_id,
+        merchant_name=merchant_name, agent_id=agent_id, invoice_ref=invoice_ref,
     )
 
 
@@ -184,6 +185,7 @@ try:
         recipient: str, amount: float, currency: str = "USD",
         category: str = "uncategorized", purpose: str = "", task_goal: str = "",
         merchant_name: str | None = None, agent_id: str = "mcp-agent",
+        invoice_ref: str | None = None,
     ) -> dict[str, Any]:
         """Judge whether a payment is safe, WITHOUT sending it. Call this before
         any payment. `task_goal` is the task the agent was given, used to catch
@@ -192,7 +194,7 @@ try:
         return evaluate_payment(
             recipient=recipient, amount=amount, currency=currency, category=category,
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
-            agent_id=agent_id,
+            agent_id=agent_id, invoice_ref=invoice_ref,
         )
 
     @_MCP.tool()
@@ -200,6 +202,7 @@ try:
         recipient: str, amount: float, currency: str = "USD",
         category: str = "uncategorized", purpose: str = "", task_goal: str = "",
         merchant_name: str | None = None, agent_id: str = "mcp-agent",
+        invoice_ref: str | None = None,
     ) -> dict[str, Any]:
         """Evaluate a payment and release it via PayPal Payouts only if the
         verdict is ALLOW. On HOLD or BLOCK the money never moves. Returns the
@@ -207,7 +210,7 @@ try:
         return pay(
             recipient=recipient, amount=amount, currency=currency, category=category,
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
-            agent_id=agent_id,
+            agent_id=agent_id, invoice_ref=invoice_ref,
         )
 
     @_MCP.tool()
@@ -215,6 +218,7 @@ try:
         recipient: str, amount: float, currency: str = "USD",
         category: str = "uncategorized", purpose: str = "", task_goal: str = "",
         merchant_name: str | None = None, agent_id: str = "mcp-agent",
+        invoice_ref: str | None = None,
     ) -> dict[str, Any]:
         """Gate a PayPal Agent Toolkit order: SafePay evaluates first and creates
         the order for real only on ALLOW. Returns the order (with its approval
@@ -222,7 +226,7 @@ try:
         return create_order(
             recipient=recipient, amount=amount, currency=currency, category=category,
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
-            agent_id=agent_id,
+            agent_id=agent_id, invoice_ref=invoice_ref,
         )
 
     @_MCP.tool()

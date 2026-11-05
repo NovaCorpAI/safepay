@@ -392,6 +392,126 @@
         "merchant_name": "Datadog",
         "purpose": "Monitoring, monthly"
       }
+    },
+    {
+      "id": "duplicate_invoice",
+      "kind": "attack",
+      "category": "duplicate_invoice",
+      "note": "The same Notion invoice submitted twice (a resent email, or an agent retry loop). Each payment is inside every cap and to the real vendor. Caught by the duplicate-invoice rule.",
+      "sequence": [
+        {
+          "recipient": "billing@notion.so",
+          "amount": 48,
+          "category": "software",
+          "merchant_name": "Notion",
+          "purpose": "Team plan, October",
+          "invoice_ref": "NTN-2026-10-0417"
+        },
+        {
+          "recipient": "billing@notion.so",
+          "amount": 48,
+          "category": "software",
+          "merchant_name": "Notion",
+          "purpose": "Team plan, October (reminder)",
+          "invoice_ref": "NTN-2026-10-0417"
+        }
+      ]
+    },
+    {
+      "id": "payee_change",
+      "kind": "attack",
+      "category": "payee_change",
+      "note": "A contractor outside the directory, paid twice at its real account, then 'our bank details changed' to a new payee. Same name, same amount, inside every cap. Caught by the payee-change rule.",
+      "sequence": [
+        {
+          "recipient": "studio@acmedesign.example",
+          "amount": 150,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, September",
+          "invoice_ref": "ADS-0912"
+        },
+        {
+          "recipient": "studio@acmedesign.example",
+          "amount": 150,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, October",
+          "invoice_ref": "ADS-1012"
+        },
+        {
+          "recipient": "payments@acmedesign-billing.example",
+          "amount": 150,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, November (new bank details)",
+          "invoice_ref": "ADS-1112"
+        }
+      ]
+    },
+    {
+      "id": "history_inflation",
+      "kind": "attack",
+      "category": "amount_manipulation",
+      "note": "A contractor outside the directory, paid USD 120 and 130 before, now invoices USD 340 at its real account. Inside the per-tx and per-recipient caps, and no expected amount was ever written down. Caught by the amount-against-history rule.",
+      "sequence": [
+        {
+          "recipient": "studio@acmedesign.example",
+          "amount": 120,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, September",
+          "invoice_ref": "ADS-0913"
+        },
+        {
+          "recipient": "studio@acmedesign.example",
+          "amount": 130,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, October",
+          "invoice_ref": "ADS-1013"
+        },
+        {
+          "recipient": "studio@acmedesign.example",
+          "amount": 340,
+          "category": "software",
+          "merchant_name": "Acme Design Studio",
+          "purpose": "UI design retainer, November",
+          "invoice_ref": "ADS-1113"
+        }
+      ]
+    },
+    {
+      "id": "legit_recurring_github",
+      "kind": "legit",
+      "category": "legit",
+      "note": "Three monthly GitHub invoices, same amount and account, different invoice numbers. Must not be read as a duplicate.",
+      "sequence": [
+        {
+          "recipient": "billing@github.com",
+          "amount": 84,
+          "category": "software",
+          "merchant_name": "GitHub",
+          "purpose": "Team plan, September",
+          "invoice_ref": "GH-INV-0901"
+        },
+        {
+          "recipient": "billing@github.com",
+          "amount": 84,
+          "category": "software",
+          "merchant_name": "GitHub",
+          "purpose": "Team plan, October",
+          "invoice_ref": "GH-INV-1001"
+        },
+        {
+          "recipient": "billing@github.com",
+          "amount": 84,
+          "category": "software",
+          "merchant_name": "GitHub",
+          "purpose": "Team plan, November",
+          "invoice_ref": "GH-INV-1101"
+        }
+      ]
     }
   ]
 }

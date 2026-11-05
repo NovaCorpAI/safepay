@@ -5,7 +5,7 @@
   <div>
     <span class="eyebrow">The payables firewall for AI agents</span>
     <h1>Every payment an agent wants to make passes through <span class="fix">SafePay</span> before any money moves.</h1>
-    <p class="lead">Policy you write in plain words, a live-web check of the payee, reasoning about whether the payment serves the agent's task, one-tap human approvals, a kill switch per agent, and a signed hash chain of every decision. Measured against 14 real attacks, not asserted.</p>
+    <p class="lead">Policy you write in plain words, a live-web check of the payee, reasoning about whether the payment serves the agent's task, one-tap human approvals, a kill switch per agent, and a signed hash chain of every decision. Measured against 17 real attacks, not asserted.</p>
     <div class="cta btns">
       <a class="btn primary" href="/console">Open the console</a>
       <a class="btn ghost" href="https://github.com/NovaCorpAI/safepay#attack-benchmark-proof-not-promise" target="_blank" rel="noopener">Read the benchmark</a>
@@ -51,11 +51,11 @@
     <div class="card">
       <div class="over"><table>
         <tr><th>Benchmark mode</th><th>Attacks caught</th><th>Legit allowed</th></tr>
-        <tr><td>policy only (rules, no model, no web)</td><td class="n">6 / 14</td><td class="n">7 / 7</td></tr>
-        <tr><td>full (policy + Tavily + Nemotron)</td><td class="n">13 / 14</td><td class="n">7 / 7</td></tr>
-        <tr><td>strict (full + hold unknown vendors)</td><td class="n">14 / 14</td><td class="n">7 / 7</td></tr>
+        <tr><td>policy only (rules, no model, no web)</td><td class="n">9 / 17</td><td class="n">8 / 8</td></tr>
+        <tr><td>full (policy + Tavily + Nemotron)</td><td class="n">16 / 17</td><td class="n">8 / 8</td></tr>
+        <tr><td>strict (full + hold unknown vendors)</td><td class="n">17 / 17</td><td class="n">8 / 8</td></tr>
       </table></div>
-      <p class="note">14 realistic attacks on a wallet-holding agent (prompt injection in invoices and vendor pages, goal mismatches, lookalike recipients, inflated amounts, slow drains, bursts) plus 7 real invoices. Reproducible: <code>benchmark/attacks/</code> in the repo.</p>
+      <p class="note">17 realistic attacks on a wallet-holding agent (prompt injection in invoices and vendor pages, goal mismatches, lookalike recipients, inflated amounts, slow drains, bursts, a duplicate invoice, a "we changed our bank details" payee change) plus 8 real invoices. Reproducible: <code>benchmark/attacks/</code> in the repo.</p>
     </div>
     <div class="card">
       <h2>Plug it in</h2>

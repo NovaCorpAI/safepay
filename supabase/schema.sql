@@ -19,8 +19,13 @@ create table if not exists safepay_ledger (
   agent_id  text   not null,
   recipient text   not null default '',
   amount    double precision not null,
-  ts        double precision not null      -- epoch seconds, UTC
+  ts        double precision not null,     -- epoch seconds, UTC
+  merchant  text   not null default '',    -- for the payment-history rules
+  invoice_ref text not null default ''     -- duplicate-invoice rule
 );
+-- Upgrading an existing project:
+alter table safepay_ledger add column if not exists merchant text not null default '';
+alter table safepay_ledger add column if not exists invoice_ref text not null default '';
 create index if not exists safepay_ledger_agent_ts on safepay_ledger (agent_id, ts);
 
 create table if not exists safepay_approvals (

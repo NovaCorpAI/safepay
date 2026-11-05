@@ -301,7 +301,9 @@ class SafePayAgent:
             why = f"settlement: payout {status}, money did not move; budget released ({source})"
             if not any((p.get("execution") or {}).get("item_status") in self.paypal.FINAL_FAILED
                        for p in prior):
-                self.guardrail.ledger.record(intent.agent_id, -intent.amount, intent.recipient)
+                self.guardrail.ledger.record(intent.agent_id, -intent.amount, intent.recipient,
+                                             merchant=intent.merchant_name,
+                                             invoice_ref=intent.invoice_ref)
         else:
             verdict, executed = Verdict.HOLD, False
             why = f"settlement: payout {status}, still in flight ({source})"

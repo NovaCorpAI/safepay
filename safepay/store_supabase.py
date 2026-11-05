@@ -104,6 +104,9 @@ class SupabaseSpendLedger:
 
     def __init__(self, db: PostgREST):
         self.db = db
+        # merchant/invoice_ref columns (supabase/schema.sql); cleared on the
+        # first error so an un-migrated project degrades instead of failing.
+        self._history_cols = True
 
     def _rows(self, agent_id: str, since: float, recipient: str | None = None) -> list[dict]:
         params = {"select": "amount,ts,recipient", "agent_id": f"eq.{agent_id}",
@@ -125,11 +128,32 @@ class SupabaseSpendLedger:
         return len([r for r in self._rows(agent_id, now - window_seconds) if r["amount"] > 0])
 
     def record(self, agent_id: str, amount: float, recipient: str | None = None,
-               ts: float | None = None) -> None:
-        self.db.insert("ledger", {
-            "agent_id": agent_id, "recipient": (recipient or "").lower(),
-            "amount": float(amount), "ts": time.time() if ts is None else ts,
-        })
+               ts: float | None = None, merchant: str | None = None,
+               invoice_ref: str | None = None) -> None:
+        row = {"agent_id": agent_id, "recipient": (recipient or "").lower(),
+               "amount": float(amount), "ts": time.time() if ts is None else ts}
+        extra = {"merchant": (merchant or "").strip().lower(),
+                 "invoice_ref": (invoice_ref or "").strip().lower()}
+        if self._history_cols:
+            try:
+                self.db.insert("ledger", {**row, **extra})
+                return
+            except Exception:
+                # A project whose ledger predates the history columns: keep
+                # the spend (the caps depend on it) and run without history.
+                self._history_cols = False
+        self.db.insert("ledger", row)
+
+    def history(self, agent_id: str, since: float) -> list[dict]:
+        if not self._history_cols:
+            return []
+        try:
+            return self.db.select("ledger", {
+                "select": "amount,ts,recipient,merchant,invoice_ref",
+                "agent_id": f"eq.{agent_id}", "ts": f"gte.{since}", "order": "ts.asc"})
+        except Exception:
+            self._history_cols = False
+            return []
 
 
 class SupabaseAuditLog:

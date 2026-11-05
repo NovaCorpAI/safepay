@@ -20,8 +20,8 @@ domain, or sent to a merchant registered last week. Spending caps alone do not
 catch any of that. SafePay does: policy you write in plain words, live web
 verification of the payee, intent reasoning on every payment, one-tap human
 approvals (console, MCP, Telegram), a kill switch per agent, and a signed
-record of each decision. On a reproducible benchmark of 14 attacks it catches
-13 to 14, with zero false positives.
+record of each decision. On a reproducible benchmark of 17 attacks it catches
+16 to 17, with zero false positives.
 
 ---
 
@@ -129,10 +129,14 @@ while allowing the real invoice. And every decision, allowed or blocked, leaves 
 signed, verifiable record in a chain you can re-verify.
 
 We also measured it instead of asserting it. On a reproducible attack benchmark
-in the repo (14 realistic attacks on a wallet-holding agent, 7 legitimate
-invoices), rules alone catch 6 of 14; the full guardrail catches 13 of 14
-(92%), and with the new-payee control on, 14 of 14, all with zero false
-positives on real vendors. The first version of this benchmark missed two
+in the repo (17 realistic attacks on a wallet-holding agent, 8 legitimate
+invoices), rules alone catch 9 of 17; the full guardrail catches 16 of 17
+(94%), and with the new-payee control on, 17 of 17, all with zero false
+positives on real vendors. Three of those attacks are the ones accounts
+payable teams lose real money to and no model is needed for: a duplicate
+invoice (blocked), a "we changed our bank details" payee change, and an
+amount far above a contractor's own history (both held), read
+deterministically from the payment ledger. The first version of this benchmark missed two
 attacks, a lookalike recipient domain behind a real merchant name and a 10x
 amount on a real vendor; we published them as misses, then closed both with
 the approved vendor directory, a deterministic rule that needs no model. The

@@ -17,7 +17,7 @@ from .cache import daily_budget, key_for
 from .control import PAUSED
 from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
-from .policy import SpendLedger, check_policy, is_known_vendor
+from .policy import SpendLedger, check_history, check_policy, is_known_vendor
 from .reason import check_reasoning
 from .search import WebSearch
 from .verify import check_merchant
@@ -77,6 +77,12 @@ class Guardrail:
                 policy_hash=ph,
             )
 
+        # 1b. Payment history (deterministic, ledger only): a payee change for
+        # a vendor already paid, or an amount far above its history, holds.
+        history = check_history(intent, rules, self.ledger)
+        if history is not None:
+            checks.append(history)
+
         # 2. Soft signals: live-web merchant check and model reasoning,
         # cached on exactly the inputs each one reads (see cache.py).
         merchant = self._cached("merchant", check_merchant, (intent, self.web, self.chat),
@@ -90,7 +96,7 @@ class Guardrail:
                                   intent.merchant_name or "", getattr(self.chat, "model", "")),
                                  live=self.chat is not None)
         checks.append(reasoning)
-        soft = [merchant, reasoning]
+        soft = [merchant, reasoning] + ([history] if history is not None else [])
 
         # 2b. Optional deterministic "new payee" control: with a vendor
         # directory and hold_unknown_vendors on, a payee outside the directory
@@ -134,7 +140,7 @@ class Guardrail:
         # a future rule may mark critical) blocks; otherwise hold for a human.
         if any(c.severity == Severity.CRITICAL for c in soft_failed):
             verdict = Verdict.BLOCK
-        elif rules.hold_on_soft_risk or any(c.name == "approval" for c in soft_failed):
+        elif rules.hold_on_soft_risk or any(c.name in ("approval", "history") for c in soft_failed):
             verdict = Verdict.HOLD
         else:
             verdict = Verdict.ALLOW
@@ -183,15 +189,16 @@ class Guardrail:
         or the day's real spend is undercounted.
         """
         if decision.verdict == Verdict.ALLOW:
-            self.ledger.record(
-                decision.intent.agent_id, decision.intent.amount,
-                decision.intent.recipient,
-            )
+            i = decision.intent
+            self.ledger.record(i.agent_id, i.amount, i.recipient,
+                               merchant=i.merchant_name, invoice_ref=i.invoice_ref)
 
     def record_settlement(
-        self, agent_id: str, amount: float, recipient: str | None = None
+        self, agent_id: str, amount: float, recipient: str | None = None,
+        merchant: str | None = None, invoice_ref: str | None = None,
     ) -> None:
         """Record spend an operator released out of band (e.g. after approving a
         HOLD), so the daily and per-recipient caps reflect actual money moved,
         not only what SafePay auto-approved."""
-        self.ledger.record(agent_id, amount, recipient)
+        self.ledger.record(agent_id, amount, recipient,
+                           merchant=merchant, invoice_ref=invoice_ref)

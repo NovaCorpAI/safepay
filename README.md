@@ -334,21 +334,28 @@ invoice is allowed. This is the agentic-commerce attack SafePay exists to stop.
 
 ## Attack benchmark (proof, not promise)
 
-`benchmark/attacks/` runs 14 realistic attacks on a wallet-holding agent (prompt
+`benchmark/attacks/` runs 17 realistic attacks on a wallet-holding agent (prompt
 injection in invoices and vendor pages, goal mismatches, an unknown payee, a
 lookalike recipient, amount inflation, limit breaches, a slow drain, a velocity
-burst) plus 7 legitimate invoices, through the guardrail. Three modes, side by
+burst, a duplicate invoice, a "we changed our bank details" payee change, an
+amount far above a contractor's history) plus 8 legitimate invoices, through
+the guardrail. Three modes, side by
 side, so the numbers are honest:
 
 | Mode | Attacks caught | Legit allowed (no false positives) |
 | --- | --- | --- |
-| policy only (rules + vendor directory, no model, no web) | 6/14 (42%) | 7/7 (100%) |
-| full (policy + Tavily + Nemotron) | **13/14 (92%)** | **7/7 (100%)** |
-| strict (full + hold unknown vendors) | **14/14 (100%)** | **7/7 (100%)** |
+| policy only (rules + vendor directory + payment history, no model, no web) | 9/17 (52%) | 8/8 (100%) |
+| full (policy + Tavily + Nemotron) | **16/17 (94%)** | **8/8 (100%)** |
+| strict (full + hold unknown vendors) | **17/17 (100%)** | **8/8 (100%)** |
 
 Rules alone catch what breaches a limit plus, with the vendor directory, the
 lookalike recipient and the inflated amount (the two misses of the first
-version of this benchmark, now closed deterministically). The model layers
+version of this benchmark, now closed deterministically) and, from the
+payment history in the ledger, a duplicate invoice (blocked), a payee change
+for a vendor already paid and an amount far above what a vendor was paid
+before (both held). Three monthly invoices from the same vendor with different
+invoice numbers pass: the duplicate rule keys on the invoice, not the amount.
+The model layers
 catch every prompt injection and every goal mismatch, with zero false positives
 on real vendors. The one case full mode does not catch reliably is the unknown
 payee with a plausible invoice: the model checks are not deterministic and that
