@@ -611,6 +611,7 @@ business, the verdict and the rule fired: no names, document numbers or
 amounts. Code: `safepay/purchase_check.py` here, `lib/safepay.ts` in Impulsa.
 
 ![Impulsa in production: SafePay stops a supplier document recorded twice](docs/img/impulsa-safepay-alert.png)
+![Impulsa in production: a unit cost 2.5x this product's purchase history is held](docs/img/impulsa-safepay-price.png)
 
 ## The seal (proof the payee can check)
 
