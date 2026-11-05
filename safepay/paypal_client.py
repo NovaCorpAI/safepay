@@ -59,6 +59,21 @@ class PayPalClient:
         self._token_exp = time.time() + float(data.get("expires_in", 3000))
         return self._token
 
+    def _send(self, method: str, url: str, headers: dict[str, str] | None = None, **kw: Any) -> Any:
+        """One authenticated call. PayPal reuses an app token until it expires,
+        so a token revoked or minted before a scope change is answered 401:
+        drop it, mint a new one, and try once more."""
+        import requests
+
+        for attempt in (1, 2):
+            h = dict(headers or {})
+            h["Authorization"] = f"Bearer {self._access_token()}"
+            resp = requests.request(method.upper(), url, headers=h, **kw)
+            if resp.status_code != 401 or attempt == 2:
+                return resp
+            self._token, self._token_exp = None, 0.0
+        return resp
+
     # --- payouts ----------------------------------------------------------
     def send_payout(
         self,
@@ -114,7 +129,7 @@ class PayPalClient:
             # PayPal's idempotency mechanism: a repeated request with the same id
             # returns the original result instead of paying twice.
             headers["PayPal-Request-Id"] = stable
-        resp = requests.post(
+        resp = self._send("post", 
             f"{self._cfg.paypal_base_url}/v1/payments/payouts",
             json=payload,
             headers=headers,
@@ -150,7 +165,7 @@ class PayPalClient:
         headers = {"Authorization": f"Bearer {self._access_token()}",
                    "Content-Type": "application/json",
                    "PayPal-Request-Id": (key or uuid.uuid4().hex)[:100]}
-        resp = requests.post(f"{self._cfg.paypal_base_url}{path}", json=body,
+        resp = self._send("post", f"{self._cfg.paypal_base_url}{path}", json=body,
                              headers=headers, timeout=60)
         if resp.status_code not in (200, 201, 204):
             try:
@@ -165,7 +180,7 @@ class PayPalClient:
         """GET a PayPal REST resource (sandbox host), JSON body or PayPalError."""
         import requests
 
-        resp = requests.get(f"{self._cfg.paypal_base_url}{path}",
+        resp = self._send("get", f"{self._cfg.paypal_base_url}{path}",
                             headers={"Authorization": f"Bearer {self._access_token()}"}, timeout=30)
         if resp.status_code != 200:
             raise PayPalError(f"PayPal GET failed ({resp.status_code})")
@@ -244,7 +259,7 @@ class PayPalClient:
             }
         import requests
 
-        resp = requests.get(
+        resp = self._send("get", 
             f"{self._cfg.paypal_base_url}/v1/payments/payouts/{batch_id}",
             headers={"Authorization": f"Bearer {self._access_token()}"},
             timeout=30,
@@ -286,7 +301,7 @@ class PayPalClient:
             return []
         import requests
 
-        resp = requests.get(
+        resp = self._send("get", 
             f"{self._cfg.paypal_base_url}/v1/reporting/transactions",
             headers={"Authorization": f"Bearer {self._access_token()}"},
             params={"start_date": start, "end_date": end, "page_size": 500,
@@ -340,7 +355,7 @@ class PayPalClient:
         if not all(payload[k] for k in ("transmission_id", "transmission_time",
                                         "cert_url", "auth_algo", "transmission_sig")):
             return False
-        resp = requests.post(
+        resp = self._send("post", 
             f"{self._cfg.paypal_base_url}/v1/notifications/verify-webhook-signature",
             json=payload,
             headers={"Authorization": f"Bearer {self._access_token()}",
