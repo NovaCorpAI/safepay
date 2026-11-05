@@ -85,14 +85,14 @@ def paid_history(rows: list[dict]) -> list[dict]:
 
 _LEGAL = {"inc", "incorporated", "llc", "l.l.c", "ltd", "limited", "corp", "corporation",
           "co", "company", "gmbh", "ag", "sa", "sas", "srl", "spa", "bv", "nv", "plc",
-          "pty", "lp", "llp", "oy", "ab", "as"}
+          "pty", "lp", "llp", "oy", "ab", "as", "ltda", "limitada", "eirl"}
 
 
 def norm_name(name: str | None) -> str:
     """'Notion Labs, Inc.' and 'notion labs' -> 'notion labs': lowercase, no
     punctuation, no trailing legal-form words. How a vendor is written varies
     between invoices (and between model reads); who it is does not."""
-    words = re.sub(r"[^a-z0-9&]+", " ", (name or "").lower()).split()
+    words = re.sub(r"[^a-z0-9&]+", " ", (name or "").lower().replace(".", "")).split()
     while words and words[-1] in _LEGAL:
         words.pop()
     return " ".join(words)

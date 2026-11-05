@@ -190,6 +190,32 @@ def ledger_page():
     return _page("ledger")
 
 
+@app.post("/api/check/purchase")
+def check_purchase():
+    """For apps that record supplier purchases (Impulsa): SafePay's duplicate
+    document and price-history rules, before the record is saved. Needs an
+    agent key (Authorization: Bearer spk_...); nothing is paid. The chained
+    link carries only a hash of the business, the verdict and the rule."""
+    from safepay import purchase_check
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    key = _agent_key()
+    if not key:
+        return jsonify({"error": "an agent key is required (Authorization: Bearer spk_...)"}), 401
+    try:
+        source = _agent.resolve_agent("", key)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    try:
+        decision, findings = purchase_check.evaluate(request.get_json(silent=True) or {}, source)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    record = _agent.audit_log.append(decision)
+    return jsonify({"verdict": decision.verdict.value, "findings": findings,
+                    "chain_seq": (record.get("payload") or {}).get("seq"),
+                    "sha256": record.get("sha256")})
+
+
 @app.get("/proof")
 def proof_page():
     return _page("proof")
