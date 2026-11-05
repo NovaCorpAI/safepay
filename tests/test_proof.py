@@ -48,3 +48,28 @@ def test_studio_proxy_guards(monkeypatch):
     r = c.post("/api/studio/responses", json={"input": []})
     assert r.status_code == 429 and "budget" in r.get_json()["error"]["message"]
     assert c.get("/studio").status_code == 200
+
+
+def test_studio_proxy_forces_an_answer_after_ten_tool_calls(monkeypatch):
+    import webapp.app as appmod
+    sent = {}
+
+    class Up:
+        status_code = 200
+        def iter_content(self, chunk_size=None):
+            yield b"data: {}\n\n"
+        def close(self):
+            pass
+
+    import requests
+    monkeypatch.setattr(requests, "post", lambda url, json=None, **k: sent.update(json) or Up())
+    monkeypatch.setenv("NEBIUS_API_KEY", "k")
+    monkeypatch.setenv("SAFEPAY_STUDIO_DAILY_TURNS", "0")
+    c = appmod.app.test_client()
+    user = {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "q"}]}
+    outs = [{"type": "function_call_output", "call_id": f"c{i}", "output": "{}"} for i in range(10)]
+    c.post("/api/studio/responses", json={"input": [user] + outs[:3], "tool_choice": "auto"}).get_data()
+    assert sent.get("tool_choice") == "auto"
+    c.post("/api/studio/responses", json={"input": [user] + outs, "tool_choice": "auto"}).get_data()
+    assert sent["tool_choice"] == "none" and "tool budget" in sent["instructions"]
+    assert sent["model"].startswith("nvidia/") and sent["stream"] is True

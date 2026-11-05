@@ -248,6 +248,7 @@ def studio_page():
 
 _STUDIO_KEYS = {"input", "instructions", "tools", "tool_choice", "text", "reasoning",
                 "parallel_tool_calls"}
+STUDIO_TOOL_CALLS = int(os.environ.get("SAFEPAY_STUDIO_TOOL_CALLS", "10") or 10)
 
 
 @app.post("/api/studio/responses")
@@ -278,6 +279,20 @@ def studio_llm():
         return jsonify({"error": {"message": "conversation too long; start a new one"}}), 413
     data = request.get_json(silent=True) or {}
     body = {k: v for k, v in data.items() if k in _STUDIO_KEYS}
+    # A question gets at most STUDIO_TOOL_CALLS tool calls; past that the model
+    # must answer with what it has. Counted from the user's last message.
+    items = body.get("input") if isinstance(body.get("input"), list) else []
+    last_user = max((i for i, it in enumerate(items)
+                     if isinstance(it, dict) and it.get("type") == "message" and it.get("role") == "user"),
+                    default=-1)
+    calls = sum(1 for it in items[last_user + 1:]
+                if isinstance(it, dict) and it.get("type") == "function_call_output")
+    if calls >= STUDIO_TOOL_CALLS:
+        body["tool_choice"] = "none"
+        body["instructions"] = (str(body.get("instructions") or "") +
+                                "\n\nYou have used your tool budget for this question. Answer now, in at most "
+                                "five sentences, with only the figures the tool results above showed; say plainly "
+                                "what you could not determine.")
     # Ultra at medium effort: measured on the production chain it answered with
     # the true totals; Super at low effort was faster but invented figures.
     body.update(model=os.environ.get("NEBIUS_STUDIO_MODEL") or "nvidia/Nemotron-3-Ultra-550b-a55b",
