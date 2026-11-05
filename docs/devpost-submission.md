@@ -99,7 +99,12 @@ amount and invoice number (Nemotron reads, but every value must appear in the
 text, so a planted or invented payee is dropped), then pays through the same
 guardrail with no privileges; a resent invoice is blocked as a duplicate, a
 "we changed our bank details" email or an invoice that talks to the reviewer
-is held. The policy itself is signed in the operator's browser (WebCrypto, ECDSA
+is held. SafePay also works on both sides of agentic commerce we build: its shopping
+agent buys from a real agent-ready store made with AgentPOS (our open-source
+point of sale for agents), paying the store's own quote through a PayPal
+mandate; and its purchase-check rules run inside Impulsa, our SaaS in
+production for micro-businesses in Chile, before a supplier document is saved.
+The policy itself is signed in the operator's browser (WebCrypto, ECDSA
 P-256, a non-extractable key), pinned to the session, and re-verified on
 every payment, so a leaked operator token or an edit in the database cannot
 quietly loosen the rules. For tasks whose final price is not known up front (a hotel,
@@ -284,6 +289,9 @@ session.
    Then, in "SafePay's own payables agent", click the four sample invoices in
    order and press Read and pay: paid and sealed, duplicate blocked,
    bank-details change blocked, injected invoice held.
+   Then, in "Agentic commerce: buy from an agent-ready store", press Quote,
+   judge and pay: a real AgentPOS store quotes the cart and SafePay pays that
+   exact quote through a PayPal mandate.
    Then, in "Mandates", press Run the mandate story: USD 300 authorized with
    PayPal, USD 180 captured and sealed, a USD 200 draw blocked (only 120 left),
    and the rest voided when the mandate closes.

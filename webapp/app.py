@@ -216,6 +216,31 @@ def check_purchase():
                     "sha256": record.get("sha256")})
 
 
+@app.get("/api/agentpos/catalog")
+def agentpos_catalog():
+    """The real catalog of the configured AgentPOS store (cached)."""
+    from safepay import agentpos
+    try:
+        return jsonify(agentpos.catalog())
+    except Exception as exc:
+        return jsonify({"error": f"the store is not answering: {exc}"}), 502
+
+
+@app.post("/api/agentpos/quote")
+def agentpos_quote():
+    """Ask the store for a real quote; returns it and the intent to judge."""
+    from safepay import agentpos
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(agentpos.quote(data.get("items") or []))
+    except agentpos.StoreError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"error": f"the store is not answering: {exc}"}), 502
+
+
 @app.get("/proof")
 def proof_page():
     return _page("proof")

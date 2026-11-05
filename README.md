@@ -583,6 +583,33 @@ for the company card (a vaulted payment token in production). Console card,
 `safepay_open_mandate`, `safepay_capture` and `safepay_close_mandate` MCP tools,
 or `SafePayAgent.open_mandate` / `capture` / `close_mandate`.
 
+## Buying from an agent-ready store (AgentPOS)
+
+[AgentPOS](https://agentposhq.com) is our open-source point of sale for AI
+agents: it makes an existing store buyable by agents (catalog over UCP, MCP
+and OpenAPI, carts the store itself quotes). The console's "buy from an
+agent-ready store" card closes the loop from the buyer's side: SafePay's
+shopping agent reads the live catalog of AgentPOS's demo store, the store
+quotes the cart, and the quoted total is opened as a mandate (policy, live web
+check of the store, Nemotron against the task), authorized with PayPal and
+captured once. The amount always comes from the store's quote, never from the
+agent. AgentPOS settles in USDC on Stellar; here the catalog and quote are the
+store's real ones and the rail is a PayPal sandbox mandate (1 USDC = 1 USD).
+Code: `safepay/agentpos.py`; only the configured store is ever called.
+
+## Inside a product in production: Impulsa
+
+[Impulsa](https://impulsaapp.cl) is a SaaS from the same team for
+micro-businesses in Chile; owners record the supplier documents they buy
+stock with. SafePay's history rules now run there before a supplier document
+is saved: `POST /api/check/purchase` (agent key required) answers whether that
+supplier's document number was already recorded (block) and whether a unit
+cost is far above that product's own purchase history (hold); the owner sees
+the alert in Spanish and can correct it or record anyway. Nothing is paid.
+The check is chained, but the public link carries only a hash of the
+business, the verdict and the rule fired: no names, document numbers or
+amounts. Code: `safepay/purchase_check.py` here, `lib/safepay.ts` in Impulsa.
+
 ## The seal (proof the payee can check)
 
 Every payout SafePay releases carries a seal in the note PayPal shows the

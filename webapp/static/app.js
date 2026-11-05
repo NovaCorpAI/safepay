@@ -391,6 +391,39 @@
         merchant_name: merchant, purpose: $('t-purpose').value, task_goal: $('f-goal').value, agent_id: 'shopping-agent' }, '/api/toolkit/order');
       setBusy(false);
     };
+    if ($('store-card')) {
+      const box = $('s-items'), msg = t => { $('s-msg').textContent = t || ''; };
+      fetch('/api/agentpos/catalog').then(r => r.json()).then(c => {
+        if (c.error) { box.innerHTML = `<span class="muted">${esc(c.error)}</span>`; return; }
+        box.innerHTML = `<div class="muted" style="font-size:12.5px;margin-bottom:6px">${esc(c.store.name)} · <a href="${esc(c.store.url)}/.well-known/ucp" target="_blank" rel="noopener">what an agent reads</a></div>`
+          + c.items.map((p, i) => `<label class="sitem"><input type="number" min="0" max="20" value="${i === 1 ? 2 : 0}" data-id="${esc(p.id)}">
+            <span><b>${esc(p.title)}</b> · ${esc(p.price)} ${esc(p.asset)}<br><span class="muted">${esc(p.description)}</span></span></label>`).join('');
+        $('s-buy').disabled = false;
+      }).catch(() => { box.innerHTML = '<span class="muted">The store is not answering.</span>'; });
+      $('s-buy').onclick = async () => {
+        const items = [...box.querySelectorAll('input[data-id]')].map(i => ({ itemId: i.dataset.id, quantity: parseInt(i.value || '0', 10) })).filter(i => i.quantity > 0);
+        if (!items.length) { msg('Choose at least one item.'); return; }
+        setBusy(true); $('s-buy').disabled = true; msg('Asking the store for a quote…');
+        try {
+          const q = await (await fetch('/api/agentpos/quote', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ items }) })).json();
+          if (q.error) { msg(q.error); return; }
+          msg(`The store quoted ${q.total} ${q.asset} for cart ${q.cart_id}. SafePay is judging it…`);
+          const intent = { ...q.intent, task_goal: $('s-task').value, agent_id: 'shopping-agent' };
+          const el = pending(intent);
+          const [resp, o] = await post('/api/mandates', intent);
+          if (!resp.ok || o.error) { refused(el, o.error || resp.status); return; }
+          render(el, o);
+          if (o.mandate && !o.mandate.closed) {
+            const el2 = pending({ amount: q.total, recipient: intent.recipient });
+            const [r2, c] = await post(`/api/mandates/${encodeURIComponent(o.mandate.authorization_id)}/capture`,
+              { agent_id: 'shopping-agent', amount: q.total, final: true, purpose: `Pay AgentPOS cart ${q.cart_id}` });
+            if (!r2.ok || c.error) refused(el2, c.error || r2.status); else render(el2, c);
+            msg(`Cart ${q.cart_id}: quoted by the store, judged by SafePay, paid through PayPal.`);
+          } else msg(`Cart ${q.cart_id}: SafePay did not open a mandate, nothing was paid.`);
+        } catch (e) { msg('network error'); }
+        finally { setBusy(false); $('s-buy').disabled = false; loadAudit(); loadAgents(); }
+      };
+    }
     if ($('mandate-card')) {
       let M = null;
       const AG = 'travel-agent';

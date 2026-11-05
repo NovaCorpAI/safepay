@@ -94,6 +94,14 @@
   </div>
 </section>
 
+<section class="card section" id="store-card">
+  <h2>Agentic commerce: buy from an agent-ready store</h2>
+  <p class="muted" style="font-size:14px;max-width:80ch">The shopping agent reads the live catalog of a real store made buyable by agents with <a href="https://agentposhq.com" target="_blank" rel="noopener">AgentPOS</a> (our open-source point of sale for AI agents), and the store quotes the cart itself. SafePay then judges the quoted total as a mandate (policy, live web check of the store, Nemotron against the task), authorizes it with PayPal and captures exactly the quote. The amount comes from the store, never from the agent. AgentPOS settles in USDC on Stellar; here the catalog and quote are the store's real ones and the rail is a PayPal sandbox mandate (1 USDC = 1 USD).</p>
+  <label>Task the agent was given</label><input id="s-task" value="Buy the AgentPOS field guide for the team's agentic commerce research">
+  <div class="store-items" id="s-items"><span class="muted">Loading the store's catalog…</span></div>
+  <div class="row-btns"><button class="primary" id="s-buy" disabled>Quote, judge and pay</button><span class="muted" id="s-msg" style="font-size:13px"></span></div>
+</section>
+
 <div class="actions">
   <button class="primary" id="run-demo">Run demo scenarios</button>
   <button class="ghost" id="run-one">Evaluate custom intent</button>
