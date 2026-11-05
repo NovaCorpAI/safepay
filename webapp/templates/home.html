@@ -40,6 +40,7 @@
       <span><i style="background:#4cc38a"></i>allow: money moves</span>
       <span><i style="background:#f2b544"></i>hold: a person decides</span>
       <span><i style="background:#f0594f"></i>block, or money that moved outside the firewall</span>
+      <span class="dim">straight dashed lane: a capture on a mandate whose ceiling was already judged</span>
       <span class="dim" id="flow-note"></span>
     </div>
   </div>
@@ -48,7 +49,7 @@
 <section class="layers section">
   <h2>The layers, cheapest and strictest first</h2>
   <div class="grid4">
-    <div class="layer"><div class="k"><i style="background:var(--seal)"></i>Policy</div><p>Per-payment and daily caps, categories, allow and block lists, an approved vendor directory that catches lookalike domains and inflated invoices, and "ask me before anything over X". A breach is a hard block, no model call spent. Written in plain words, drafted by Nemotron, reviewed by you.</p></div>
+    <div class="layer"><div class="k"><i style="background:var(--seal)"></i>Policy</div><p>Per-payment and daily caps, categories, allow and block lists, an approved vendor directory that catches lookalike domains and inflated invoices, and "ask me before anything over X". A breach is a hard block, no model call spent. Written in plain words, drafted by Nemotron, reviewed by you, and signed in your browser with a key the server never holds.</p></div>
     <div class="layer"><div class="k"><i style="background:var(--allow)"></i>Live web</div><p>Tavily pulls fresh, neutral evidence about the payee and the model judges it: a first-hand scam complaint or a payee with no footprint raises a hold. Sources are kept with the decision, one click away.</p></div>
     <div class="layer"><div class="k"><i style="background:var(--hold)"></i>Reasoning</div><p>NVIDIA Nemotron on Nebius reads the task the agent was given and judges whether this payment serves it. The attack a rule set misses: a cloud-invoice agent steered into a casino payout.</p></div>
     <div class="layer"><div class="k"><i style="background:var(--gold)"></i>Chain and watch</div><p>Every decision, approval, policy change, order and settlement is a link in a hash chain, HMAC-signed. A payout that reaches PayPal without a decision is flagged as outside the firewall and the operator is alerted on Telegram.</p></div>
@@ -69,7 +70,7 @@
     </div>
     <div class="card">
       <h2>Plug it in</h2>
-      <p class="muted" style="font-size:14px">As a library (<code>pip install safepay</code>), as an MCP server any agent can call (seventeen tools), in front of PayPal's own MCP server with one config line (<code>safepay-mcp-proxy</code>), as the approver in front of the PayPal Agent Toolkit, or as this console. Payments go out through PayPal Payouts in the sandbox; the host is pinned so no real money can move.</p>
+      <p class="muted" style="font-size:14px">As a library (<code>pip install safepay</code>), as an MCP server any agent can call (seventeen tools), in front of PayPal's own MCP server with one config line (<code>safepay-mcp-proxy</code>), as the approver in front of the PayPal Agent Toolkit, or as this console. Payments go out through PayPal Payouts, or as captures on a budget authorized with PayPal (a mandate), in the sandbox; the host is pinned so no real money can move.</p>
       <div class="btns"><a class="btn ghost" style="text-decoration:none;color:var(--fg);border:1px solid var(--line2);padding:9px 14px;border-radius:5px;font-weight:600;font-size:14px" href="https://github.com/NovaCorpAI/safepay#use-it-as-an-mcp-server-any-agent" target="_blank" rel="noopener">MCP setup</a>
         <a class="btn ghost" style="text-decoration:none;color:var(--fg);border:1px solid var(--line2);padding:9px 14px;border-radius:5px;font-weight:600;font-size:14px" href="/console">Try it now</a></div>
     </div>

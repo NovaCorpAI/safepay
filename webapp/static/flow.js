@@ -1,7 +1,8 @@
 /* The flow: how a payment travels through SafePay, drawn as a small
    nervous system. Nodes are the layers; a pulse is one payment. The pulses
    are not invented: the page replays the most recent links of the real audit
-   chain (verdicts, approvals, orders, settlements, money that moved outside
+   chain (verdicts, approvals, orders, mandate authorizations, captures and
+   voids, operator-signed policies, settlements, money that moved outside
    the firewall), and keeps polling for new ones, so running the demo in the
    Console lights this page up live. */
 (function () {
@@ -19,7 +20,7 @@
     web:     { x: 430, y: 105, r: 24, lbl: 'Live web',   sub: 'Tavily · merchant' },
     reason:  { x: 430, y: 295, r: 24, lbl: 'Reasoning',  sub: 'Nemotron · intent' },
     verdict: { x: 605, y: 200, r: 28, lbl: 'Verdict',    sub: 'allow · hold · block' },
-    paypal:  { x: 790, y: 105, r: 24, lbl: 'PayPal',     sub: 'Payouts · Orders' },
+    paypal:  { x: 790, y: 105, r: 24, lbl: 'PayPal',     sub: 'Payouts · Orders · captures' },
     human:   { x: 790, y: 295, r: 24, lbl: 'Human',      sub: 'console · MCP · Telegram' },
     chain:   { x: 940, y: 200, r: 26, lbl: 'Chain',      sub: 'signed · hashed' },
   };
@@ -33,6 +34,9 @@
     'policy-chain': `M ${N.policy.x} ${N.policy.y + 26} C ${N.policy.x} 370, ${N.chain.x} 370, ${N.chain.x} ${N.chain.y + 26}`,
     'human-policy': `M ${N.human.x} ${N.human.y + 24} C ${N.human.x} 380, ${N.policy.x} 380, ${N.policy.x} ${N.policy.y + 26}`,
     'outside-paypal': `M 790 20 L ${N.paypal.x} ${N.paypal.y - 24}`,
+    // The mandate lane: a capture draws on a ceiling the full guardrail
+    // already judged, so it goes from the mandate check straight to a verdict.
+    'policy-verdict': `M ${N.policy.x + 26} ${N.policy.y} L ${N.verdict.x - 28} ${N.verdict.y}`,
   };
   const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); (parent || svg).appendChild(e); return e; };
   // defs: glow
@@ -40,7 +44,7 @@
   el('feGaussianBlur', { stdDeviation: '3', result: 'b' }, f); const m = el('feMerge', {}, f); el('feMergeNode', { in: 'b' }, m); el('feMergeNode', { in: 'SourceGraphic' }, m);
   const gEdges = el('g', {}), gNodes = el('g', {}), gPulses = el('g', {});
   const paths = {};
-  for (const k in E) paths[k] = el('path', { d: E[k], class: 'edge' + (k.startsWith('outside') || k === 'human-policy' || k === 'policy-chain' ? ' dashed' : '') }, gEdges);
+  for (const k in E) paths[k] = el('path', { d: E[k], class: 'edge' + (k.startsWith('outside') || k === 'human-policy' || k === 'policy-chain' || k === 'policy-verdict' ? ' dashed' : '') }, gEdges);
   el('text', { x: 790, y: 14, class: 'sub', 'text-anchor': 'middle' }, gEdges).textContent = 'outside the firewall';
   const nodes = {};
   for (const k in N) {
@@ -92,9 +96,25 @@
     const failed = (p.checks || []).filter(c => !c.passed).map(c => c.detail);
     const reasons = (p.reasons || []).join(' · ') || (failed.length ? failed.join(' · ') : ((p.checks || []).length ? 'all checks passed' : ''));
     if (ev === 'policy') {
-      caption(`<b>Link #${seq}</b> · the operator applied a policy · ${esc(short(reasons, 90))}`);
-      fire('human', 'on', 'operator'); await travel('human-policy', C.accent, 900); fire('policy', 'on', 'rules updated');
-      await travel('policy-chain', C.accent, 900); fire('chain', 'on', '#' + seq); await wait(900); return;
+      const sig = (p.execution || {}).operator_sig;
+      caption(`<b>Link #${seq}</b> · the operator applied a policy${sig ? ` · <span style="color:${C.allow}">signed in the browser, key ${esc(sig.kid)}</span>` : ''} · ${esc(short(reasons, 80))}`);
+      fire('human', sig ? 'allow' : 'on', sig ? 'operator · signed' : 'operator'); await travel('human-policy', sig ? C.allow : C.accent, 900);
+      fire('policy', sig ? 'allow' : 'on', sig ? 'signed rules' : 'rules updated');
+      await travel('policy-chain', sig ? C.allow : C.accent, 900); fire('chain', 'on', '#' + seq); await wait(900); return;
+    }
+    if (ev === 'capture' || ev === 'void') {
+      const x = p.execution || {}, ag = short(((p.intent || {}).agent_id || '').split(':')[0], 12);
+      const bad = (p.checks || []).find(c => !c.passed);
+      const why = !bad ? '' : bad.name === 'agent' ? 'frozen' : bad.name === 'amount' ? 'over what is left' : /closed/.test(bad.detail) ? 'mandate closed' : 'not the owner';
+      caption(ev === 'void'
+        ? `<b>Link #${seq}</b> · mandate closed · ${money(p)} voided with PayPal and released back to the daily cap`
+        : `<b>Link #${seq}</b> · capture of ${money(p)} on a mandate · <span style="color:${C[v]}">${v.toUpperCase()}</span> · ${esc(short(bad ? bad.detail : (x.final ? 'final capture, the rest released' : 'within the authorized budget'), 90))}`);
+      fire('agent', 'on', ag); await travel('agent-policy', C.accent, 600);
+      fire('policy', bad ? 'block' : 'allow', ev === 'void' ? 'close mandate' : (bad ? why : 'within mandate'));
+      await travel('policy-verdict', bad ? C.block : C.allow, 700); fire('verdict', v, ev === 'void' ? 'VOID' : v.toUpperCase());
+      if (v === 'allow') { await travel('verdict-paypal', C.allow, 700); fire('paypal', 'allow', ev === 'void' ? 'voided' : (p.executed ? 'captured' : 'not sent')); await travel('paypal-chain', C.allow, 800); }
+      else await travel('verdict-chain', C.block, 800);
+      fire('chain', v, '#' + seq); await wait(1000); return;
     }
     if (ev === 'outside') {
       caption(`<b>Link #${seq}</b> · <span style="color:${C.block}">money moved outside the firewall</span> · ${money(p)} to ${esc(who(p))} · no agent asked SafePay`);
@@ -122,11 +142,12 @@
     }
     // A decision (payout or order): agent -> policy -> (web, reasoning) -> verdict -> ...
     const pol = checkOf(p, 'policy'), agentChk = checkOf(p, 'agent');
-    caption(`<b>Link #${seq}</b> · ${ev === 'order' ? 'order' : 'payment'} of ${money(p)} to ${esc(who(p))} · <span style="color:${C[v]}">${v.toUpperCase()}</span> · ${esc(short(reasons, 90))}`);
+    const what = ev === 'order' ? 'order' : ev === 'authorize' ? 'mandate (authorize a ceiling)' : 'payment';
+    caption(`<b>Link #${seq}</b> · ${what} of ${money(p)} to ${esc(who(p))} · <span style="color:${C[v]}">${v.toUpperCase()}</span> · ${esc(short(reasons, 90))}`);
     fire('agent', 'on', (p.intent || {}).agent_id ? short((p.intent || {}).agent_id.split(':')[0], 12) : '');
     await travel('agent-policy', C.accent, 700);
     if (agentChk && !agentChk.passed) { fire('policy', 'block', 'frozen'); await travel('policy-chain', C.block, 900); fire('chain', 'block', '#' + seq); await wait(1000); return; }
-    if (pol && !pol.passed) { fire('policy', 'block', 'rule breached'); await travel('policy-chain', C.block, 900); fire('chain', 'block', '#' + seq); await wait(1000); return; }
+    if (pol && !pol.passed) { fire('policy', 'block', (pol.evidence || []).some(e => e && e.rule === 'policy_signature') ? 'signature failed' : 'rule breached'); await travel('policy-chain', C.block, 900); fire('chain', 'block', '#' + seq); await wait(1000); return; }
     fire('policy', 'allow', 'within rules');
     const web = checkOf(p, 'merchant'), rs = checkOf(p, 'reasoning');
     await Promise.all([travel('policy-web', C.accent, 700), travel('policy-reason', C.accent, 700)]);
@@ -134,7 +155,7 @@
     fire('reason', rs ? (rs.passed ? 'allow' : 'hold') : 'on', rs ? (rs.passed ? 'aligned' : 'mismatch') : 'skipped');
     await Promise.all([travel('web-verdict', web && !web.passed ? C.hold : C.accent, 700), travel('reason-verdict', rs && !rs.passed ? C.hold : C.accent, 700)]);
     fire('verdict', v, v.toUpperCase());
-    if (v === 'allow') { await travel('verdict-paypal', C.allow, 700); fire('paypal', 'allow', p.executed ? (ev === 'order' ? 'order' : 'paid') : 'not sent'); await travel('paypal-chain', C.allow, 800); }
+    if (v === 'allow') { await travel('verdict-paypal', C.allow, 700); fire('paypal', 'allow', p.executed ? (ev === 'order' ? 'order' : ev === 'authorize' ? 'authorized' : 'paid') : 'not sent'); await travel('paypal-chain', C.allow, 800); }
     else if (v === 'hold') { await travel('verdict-human', C.hold, 700); fire('human', 'hold', 'waiting'); await travel('human-chain', C.hold, 800); }
     else { await travel('verdict-chain', C.block, 800); }
     fire('chain', v, '#' + seq); await wait(1000);
