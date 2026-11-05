@@ -1,0 +1,31 @@
+# Keep the hosted demos warm and watched.
+#
+# Render's free plan puts a web service to sleep after 15 minutes without
+# traffic, and the first visit after that waits about a minute. A request
+# every 10 minutes keeps it awake (one service running all month fits in the
+# free 750 instance hours). The same run checks that both hosts answer and
+# that the audit chain verifies, so a broken demo shows up as a failed run
+# (GitHub emails the repo owner) instead of being found by a judge.
+name: keep-warm
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Render (wakes it, and keeps it awake)
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -m 90 https://safepay-ygzp.onrender.com/api/policy) && [ "$code" = "200" ] && break
+            sleep 20
+          done
+          echo "render: $code"; [ "$code" = "200" ]
+      - name: Vercel and the audit chain
+        run: |
+          body=$(curl -s -m 60 https://safepay.agentposhq.com/api/audit)
+          echo "$body" | python3 -c "import sys,json; d=json.load(sys.stdin); print('chain ok:', d['ok'], 'links:', d['count']); sys.exit(0 if d['ok'] else 1)"

@@ -53,15 +53,20 @@ class SafePayAgent:
             self.audit_log = audit_log or SupabaseAuditLog(db)
             self.approvals = SupabaseApprovalQueue(db)
             self.control = SupabaseControl(db)
+            from .cache import SupabaseCache
+            self.cache = SupabaseCache(db)
             self.store = "supabase"
         else:
             ledger = None  # Guardrail builds an in-memory SpendLedger
             self.audit_log = audit_log or AuditLog(os.environ.get("SAFEPAY_AUDIT_LOG"))
             self.approvals = ApprovalQueue()
             self.control = MemoryControl()
+            from .cache import MemoryCache
+            self.cache = MemoryCache()
             self.store = "memory"
 
-        self.guardrail = Guardrail(self.policy, web, chat, ledger=ledger, control=self.control)
+        self.guardrail = Guardrail(self.policy, web, chat, ledger=ledger, control=self.control,
+                                   cache=self.cache)
         self.paypal = PayPalClient(self.config)
         # One-tap approvals: a HOLD is also pushed to a Telegram chat when
         # configured. Best effort: a chat outage never changes a verdict.

@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from .attest import policy_hash
+from .cache import daily_budget, key_for
 from .control import PAUSED
 from .models import CheckResult, Decision, PaymentIntent, PolicyConfig, Severity, Verdict
 from .nebius_client import NebiusChat
@@ -30,7 +31,11 @@ class Guardrail:
         chat: NebiusChat | None,
         ledger: SpendLedger | None = None,
         control: Any | None = None,
+        cache: Any | None = None,
     ) -> None:
+        # Result cache and daily budget for the paid checks (cache.py).
+        # None in library use: every check runs.
+        self.cache = cache
         self.policy = policy
         self.web = web
         self.chat = chat
@@ -72,10 +77,18 @@ class Guardrail:
                 policy_hash=ph,
             )
 
-        # 2. Soft signals: live-web merchant check and model reasoning.
-        merchant = check_merchant(intent, self.web, self.chat)
+        # 2. Soft signals: live-web merchant check and model reasoning,
+        # cached on exactly the inputs each one reads (see cache.py).
+        merchant = self._cached("merchant", check_merchant, (intent, self.web, self.chat),
+                                (intent.merchant_name or "", intent.merchant_url or "",
+                                 (intent.recipient or "").lower()),
+                                live=bool(self.web is not None and getattr(self.web, "enabled", False)))
         checks.append(merchant)
-        reasoning = check_reasoning(intent, self.chat)
+        reasoning = self._cached("reasoning", check_reasoning, (intent, self.chat),
+                                 (intent.task_goal, intent.purpose, (intent.recipient or "").lower(),
+                                  round(float(intent.amount), 2), intent.currency, intent.category,
+                                  intent.merchant_name or "", getattr(self.chat, "model", "")),
+                                 live=self.chat is not None)
         checks.append(reasoning)
         soft = [merchant, reasoning]
 
@@ -127,6 +140,40 @@ class Guardrail:
             verdict = Verdict.ALLOW
         return Decision(verdict=verdict, intent=intent, checks=checks, reasons=reasons,
                         policy_hash=ph)
+
+    def _cached(self, kind: str, fn, args: tuple, key_parts: tuple, live: bool) -> CheckResult:
+        """Run a paid check through the cache and the daily budget. Offline
+        checks (no key: nothing to pay for) run directly. A cache or budget
+        store that fails never blocks the check itself."""
+        cache = self.cache
+        if cache is None or not live:
+            return fn(*args)
+        key = key_for(kind, *key_parts)
+        try:
+            hit = cache.get(key)
+        except Exception:
+            hit = None
+        if hit:
+            res = CheckResult.from_dict(hit)
+            res.evidence = list(res.evidence) + [{"cache": "hit", "note": "same inputs judged within the cache window"}]
+            return res
+        budget = daily_budget()
+        try:
+            if budget and cache.spent_today() >= budget:
+                return CheckResult(
+                    name=kind, passed=False, severity=Severity.WARN, risk=0.5,
+                    detail=(f"{kind} check not run: today's external-call budget ({budget}) is "
+                            f"spent; held for a human rather than waved through"),
+                    evidence=[{"rule": "external_daily_budget", "budget": budget}])
+            cache.spend(1)
+        except Exception:
+            pass
+        res = fn(*args)
+        try:
+            cache.set(key, res.to_dict())
+        except Exception:
+            pass
+        return res
 
     def commit_spend(self, decision: Decision) -> None:
         """Record auto-approved spend so the caps hold across a burst of intents.
