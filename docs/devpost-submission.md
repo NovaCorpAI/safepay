@@ -79,7 +79,13 @@ that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is
 appended to a hash-chained audit log: each record carries the hash of the one
 before it, so editing or dropping any earlier decision breaks every hash that
-follows, and a one-line verify walks the whole chain. SafePay also ships its
+follows, and a one-line verify walks the whole chain. SafePay is also a
+drop-in front for PayPal's own MCP server: an agent changes one command in its
+MCP config (safepay-mcp-proxy instead of npx @paypal/mcp) and keeps all 28
+PayPal tools, while the five that move money (create_order, pay_order,
+create_refund, accept_dispute_claim, create_subscription) are judged first,
+with the amount read back from PayPal itself, and reach PayPal only on ALLOW.
+SafePay also ships its
 own payables agent: paste an invoice or a vendor email and it reads the payee,
 amount and invoice number (Nemotron reads, but every value must appear in the
 text, so a planted or invented payee is dropped), then pays through the same

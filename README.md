@@ -451,6 +451,40 @@ live: a payout released there gets its settlement link from PayPal's push, no
 button needed. If a delivery fails verification, the reason PayPal gives (for
 example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
 
+## In front of PayPal's own MCP server (one line to switch)
+
+An agent that already uses PayPal's MCP server changes the command in its MCP
+config and keeps every tool it had, same names and arguments:
+
+```json
+{"mcpServers": {"paypal": {
+  "command": "safepay-mcp-proxy",
+  "env": {"PAYPAL_CLIENT_ID": "...", "PAYPAL_CLIENT_SECRET": "..."}}}}
+```
+
+`safepay-mcp-proxy` (`pip install "safepay[mcp]"`, needs Node) starts
+`npx -y @paypal/mcp --tools=all` itself with a token minted from the client
+credentials, pinned to the sandbox unless `PAYPAL_ENVIRONMENT=PRODUCTION` is
+set. Of PayPal's 28 tools, the five that move money or commit to a charge are
+gated; the other 23 pass straight through:
+
+| Tool | Amount SafePay judges |
+| --- | --- |
+| `create_order` | the line items, shipping and discount in the call |
+| `pay_order` | read from PayPal's own order (`get_order`), with the payee |
+| `create_refund` | the amount in the call; a full refund of unknown size is held |
+| `accept_dispute_claim` | read from PayPal's own dispute (`get_dispute`) |
+| `create_subscription` | read from PayPal's plan price, times quantity |
+
+The amount comes from PayPal whenever PayPal has it, not only from the agent.
+A gated tool also accepts optional `safepay_purpose`, `safepay_task`,
+`safepay_merchant` and `safepay_recipient` fields (stripped before PayPal sees
+the call) so the reasoning check knows why. ALLOW forwards the call; HOLD and
+BLOCK answer the agent with the reasons and never call PayPal. Every gated call
+is a link in the same signed chain as the console. Verified end to end against
+the sandbox: a USD 20 `create_order` was allowed and PayPal created order
+9UG33738VS856624H; a USD 900 one was blocked and PayPal was never called.
+
 ## SafePay's own payables agent (invoice in, judged payment out)
 
 SafePay ships a native agent for the job it guards: paying vendor invoices.
