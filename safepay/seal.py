@@ -125,6 +125,11 @@ def view(found: dict[str, Any], seal_id: str) -> dict[str, Any]:
     else:
         linked = None   # the link before it is outside the window held here
     status, status_ts = str(ex.get("batch_status") or "PENDING"), None
+    kind = "capture" if ex.get("method") == "capture" else "payout"
+    if kind == "capture":
+        # A capture settles synchronously: COMPLETED is the money moving.
+        st = str(ex.get("status") or "PENDING")
+        status = "SUCCESS" if st == "COMPLETED" else st
     for s in found.get("settlements") or []:
         sp = s.get("payload") or {}
         sx = sp.get("execution") or {}
@@ -152,6 +157,7 @@ def view(found: dict[str, Any], seal_id: str) -> dict[str, Any]:
         "linked": linked,
         "paypal_mode": ex.get("mode"),
         "payout_status": status,
+        "kind": kind,
         "status_ts": status_ts,
         "status_when": _when(status_ts) if status_ts else "",
     }

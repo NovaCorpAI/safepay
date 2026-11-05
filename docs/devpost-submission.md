@@ -91,7 +91,12 @@ amount and invoice number (Nemotron reads, but every value must appear in the
 text, so a planted or invented payee is dropped), then pays through the same
 guardrail with no privileges; a resent invoice is blocked as a duplicate, a
 "we changed our bank details" email or an invoice that talks to the reviewer
-is held. Every released payout
+is held. For tasks whose final price is not known up front (a hotel,
+compute, a batch of purchases) an agent opens a mandate: the ceiling is judged
+like any payment and authorized with PayPal (Orders v2, intent AUTHORIZE), each
+capture is checked on its own (the agent that opened it, not frozen, within what
+is left) before PayPal is called, and closing voids the rest and gives it back
+to the daily cap. Every released payout
 is sealed: the note PayPal shows the recipient carries a seal id ("Sealed by
 SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE"), and
 that public page shows the payee, with the address masked, the signed record of
@@ -262,6 +267,9 @@ session.
    Then, in "SafePay's own payables agent", click the four sample invoices in
    order and press Read and pay: paid and sealed, duplicate blocked,
    bank-details change blocked, injected invoice held.
+   Then, in "Mandates", press Run the mandate story: USD 300 authorized with
+   PayPal, USD 180 captured and sealed, a USD 200 draw blocked (only 120 left),
+   and the rest voided when the mandate closes.
    On any paid card, the "sealed SP-..." link opens the public verification
    page the payee reaches from the PayPal note.
 3. Ledger: press Tamper (demo) and watch the chain badge turn red, then Verify

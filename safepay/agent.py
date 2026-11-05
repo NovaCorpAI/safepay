@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from . import attest, payables, seal
+from . import attest, mandate, payables, seal
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
@@ -170,6 +170,121 @@ class SafePayAgent:
         out = self.pay(intent, extra_checks=payables.flag_checks(read))
         out["invoice"] = read
         return out
+
+    # --- mandates: authorize a budget, capture what the task costs ----------
+
+    def open_mandate(self, intent: PaymentIntent) -> dict[str, Any]:
+        """Judge a ceiling like any payment; on ALLOW authorize it with
+        PayPal. The ceiling counts against the daily cap from now on."""
+        decision = self.guardrail.evaluate(intent, policy=self.policy_for(intent.agent_id))
+        decision.event = "authorize"
+        if decision.verdict == Verdict.ALLOW:
+            if not self.config.execute_payments:
+                decision.execution = {"mode": "disabled",
+                                      "note": "payment execution disabled on this instance"}
+            else:
+                try:
+                    res = self.paypal.authorize(intent.amount, intent.currency,
+                                                intent.purpose or intent.task_goal,
+                                                intent.idempotency_key)
+                    decision.executed = True
+                    decision.execution = dict(res, method="authorize")
+                    self.guardrail.commit_spend(decision)
+                except Exception as exc:
+                    decision.execution = {"error": str(exc)}
+                    decision.reasons.append(f"authorize error: {exc}")
+        elif decision.verdict == Verdict.HOLD:
+            decision.reasons.append("mandate not opened: a person must look at it first "
+                                    "(lower the ceiling, or raise the policy and ask again)")
+        record = self.audit_log.append(decision)
+        out = self._result(decision, record)
+        auth = (decision.execution or {}).get("authorization_id")
+        out["mandate"] = mandate.state(self.audit_log, auth) if decision.executed and auth else None
+        return out
+
+    def _frozen(self, agent_id: str) -> str | None:
+        try:
+            reg = self.control.touch_agent(agent_id)
+        except Exception:
+            return None
+        return (reg.get("reason") or "frozen by the operator") if reg.get("status") == PAUSED else None
+
+    def capture(self, authorization_id: str, amount: float, agent_id: str,
+                purpose: str = "", final: bool = False) -> dict[str, Any]:
+        """Draw on an open mandate. BLOCK unless the caller owns it, is not
+        frozen and the amount fits in what is left; only then is PayPal called."""
+        st = mandate.state(self.audit_log, authorization_id)
+        if st is None:
+            raise LookupError(f"no mandate with authorization id {authorization_id}")
+        amount = round(float(amount or 0), 2)
+        intent = PaymentIntent(recipient=st["recipient"], amount=amount, currency=st["currency"],
+                               category=st["category"] or "purchase", merchant_name=st["merchant"],
+                               purpose=purpose or st["purpose"] or "capture", agent_id=agent_id,
+                               task_goal=st["task"] or "")
+        checks = mandate.capture_checks(st, amount, agent_id, self._frozen(agent_id))
+        failed = [c for c in checks if not c.passed]
+        decision = Decision(verdict=Verdict.BLOCK if failed else Verdict.ALLOW, intent=intent,
+                            checks=checks, reasons=[f"{c.name}: {c.detail}" for c in failed],
+                            event="capture", policy_hash=st["policy_hash"])
+        base = {"authorization_id": authorization_id, "method": "capture"}
+        if not failed:
+            final = bool(final) or abs(amount - st["remaining"]) < 0.005
+            seal_id = seal.new_seal_id(None)
+            try:
+                res = self.paypal.capture_authorization(
+                    authorization_id, amount, st["currency"], final=final,
+                    note=seal.seal_note(intent.purpose, seal_id), invoice_id=seal_id)
+                decision.executed = True
+                decision.execution = dict(res, **base, seal=seal_id, final=final)
+                unused = round(st["remaining"] - amount, 2)
+                if final and unused > 0:
+                    self.guardrail.record_settlement(st["agent_id"], -unused, st["recipient"])
+                    decision.execution["released"] = unused
+            except Exception as exc:
+                decision.execution = dict(base, error=str(exc))
+                decision.reasons.append(f"capture error: {exc}")
+        else:
+            decision.execution = dict(base)
+        record = self.audit_log.append(decision)
+        out = self._result(decision, record)
+        out["mandate"] = mandate.state(self.audit_log, authorization_id)
+        return out
+
+    def close_mandate(self, authorization_id: str, agent_id: str, reason: str = "") -> dict[str, Any]:
+        """Void what is left and credit it back to the agent's daily cap.
+        The agent that opened the mandate, or an operator, may close it."""
+        st = mandate.state(self.audit_log, authorization_id)
+        if st is None:
+            raise LookupError(f"no mandate with authorization id {authorization_id}")
+        if agent_id != st["agent_id"] and not agent_id.startswith("operator:"):
+            raise PermissionError("only the agent that opened the mandate, or an operator, can close it")
+        if st["closed"]:
+            raise ValueError("the mandate is already closed")
+        left = st["remaining"]
+        intent = PaymentIntent(recipient=st["recipient"], amount=left, currency=st["currency"],
+                               category=st["category"] or "purchase", merchant_name=st["merchant"],
+                               purpose=reason or "close mandate: release what was not used",
+                               agent_id=agent_id, task_goal=st["task"] or "")
+        decision = Decision(verdict=Verdict.ALLOW, intent=intent, event="void",
+                            policy_hash=st["policy_hash"],
+                            reasons=[f"released {st['currency']} {left:.2f} of {st['currency']} "
+                                     f"{st['authorized']:.2f}; {st['currency']} {st['captured']:.2f} captured"])
+        try:
+            res = self.paypal.void_authorization(authorization_id)
+            decision.executed = True
+            decision.execution = dict(res, authorization_id=authorization_id, method="void", released=left)
+            if left > 0:
+                self.guardrail.record_settlement(st["agent_id"], -left, st["recipient"])
+        except Exception as exc:
+            decision.execution = {"authorization_id": authorization_id, "method": "void", "error": str(exc)}
+            decision.reasons.append(f"void error: {exc}")
+        record = self.audit_log.append(decision)
+        out = self._result(decision, record)
+        out["mandate"] = mandate.state(self.audit_log, authorization_id)
+        return out
+
+    def get_mandate(self, authorization_id: str) -> dict[str, Any] | None:
+        return mandate.state(self.audit_log, authorization_id)
 
     # --- operator controls: policy in plain words, freeze / resume an agent --
 

@@ -57,15 +57,15 @@
       {% set good = v.intact and v.linked != false %}
       {% if not good %}<span class="stamp bad">Record altered</span>
       {% elif v.payout_status in ['SUCCESS'] %}<span class="stamp ok">Released and paid</span>
-      {% elif v.payout_status in ['FAILED','RETURNED','BLOCKED','DENIED','CANCELED','REFUNDED','REVERSED'] %}<span class="stamp bad">Released, payout {{ v.payout_status|lower }}</span>
-      {% else %}<span class="stamp wait">Released, payout {{ v.payout_status|lower }}</span>{% endif %}
+      {% elif v.payout_status in ['FAILED','RETURNED','BLOCKED','DENIED','CANCELED','REFUNDED','REVERSED'] %}<span class="stamp bad">Released, {{ v.kind }} {{ v.payout_status|lower }}</span>
+      {% else %}<span class="stamp wait">Released, {{ v.kind }} {{ v.payout_status|lower }}</span>{% endif %}
     </div>
 
     <dl class="facts">
       <div><dt>Amount</dt><dd class="big">{{ v.currency }} {{ '%.2f'|format(v.amount|float) }}</dd></div>
       <div><dt>Paid to</dt><dd>{{ v.merchant or 'payee' }}<br><span class="muted">{{ v.recipient }}</span></dd></div>
       {% if v.invoice_ref %}<div><dt>Invoice</dt><dd>{{ v.invoice_ref }}</dd></div>{% endif %}
-      <div><dt>Through</dt><dd>PayPal Payouts{% if v.paypal_mode %} ({{ v.paypal_mode }}){% endif %}</dd></div>
+      <div><dt>Through</dt><dd>{{ 'PayPal capture of an authorized budget' if v.kind == 'capture' else 'PayPal Payouts' }}{% if v.paypal_mode %} ({{ v.paypal_mode }}){% endif %}</dd></div>
     </dl>
 
     <ul class="proofs">
@@ -78,7 +78,7 @@
           <span class="checks">{% for c in v.checks %}<span class="{{ '' if c.passed else 'f' }}" title="{{ 'passed' if c.passed else 'flagged, then approved by a person' }}">{{ c.name }}</span>{% endfor %}</span></span></li>
       {% if v.policy_hash %}<li><span class="ic ok">✓</span><span>Under the policy with fingerprint <code>{{ v.policy_hash[:16] }}…</code>, itself a link in the same chain.</span></li>{% endif %}
       <li><span class="ic {{ 'ok' if v.payout_status == 'SUCCESS' else 'na' }}">{{ '✓' if v.payout_status == 'SUCCESS' else '·' }}</span>
-        <span>PayPal reports the payout as <b>{{ v.payout_status }}</b>{% if v.status_when %} ({{ v.status_when }}){% endif %}.</span></li>
+        <span>PayPal reports the {{ v.kind }} as <b>{{ v.payout_status }}</b>{% if v.status_when %} ({{ v.status_when }}){% endif %}.</span></li>
     </ul>
     <p class="note">Machine-readable: <a href="/api/v/{{ v.seal }}">/api/v/{{ v.seal }}</a>. The recipient is masked; nothing here names the payer's agents or other payments.</p>
   </div>

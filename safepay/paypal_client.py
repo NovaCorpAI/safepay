@@ -135,6 +135,84 @@ class PayPalClient:
             "raw": header,
         }
 
+    # --- authorize, then capture (Orders v2) ------------------------------
+    # A mandate reserves a budget on a payment source, then draws it down in
+    # captures and voids what the task did not use. PayPal's published sandbox
+    # test card stands in for the company card an agent would hold a vaulted
+    # token for; it is only ever sent to the sandbox host.
+
+    SANDBOX_CARD = {"number": "4111111111111111", "expiry": "2030-12",
+                    "security_code": "123", "name": "SafePay Agent Card"}
+
+    def _post(self, path: str, body: dict[str, Any] | None, key: str | None) -> Any:
+        import requests
+
+        headers = {"Authorization": f"Bearer {self._access_token()}",
+                   "Content-Type": "application/json",
+                   "PayPal-Request-Id": (key or uuid.uuid4().hex)[:100]}
+        resp = requests.post(f"{self._cfg.paypal_base_url}{path}", json=body,
+                             headers=headers, timeout=60)
+        if resp.status_code not in (200, 201, 204):
+            try:
+                det = resp.json()
+                issue = ((det.get("details") or [{}])[0].get("issue") or det.get("name") or "")
+            except ValueError:
+                issue = resp.text[:200]
+            raise PayPalError(f"PayPal {path.split('/')[-1]} failed ({resp.status_code}): {issue}")
+        return resp.json() if resp.content else {}
+
+    def authorize(self, amount: float, currency: str = "USD", description: str = "",
+                  idempotency_key: str | None = None) -> dict[str, Any]:
+        """Create an order with intent AUTHORIZE and authorize it at once.
+        Returns {mode, order_id, authorization_id, status, amount, expires}."""
+        if not self.live:
+            tag = uuid.uuid4().hex[:12].upper()
+            return {"mode": "simulated", "order_id": f"SIM-ORDER-{tag}",
+                    "authorization_id": f"SIMAUTH{tag}", "status": "CREATED",
+                    "amount": {"value": f"{amount:.2f}", "currency": currency},
+                    "expires": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + 29 * 86400))}
+        if "sandbox" not in self._cfg.paypal_base_url:
+            raise PayPalError("mandates use PayPal's sandbox test card; production needs a vaulted payment token")
+        body = {"intent": "AUTHORIZE",
+                "purchase_units": [{"amount": {"currency_code": currency, "value": f"{amount:.2f}"},
+                                    "description": (description or "SafePay mandate")[:127]}],
+                "payment_source": {"card": dict(self.SANDBOX_CARD)}}
+        order = self._post("/v2/checkout/orders", body, idempotency_key)
+        auths = (((order.get("purchase_units") or [{}])[0].get("payments") or {})
+                 .get("authorizations") or [])
+        if not auths:
+            raise PayPalError(f"PayPal returned no authorization (order {order.get('status')})")
+        a = auths[0]
+        return {"mode": "sandbox", "order_id": order.get("id"), "authorization_id": a.get("id"),
+                "status": a.get("status"), "amount": a.get("amount"),
+                "expires": a.get("expiration_time")}
+
+    def capture_authorization(self, authorization_id: str, amount: float, currency: str = "USD",
+                              final: bool = False, note: str = "", invoice_id: str = "",
+                              idempotency_key: str | None = None) -> dict[str, Any]:
+        """Capture part (or the last part) of an authorization. A final capture
+        releases whatever was left back to the payment source."""
+        if not self.live:
+            return {"mode": "simulated", "capture_id": f"SIMCAP{uuid.uuid4().hex[:12].upper()}",
+                    "status": "COMPLETED", "amount": {"value": f"{amount:.2f}", "currency": currency},
+                    "final": final}
+        body: dict[str, Any] = {"amount": {"currency_code": currency, "value": f"{amount:.2f}"},
+                                "final_capture": bool(final)}
+        if note:
+            body["note_to_payer"] = note[:255]
+        if invoice_id:
+            body["invoice_id"] = invoice_id[:127]
+        cap = self._post(f"/v2/payments/authorizations/{authorization_id}/capture", body, idempotency_key)
+        return {"mode": "sandbox", "capture_id": cap.get("id"), "status": cap.get("status"),
+                "amount": {"value": f"{amount:.2f}", "currency": currency}, "final": final}
+
+    def void_authorization(self, authorization_id: str) -> dict[str, Any]:
+        """Void what is left of an authorization (works after partial captures)."""
+        if not self.live:
+            return {"mode": "simulated", "status": "VOIDED"}
+        self._post(f"/v2/payments/authorizations/{authorization_id}/void", None, None)
+        return {"mode": "sandbox", "status": "VOIDED"}
+
     # --- settlement ---------------------------------------------------------
     # A payout is accepted as PENDING; the money moves (or bounces) later.
     # These close the loop: what PayPal says actually happened to the batch.

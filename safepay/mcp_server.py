@@ -116,6 +116,35 @@ def create_order(**kw: Any) -> dict[str, Any]:
     }
 
 
+def _mandate_out(out: dict[str, Any]) -> dict[str, Any]:
+    dec = out["decision"]
+    return {"verdict": dec["verdict"], "executed": dec["executed"], "reasons": dec["reasons"],
+            "seal": (dec.get("execution") or {}).get("seal"), "mandate": out.get("mandate"),
+            "audit_seq": out["audit"]["payload"].get("seq"), "paypal_mode": out["paypal_mode"]}
+
+
+def open_mandate(**kw: Any) -> dict[str, Any]:
+    """Judge a ceiling like any payment; on ALLOW authorize it with PayPal."""
+    return _mandate_out(_agent.open_mandate(_intent(**kw)))
+
+
+def capture_mandate(authorization_id: str, amount: float, agent_id: str = "mcp-agent",
+                    purpose: str = "", final: bool = False) -> dict[str, Any]:
+    """Draw on an open mandate (owner only, not frozen, within what is left)."""
+    try:
+        return _mandate_out(_agent.capture(authorization_id, amount, agent_id, purpose, final))
+    except LookupError as exc:
+        return {"error": str(exc)}
+
+
+def close_mandate(authorization_id: str, agent_id: str = "mcp-agent", reason: str = "") -> dict[str, Any]:
+    """Void what is left of a mandate and credit it back to the daily cap."""
+    try:
+        return _mandate_out(_agent.close_mandate(authorization_id, agent_id, reason))
+    except (LookupError, PermissionError, ValueError) as exc:
+        return {"error": str(exc)}
+
+
 def pending_approvals() -> dict[str, Any]:
     """Payments held for a human decision."""
     items = _agent.pending_approvals()
@@ -254,6 +283,35 @@ try:
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
             agent_id=agent_id, invoice_ref=invoice_ref,
         )
+
+    @_MCP.tool()
+    def safepay_open_mandate(
+        recipient: str, amount: float, currency: str = "USD",
+        category: str = "uncategorized", purpose: str = "", task_goal: str = "",
+        merchant_name: str | None = None, agent_id: str = "mcp-agent",
+    ) -> dict[str, Any]:
+        """Reserve a budget for a task whose final price you do not know yet
+        (a hotel, compute, a batch of purchases). `amount` is the ceiling: it is
+        judged like any payment and, only on ALLOW, authorized with PayPal
+        (nothing is charged yet). Returns the mandate with its authorization_id."""
+        return open_mandate(recipient=recipient, amount=amount, currency=currency,
+                            category=category, purpose=purpose, task_goal=task_goal,
+                            merchant_name=merchant_name, agent_id=agent_id)
+
+    @_MCP.tool()
+    def safepay_capture(authorization_id: str, amount: float, agent_id: str = "mcp-agent",
+                        purpose: str = "", final: bool = False) -> dict[str, Any]:
+        """Charge part of an open mandate. Blocked unless you opened it, you are
+        not frozen, and the amount fits in what is left. `final=true` charges
+        this amount and releases the rest. Every capture carries a seal."""
+        return capture_mandate(authorization_id, amount, agent_id, purpose, final)
+
+    @_MCP.tool()
+    def safepay_close_mandate(authorization_id: str, agent_id: str = "mcp-agent",
+                              reason: str = "") -> dict[str, Any]:
+        """Close a mandate when the task is done: what was not captured is voided
+        with PayPal and credited back to your daily budget."""
+        return close_mandate(authorization_id, agent_id, reason)
 
     @_MCP.tool()
     def safepay_pending_approvals() -> dict[str, Any]:

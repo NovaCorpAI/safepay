@@ -102,6 +102,14 @@
       exec = d.executed
         ? `<div class="exec"><span class="ok">● order created</span> through the PayPal Agent Toolkit · ${esc(res.id || '?')} (${esc(res.status || '?')})${link ? ` · <a href="${esc(link.href)}" target="_blank" rel="noopener">buyer approval link</a>` : ''}</div>`
         : `<div class="exec"><span class="no">● order not created</span>, the Toolkit was called but failed: ${esc(d.execution.error || '?')}</div>`;
+    } else if (d.executed && d.execution && ['authorize', 'capture', 'void'].includes(d.execution.method)) {
+      const x = d.execution, m = r.mandate || {};
+      const sealA = x.seal ? ` · <a class="sealref" href="/v/${esc(x.seal)}" target="_blank" rel="noopener" title="The seal in the note PayPal shows the payer">sealed ${esc(x.seal)}</a>` : '';
+      exec = x.method === 'authorize'
+        ? `<div class="exec"><span class="ok">● authorized</span> via PayPal [${esc(r.paypal_mode)}] · authorization ${esc(x.authorization_id)} · nothing charged yet</div>`
+        : x.method === 'capture'
+        ? `<div class="exec"><span class="ok">● captured</span> via PayPal [${esc(r.paypal_mode)}] · ${esc(x.capture_id || '?')}${x.final ? ' · final, the rest released' : ''}${sealA}${m.authorization_id ? ` · USD ${Number(m.remaining).toFixed(2)} left` : ''}</div>`
+        : `<div class="exec"><span class="ok">● voided</span> with PayPal · USD ${Number(x.released || 0).toFixed(2)} released back to the card and the daily cap</div>`;
     } else if (d.executed && d.execution) {
       const b = d.execution.payout_batch_id || '';
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] · batch ${esc(b || '?')} (<span class="bstat">${esc(d.execution.batch_status || '?')}</span>)
@@ -289,7 +297,7 @@
   }
 
   // --- console buttons -------------------------------------------------
-  function setBusy(b) { ['run-demo', 'run-one', 'reset', 'run-order'].forEach(id => { if ($(id)) $(id).disabled = b; }); }
+  function setBusy(b) { ['run-demo', 'run-one', 'reset', 'run-order', 'm-script', 'm-open'].forEach(id => { if ($(id)) $(id).disabled = b; }); }
   if ($('run-demo')) {
     $('run-demo').onclick = async () => {
       setBusy(true); await startRun(); results.innerHTML = '';
@@ -312,6 +320,55 @@
         merchant_name: merchant, purpose: $('t-purpose').value, task_goal: $('f-goal').value, agent_id: 'shopping-agent' }, '/api/toolkit/order');
       setBusy(false);
     };
+    if ($('mandate-card')) {
+      let M = null;
+      const AG = 'travel-agent';
+      const meter = m => {
+        const box = $('m-meter'); if (!m) { box.hidden = true; return; }
+        const pct = v => m.authorized ? Math.max(0, Math.min(100, v / m.authorized * 100)) : 0;
+        box.hidden = false;
+        box.innerHTML = `<div class="mbar"><i class="cap" style="width:${pct(m.captured)}%"></i><i class="left" style="width:${pct(m.remaining)}%"></i><i class="rel" style="width:${pct(m.released)}%"></i></div>
+          <div class="mlegend"><span><b>USD ${m.authorized.toFixed(2)}</b> authorized · ${esc(m.authorization_id)}</span>
+          <span class="cap">captured ${m.captured.toFixed(2)}</span><span class="left">left ${m.remaining.toFixed(2)}</span>
+          ${m.closed ? `<span class="rel">released ${m.released.toFixed(2)}</span><span>closed</span>` : ''}</div>`;
+        $('m-capture').disabled = $('m-close').disabled = !!m.closed;
+      };
+      const hotel = () => {
+        const merchant = $('m-merchant').value || 'Hotel';
+        return { recipient: 'reservations@' + merchant.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.example', currency: 'USD',
+          category: 'travel', merchant_name: merchant, purpose: $('m-task').value, task_goal: $('m-task').value, agent_id: AG };
+      };
+      async function step(url, body, shown) {
+        const el = pending(shown);
+        try {
+          const [resp, b] = await post(url, body);
+          if (!resp.ok || b.error) { refused(el, b.error || resp.status); return null; }
+          render(el, b);
+          if (b.mandate) { M = b.mandate; meter(M); }
+          return b;
+        } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; return null; }
+        finally { loadAudit(); loadAgents(); }
+      }
+      const open = amount => step('/api/mandates', { ...hotel(), amount }, { amount, recipient: hotel().recipient });
+      const capture = (amount, purpose) => step(`/api/mandates/${encodeURIComponent(M.authorization_id)}/capture`,
+        { agent_id: AG, amount, purpose }, { amount, recipient: M.recipient });
+      const close = () => step(`/api/mandates/${encodeURIComponent(M.authorization_id)}/close`,
+        { agent_id: AG, reason: 'task done: release what was not used' }, { amount: M.remaining, recipient: M.recipient });
+      $('m-open').onclick = async () => { setBusy(true); await open(parseFloat($('m-ceiling').value || '0')); setBusy(false); };
+      $('m-capture').onclick = async () => { if (!M) return; setBusy(true); await capture(parseFloat($('m-amount').value || '0'), 'Room charges'); setBusy(false); };
+      $('m-close').onclick = async () => { if (!M) return; setBusy(true); await close(); setBusy(false); };
+      $('m-script').onclick = async () => {
+        setBusy(true);
+        const pause = () => new Promise(r => setTimeout(r, 450));
+        const o = await open(300);
+        if (o && M && !M.closed) {
+          await pause(); await capture(180, 'Two nights, room 412');
+          await pause(); await capture(200, 'Late checkout, spa and minibar');
+          await pause(); await close();
+        }
+        setBusy(false);
+      };
+    }
     if ($('inv-pay')) {
       const showRead = r => {
         const f = r.intent || {}, box = $('inv-read');

@@ -18,6 +18,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import sys
 import time
 from collections import defaultdict, deque
@@ -381,6 +382,86 @@ def evaluate():
     intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
     result = _agent.pay(intent)
     return jsonify(result)
+
+
+_AUTH_RE = re.compile(r"^[A-Z0-9-]{6,40}$")
+
+
+def _mandate_agent(data: dict) -> str:
+    return _agent.resolve_agent(str(data.get("agent_id") or "agent-demo"), _agent_key())
+
+
+@app.post("/api/mandates")
+def mandate_open():
+    """Open a mandate: the ceiling is judged like any payment, then
+    authorized with PayPal (Orders v2, intent AUTHORIZE)."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(force=True) or {}
+    allowed = {f.name for f in fields(PaymentIntent)}
+    try:
+        data["agent_id"] = _mandate_agent(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    try:
+        intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
+    except (TypeError, ValueError) as exc:
+        return jsonify({"error": f"bad intent: {exc}"}), 400
+    return jsonify(_agent.open_mandate(intent))
+
+
+@app.get("/api/mandates/<auth_id>")
+def mandate_get(auth_id: str):
+    if not _AUTH_RE.match(auth_id or ""):
+        return jsonify({"error": "not a valid authorization id"}), 400
+    m = _agent.get_mandate(auth_id)
+    return (jsonify(m), 200) if m else (jsonify({"error": "no such mandate"}), 404)
+
+
+@app.post("/api/mandates/<auth_id>/capture")
+def mandate_capture(auth_id: str):
+    """Draw on a mandate. Blocked unless the caller opened it, is not
+    frozen, and the amount fits in what is left."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    if not _AUTH_RE.match(auth_id or ""):
+        return jsonify({"error": "not a valid authorization id"}), 400
+    data = request.get_json(force=True) or {}
+    try:
+        amount = float(data.get("amount") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a number"}), 400
+    try:
+        agent_id = _mandate_agent(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    try:
+        return jsonify(_agent.capture(auth_id, amount, agent_id, str(data.get("purpose") or ""),
+                                      bool(data.get("final"))))
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+
+
+@app.post("/api/mandates/<auth_id>/close")
+def mandate_close(auth_id: str):
+    """Void what is left of a mandate; the opener (or an operator) only."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    if not _AUTH_RE.match(auth_id or ""):
+        return jsonify({"error": "not a valid authorization id"}), 400
+    data = request.get_json(force=True) or {}
+    try:
+        agent_id = _mandate_agent(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    try:
+        return jsonify(_agent.close_mandate(auth_id, agent_id, str(data.get("reason") or "")))
+    except LookupError as exc:
+        return jsonify({"error": str(exc)}), 404
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 409
 
 
 @app.get("/api/payables/samples")

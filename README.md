@@ -254,10 +254,12 @@ releases pin whole agent frameworks); `pip install safepay` brings it.
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
 Desktop, Cursor, an agent framework) can route its payments through the guardrail
-without importing any SafePay code. It exposes fourteen tools: `safepay_evaluate`
+without importing any SafePay code. It exposes seventeen tools: `safepay_evaluate`
 (judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
 ALLOW), `safepay_pay_invoice` (SafePay's own payables agent: invoice text in,
 judged payment out), `safepay_create_order` (gate the Agent Toolkit order flow),
+`safepay_open_mandate`, `safepay_capture` and `safepay_close_mandate` (authorize a
+budget, capture what the task costs, void the rest),
 `safepay_pending_approvals`, `safepay_approve` and `safepay_reject` (the human
 in the loop for HOLD decisions), `safepay_payout_status` (settlement),
 `safepay_draft_policy` (plain words to a policy draft), `safepay_agents`,
@@ -511,6 +513,35 @@ it in order: a real invoice is paid and sealed; the same invoice resent is
 blocked as a duplicate (even when the vendor's name is written differently);
 a bank-details change to a lookalike domain is blocked; an invoice that talks
 to the reviewer is held.
+
+## Mandates: authorize a budget, capture what the task costs
+
+An agent booking a hotel or renting compute does not know the final bill when
+it starts. Paying the ceiling up front over-pays; asking a person at every step
+defeats the agent. A mandate is the middle path, on PayPal's authorize and
+capture (Orders v2):
+
+1. **Open.** The agent asks for a ceiling for a task. The ceiling goes through
+   the whole guardrail (policy, history, live web, Nemotron) like any payment;
+   only on ALLOW does SafePay authorize it with PayPal. Nothing is charged yet,
+   and the whole ceiling counts against the agent's daily cap from now on.
+2. **Capture.** Each draw is checked on its own before PayPal is called: the
+   caller is the agent that opened the mandate, it is not frozen, and the
+   amount fits in what is left. Every capture carries its own seal in the
+   note PayPal shows the payer.
+3. **Close.** Voids what was not used with PayPal (a capture marked final does
+   the same) and credits it back to the daily cap.
+
+Each step is a chain link (`authorize`, `capture`, `void`) and the mandate's
+state is read back from those links, so there is no second store that could
+disagree with the chain. Verified against the PayPal sandbox: USD 300
+authorized, USD 180 captured and sealed, a USD 200 draw and a draw by another
+agent blocked before PayPal was called, USD 120 voided; PayPal reports the
+authorization as VOIDED. In the sandbox, PayPal's published test card stands in
+for the company card (a vaulted payment token in production). Console card,
+`POST /api/mandates`, `/api/mandates/<id>/capture` and `/close`, the
+`safepay_open_mandate`, `safepay_capture` and `safepay_close_mandate` MCP tools,
+or `SafePayAgent.open_mandate` / `capture` / `close_mandate`.
 
 ## The seal (proof the payee can check)
 

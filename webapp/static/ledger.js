@@ -126,7 +126,7 @@
       const d = n.data; if (!d || d._detail) return;
       t.n++; if (!d.linked) t.breaks++;
       if (d.event === 'outside') { t.outside++; return; }
-      if (d.event !== 'decision') return;
+      if (d.event !== 'decision' && d.event !== 'capture') return;
       if (d.verdict === 'allow' && d.executed) { t.paid += d.amount || 0; t.paidN++; }
       if (d.verdict === 'hold') { t.held++; t.stopped += d.amount || 0; }
       if (d.verdict === 'block') { t.blocked++; t.stopped += d.amount || 0; }
@@ -185,7 +185,7 @@
   // --- toolbar -------------------------------------------------------------
   function chips() {
     const box = $('lchips'); if (!box) return;
-    const count = v => rows.filter(r => v === 'outside' ? r.event === 'outside' : r.event === 'decision' && r.verdict === v).length;
+    const count = v => rows.filter(r => v === 'outside' ? r.event === 'outside' : r.verdict === v).length;
     const chip = (v, label) => `<button type="button" class="chip ${filter.verdict === v ? 'on' : ''} ${v ? 'c-' + v : ''}" data-v="${v}" aria-pressed="${filter.verdict === v}">${label}${v ? ` <span>${count(v)}</span>` : ''}</button>`;
     let html = chip('', 'All') + chip('allow', 'Allowed') + chip('hold', 'Held') + chip('block', 'Blocked') + chip('outside', 'Outside');
     if (filter.agent) html += `<button type="button" class="chip on drop" data-k="agent">agent: ${esc(filter.agent)} ×</button>`;

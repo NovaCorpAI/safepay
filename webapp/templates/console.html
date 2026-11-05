@@ -71,6 +71,26 @@
   </div>
 </section>
 
+<section class="card section" id="mandate-card">
+  <h2>Mandates: authorize a budget, capture what the task costs</h2>
+  <p class="muted" style="font-size:14px;max-width:80ch">An agent booking a hotel does not know the final bill. It asks for a ceiling; SafePay judges the ceiling like any payment and, on ALLOW, authorizes it with PayPal (Orders v2, intent AUTHORIZE): nothing is charged yet. Each capture is then checked on its own (the agent that opened it, not frozen, within what is left) before PayPal is called, and carries its own seal. Closing voids the rest and gives it back to the daily cap. In the sandbox PayPal's published test card stands in for the company card.</p>
+  <div class="row2">
+    <div><label>Task</label><input id="m-task" value="Book lodging for the Lisbon offsite, up to 2 nights"></div>
+    <div><label>Merchant</label><input id="m-merchant" value="Harbor Hotel"></div>
+  </div>
+  <div class="row2">
+    <div><label>Ceiling (USD)</label><input id="m-ceiling" type="number" value="300"></div>
+    <div><label>Capture (USD)</label><input id="m-amount" type="number" value="180"></div>
+  </div>
+  <div class="mmeter" id="m-meter" hidden></div>
+  <div class="row-btns">
+    <button class="primary" id="m-script" title="Open USD 300, capture 180, try 200 (blocked), close and release 120">Run the mandate story</button>
+    <button class="ghost" id="m-open">Open</button>
+    <button class="ghost" id="m-capture" disabled>Capture</button>
+    <button class="ghost" id="m-close" disabled>Close and release the rest</button>
+  </div>
+</section>
+
 <div class="actions">
   <button class="primary" id="run-demo">Run demo scenarios</button>
   <button class="ghost" id="run-one">Evaluate custom intent</button>

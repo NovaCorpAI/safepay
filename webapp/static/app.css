@@ -462,3 +462,13 @@ code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
   color: var(--ink2); background: var(--bg2); white-space: normal; }
 .ltot .stop { color: var(--block); } .ltot .sep { color: var(--dim); }
 @media (max-width: 760px) { .ldet { grid-template-columns: 1fr; padding-left: 16px; } }
+
+/* --- mandate meter ---------------------------------------------------- */
+.mmeter { margin: 12px 0 4px; }
+.mbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); border: 1px solid var(--line2); }
+.mbar i { display: block; height: 100%; }
+.mbar .cap { background: var(--seal); } .mbar .left { background: var(--allow-bg); box-shadow: inset 0 0 0 1px var(--allow); }
+.mbar .rel { background: repeating-linear-gradient(45deg, var(--line2) 0 4px, var(--panel2) 4px 8px); }
+.mlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12.5px; color: var(--ink2); }
+.mlegend .cap { color: var(--seal); font-weight: 600; } .mlegend .left { color: var(--allow); font-weight: 600; }
+.mlegend .rel { color: var(--muted); }

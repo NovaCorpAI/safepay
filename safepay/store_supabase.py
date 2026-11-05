@@ -199,6 +199,15 @@ class SupabaseAuditLog:
         return {"record": rec, "prev": before[0]["record"] if before else None,
                 "settlements": settles}
 
+    def find_mandate(self, authorization_id: str) -> list[dict[str, Any]]:
+        """Every link of one mandate (authorize, captures, void), oldest first.
+        authorization_id must already be validated."""
+        rows = self.db.select("audit", {"select": "record",
+                                        "record->payload->execution->>authorization_id": f"eq.{authorization_id}",
+                                        "order": "seq.asc"})
+        return [r["record"] for r in rows
+                if ((r["record"].get("payload") or {}).get("event") in ("authorize", "capture", "void"))]
+
     def append(self, decision: Decision) -> dict[str, Any]:
         """Chain a new link onto the current head. seq is the table's primary
         key, so if another instance appended first the insert conflicts (409)
