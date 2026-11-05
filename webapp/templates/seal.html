@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{% if v %}SafePay seal {{ v.seal }}{% else %}SafePay · Verify a seal{% endif %}{% endblock %}
+{% block head %}
+<style>
+.seal-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; max-width: 560px; }
+.seal-form input { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 15px; letter-spacing: .04em;
+  padding: 10px 12px; border: 1px solid var(--line2); border-radius: var(--radius-sm); background: var(--panel); color: var(--fg); }
+.cert { position: relative; background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius);
+  padding: 28px 28px 24px; box-shadow: var(--shadow); overflow: hidden; }
+.cert::before { content: ""; position: absolute; inset: 8px; border: 1px solid var(--line); border-radius: 4px; pointer-events: none; }
+.cert-top { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+.cert-top img { width: 64px; height: 64px; flex: none; }
+.cert-id { font-family: var(--mono); font-size: 22px; font-weight: 600; letter-spacing: .06em; color: var(--seal); }
+.cert-sub { font-family: var(--serif); font-size: 19px; color: var(--ink2); }
+.stamp { margin-left: auto; font-family: var(--serif); font-style: italic; font-size: 15px; padding: 6px 14px;
+  border: 2px solid currentColor; border-radius: 4px; transform: rotate(-3deg); }
+.stamp.ok { color: var(--allow); } .stamp.bad { color: var(--block); } .stamp.wait { color: var(--hold); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px 22px; margin-top: 22px;
+  padding-top: 18px; border-top: 1px dashed var(--line2); }
+.facts dt { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.facts dd { margin: 3px 0 0; font-size: 16px; overflow-wrap: anywhere; }
+.facts dd.big { font-family: var(--serif); font-size: 24px; }
+.proofs { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 9px; }
+.proofs li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; font-size: 14px; }
+.proofs .ic { font-weight: 700; }
+.proofs .ic.ok { color: var(--allow); } .proofs .ic.bad { color: var(--block); } .proofs .ic.na { color: var(--dim); }
+.proofs code { font-family: var(--mono); font-size: 12px; background: var(--panel2); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+.checks { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.checks span { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--allow-bg); color: var(--allow); }
+.checks span.f { background: var(--hold-bg); color: var(--hold); }
+.two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.two p { font-size: 14px; color: var(--ink2); }
+.err { color: var(--block); margin-top: 12px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Seal verification</span>
+  <h1>Was this payment checked before it moved?</h1>
+  <p>Every payout SafePay releases carries a seal in the note PayPal shows the recipient, like <code>Sealed by SafePay SP-3F9A0C21BE</code>. Enter it here to see the signed record of that payment: the rules it was judged under, the checks it passed, and whether the record is intact and chained to the one before it.</p>
+  <form class="seal-form" action="/v" method="get">
+    <input name="id" value="{{ q }}" placeholder="SP-3F9A0C21BE" aria-label="Seal id" autocomplete="off" spellcheck="false">
+    <button type="submit">Verify seal</button>
+  </form>
+  {% if err %}<p class="err">{{ err }}{% if sid %} ({{ sid }}){% endif %}.</p>{% endif %}
+</div>
+
+{% if v %}
+<section class="section">
+  <div class="cert">
+    <div class="cert-top">
+      <img src="{{ url_for('static', filename='seal.svg') }}" alt="SafePay seal">
+      <div>
+        <div class="cert-id">{{ v.seal }}</div>
+        <div class="cert-sub">Sealed by SafePay{% if v.when %} · {{ v.when }}{% endif %}</div>
+      </div>
+      {% set good = v.intact and v.linked != false %}
+      {% if not good %}<span class="stamp bad">Record altered</span>
+      {% elif v.payout_status in ['SUCCESS'] %}<span class="stamp ok">Released and paid</span>
+      {% elif v.payout_status in ['FAILED','RETURNED','BLOCKED','DENIED','CANCELED','REFUNDED','REVERSED'] %}<span class="stamp bad">Released, payout {{ v.payout_status|lower }}</span>
+      {% else %}<span class="stamp wait">Released, payout {{ v.payout_status|lower }}</span>{% endif %}
+    </div>
+
+    <dl class="facts">
+      <div><dt>Amount</dt><dd class="big">{{ v.currency }} {{ '%.2f'|format(v.amount|float) }}</dd></div>
+      <div><dt>Paid to</dt><dd>{{ v.merchant or 'payee' }}<br><span class="muted">{{ v.recipient }}</span></dd></div>
+      {% if v.invoice_ref %}<div><dt>Invoice</dt><dd>{{ v.invoice_ref }}</dd></div>{% endif %}
+      <div><dt>Through</dt><dd>PayPal Payouts{% if v.paypal_mode %} ({{ v.paypal_mode }}){% endif %}</dd></div>
+    </dl>
+
+    <ul class="proofs">
+      <li><span class="ic {{ 'ok' if v.intact else 'bad' }}">{{ '✓' if v.intact else '✗' }}</span>
+        <span>{% if v.intact %}The record is intact: its sha256 recomputes to <code>{{ v.sha256[:16] }}…</code>{% if v.signed %} and its HMAC signature verifies{% endif %}.{% else %}The record does not match its hash{% if v.signed %} or signature{% endif %}: it was altered after it was written.{% endif %}</span></li>
+      <li><span class="ic {{ 'ok' if v.linked else ('na' if v.linked is none else 'bad') }}">{{ '✓' if v.linked else ('·' if v.linked is none else '✗') }}</span>
+        <span>{% if v.linked %}It is link #{{ v.seq }} of the audit chain and points at the intact link before it, so it cannot have been inserted or edited later without breaking the chain.{% elif v.linked is none %}It is link #{{ v.seq }} of the audit chain; the link before it is outside the window this instance holds.{% else %}It does not link to the record before it: the chain was broken at #{{ v.seq }}.{% endif %}</span></li>
+      <li><span class="ic ok">✓</span>
+        <span>Judged before release by these checks:
+          <span class="checks">{% for c in v.checks %}<span class="{{ '' if c.passed else 'f' }}" title="{{ 'passed' if c.passed else 'flagged, then approved by a person' }}">{{ c.name }}</span>{% endfor %}</span></span></li>
+      {% if v.policy_hash %}<li><span class="ic ok">✓</span><span>Under the policy with fingerprint <code>{{ v.policy_hash[:16] }}…</code>, itself a link in the same chain.</span></li>{% endif %}
+      <li><span class="ic {{ 'ok' if v.payout_status == 'SUCCESS' else 'na' }}">{{ '✓' if v.payout_status == 'SUCCESS' else '·' }}</span>
+        <span>PayPal reports the payout as <b>{{ v.payout_status }}</b>{% if v.status_when %} ({{ v.status_when }}){% endif %}.</span></li>
+    </ul>
+    <p class="note">Machine-readable: <a href="/api/v/{{ v.seal }}">/api/v/{{ v.seal }}</a>. The recipient is masked; nothing here names the payer's agents or other payments.</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="section two">
+  <div class="card">
+    <h2>What a seal proves</h2>
+    <p>That this payment was decided by SafePay before PayPal moved it: a written policy, a check of the payee on the live web, a check that the payment served the agent's task, and a person's approval when the rules asked for one. The record was written at that moment, hashed, signed and chained, so it cannot be rewritten afterwards without this page saying so.</p>
+  </div>
+  <div class="card">
+    <h2>What it does not</h2>
+    <p>It does not vouch for the goods or services, and it says nothing about payments that did not go through SafePay. A payment without a seal is not necessarily fraudulent; a seal that does not verify here is worth questioning.</p>
+  </div>
+</section>
+{% endblock %}

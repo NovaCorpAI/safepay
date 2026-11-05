@@ -52,6 +52,7 @@ from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
 from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
+from safepay import seal as sealmod  # noqa: E402
 from dataclasses import fields  # noqa: E402
 
 app = Flask(__name__)
@@ -139,13 +140,13 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
-VERSION = "0.4.3"   # also the cache-buster on /static assets
+VERSION = "0.5.0"   # also the cache-buster on /static assets
 
 
-def _page(name: str):
-    """Render one of the console's pages with the shared status context."""
+def _ctx() -> dict:
+    """The shared status context every page's header reads."""
     cfg = Config.from_env()
-    ctx = {
+    return {
         "paypalMode": _agent.paypal.mode,
         "nebiusOn": cfg.nebius_live,
         "tavilyOn": bool(cfg.tavily_api_key),
@@ -158,7 +159,11 @@ def _page(name: str):
         "rules": describe_policy(_policy),
         "policyHash": policy_hash(_policy),
     }
-    return render_template(f"{name}.html", page=name, cfg=ctx, version=VERSION)
+
+
+def _page(name: str):
+    """Render one of the console's pages with the shared status context."""
+    return render_template(f"{name}.html", page=name, cfg=_ctx(), version=VERSION)
 
 
 @app.get("/")
@@ -184,6 +189,38 @@ def ledger_page():
 @app.get("/pricing")
 def pricing_page():
     return _page("pricing")
+
+
+def _seal_lookup(seal_id: str):
+    """(normalized id, public view or None, error or None)."""
+    sid = sealmod.normalize(seal_id)
+    if not sid:
+        return None, None, "not a SafePay seal id (they look like SP-3F9A0C21BE)"
+    try:
+        found = sealmod.find(_agent.audit_log, sid)
+    except Exception:
+        return sid, None, "the chain could not be read right now; try again shortly"
+    if not found:
+        return sid, None, "no payment carries this seal in the chain"
+    return sid, sealmod.view(found, sid), None
+
+
+@app.get("/v")
+@app.get("/v/<seal_id>")
+def seal_page(seal_id: str = ""):
+    q = (request.args.get("id") or seal_id or "").strip()
+    sid, view, err = _seal_lookup(q) if q else (None, None, None)
+    resp = render_template("seal.html", page="seal", cfg=_ctx(), version=VERSION,
+                           q=q, sid=sid, v=view, err=err)
+    return resp, (404 if q and view is None and err and "no payment" in err else 200)
+
+
+@app.get("/api/v/<seal_id>")
+def seal_api(seal_id: str):
+    sid, view, err = _seal_lookup(seal_id)
+    if view is None:
+        return jsonify({"seal": sid, "found": False, "error": err}), 404
+    return jsonify(dict(view, found=True))
 
 
 @app.get("/api/scenarios")

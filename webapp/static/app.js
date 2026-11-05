@@ -105,6 +105,7 @@
     } else if (d.executed && d.execution) {
       const b = d.execution.payout_batch_id || '';
       exec = `<div class="exec"><span class="ok">● paid</span> via PayPal [${esc(r.paypal_mode)}] · batch ${esc(b || '?')} (<span class="bstat">${esc(d.execution.batch_status || '?')}</span>)
+        ${d.execution.seal ? ` · <a class="sealref" href="/v/${esc(d.execution.seal)}" target="_blank" rel="noopener" title="The seal in the note PayPal shows the payee; anyone with it can verify this payment's signed record">sealed ${esc(d.execution.seal)}</a>` : ''}
         ${b ? `<button class="ghost settle" data-batch="${esc(b)}" title="Ask PayPal whether the money actually moved and record the answer in the chain">check settlement</button>` : ''}</div>`;
     } else if (d.verdict === 'allow' && d.execution && d.execution.error) {
       exec = `<div class="exec"><span class="no">● payout failed</span>, money did not move and the budget was not charged: ${esc(d.execution.error)}</div>`;

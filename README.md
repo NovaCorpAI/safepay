@@ -34,7 +34,8 @@ to the real PayPal sandbox, and the web check (Tavily) and the reasoning
    charge blocked by the cap; a casino payout held (the web found a scam
    complaint, the reasoning found it does not serve the task: open each check to
    see the sources); two cloud invoices over your "ask me" line held for you
-   (approve one, here or with the Telegram card); the last one blocked by the
+   (approve one, here or with the Telegram card; every paid card links its
+   public seal page); the last one blocked by the
    daily cap. Then **Create the order through the gate**: a real PayPal Agent
    Toolkit order, created only because SafePay allowed it.
 3. **Ledger → Tamper (demo) → Verify chain.** Every decision is a link in a
@@ -448,6 +449,25 @@ the Payouts API, never trusted from the body. The hosted demo has this webhook
 live: a payout released there gets its settlement link from PayPal's push, no
 button needed. If a delivery fails verification, the reason PayPal gives (for
 example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
+
+## The seal (proof the payee can check)
+
+Every payout SafePay releases carries a seal in the note PayPal shows the
+recipient:
+
+```
+Team plan, monthly | Sealed by SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE
+```
+
+The seal id is written into that payment's signed chain link. Anyone holding
+it (the payee, their accounts team, an auditor) opens `/v/<id>` and sees, with
+the recipient masked: the amount and merchant, the checks the payment passed,
+the fingerprint of the policy it was judged under, that the link's hash (and
+HMAC signature) recomputes, that it points at the intact link before it, and
+what PayPal later reported for the payout. `GET /api/v/<id>` returns the same
+as JSON. A seal is derived from the idempotency key when there is one, so a
+retried payment keeps its seal. It turns "an agent paid you" into "an agent
+paid you, and here is the signed record of why it was allowed to".
 
 ## Who is asking: agent keys and the operator token
 

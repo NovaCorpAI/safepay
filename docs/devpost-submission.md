@@ -79,7 +79,12 @@ that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is
 appended to a hash-chained audit log: each record carries the hash of the one
 before it, so editing or dropping any earlier decision breaks every hash that
-follows, and a one-line verify walks the whole chain. The web console shows this ledger as an
+follows, and a one-line verify walks the whole chain. Every released payout
+is sealed: the note PayPal shows the recipient carries a seal id ("Sealed by
+SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE"), and
+that public page shows the payee, with the address masked, the signed record of
+why the payment was allowed: the checks it passed, the policy fingerprint, the
+hash and chain proofs and what PayPal reported. The web console shows this ledger as an
 interactive table with a live verification badge, and a demo button that tampers
 with a row so you can watch the badge turn red.
 
@@ -239,6 +244,8 @@ session.
    line (approve one in Pending approvals); the last blocked by the daily cap.
    Then press Create the order through the gate: a real PayPal Agent Toolkit
    order, created only because SafePay allowed it.
+   On any paid card, the "sealed SP-..." link opens the public verification
+   page the payee reaches from the PayPal note.
 3. Ledger: press Tamper (demo) and watch the chain badge turn red, then Verify
    chain. The Flow page replays the chain as pulses through the layers.
 

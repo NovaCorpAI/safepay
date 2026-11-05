@@ -179,6 +179,26 @@ class SupabaseAuditLog:
     def head(self) -> str:
         return self._head()[1]
 
+    def find_seal(self, seal_id: str) -> dict[str, Any] | None:
+        """The link carrying this seal, the link before it, and the
+        settlements of its payout. seal_id must already be validated."""
+        rows = self.db.select("audit", {"select": "seq,record",
+                                        "record->payload->execution->>seal": f"eq.{seal_id}",
+                                        "limit": "1"})
+        if not rows:
+            return None
+        rec, seq = rows[0]["record"], int(rows[0]["seq"])
+        before = self.db.select("audit", {"select": "record", "seq": f"eq.{seq - 1}"}) if seq else []
+        batch = ((rec.get("payload") or {}).get("execution") or {}).get("payout_batch_id") or ""
+        settles = []
+        if batch:
+            settles = [r["record"] for r in self.db.select("audit", {
+                "select": "record", "record->payload->>event": "eq.settlement",
+                "record->payload->execution->>payout_batch_id": f"eq.{batch}",
+                "seq": f"gt.{seq}", "order": "seq.asc"})]
+        return {"record": rec, "prev": before[0]["record"] if before else None,
+                "settlements": settles}
+
     def append(self, decision: Decision) -> dict[str, Any]:
         """Chain a new link onto the current head. seq is the table's primary
         key, so if another instance appended first the insert conflicts (409)

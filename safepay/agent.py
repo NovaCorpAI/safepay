@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from . import attest
+from . import attest, seal
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
@@ -90,16 +90,19 @@ class SafePayAgent:
             }
             self.guardrail.commit_spend(decision)
             return
+        # The seal: an id in the note PayPal shows the payee, written into
+        # this payment's chain link, verifiable at /v/<id> (see seal.py).
+        seal_id = seal.new_seal_id(intent.idempotency_key)
         try:
             result = self.paypal.send_payout(
                 recipient=intent.recipient,
                 amount=intent.amount,
                 currency=intent.currency,
-                note=intent.purpose,
+                note=seal.seal_note(intent.purpose, seal_id),
                 idempotency_key=intent.idempotency_key,
             )
             decision.executed = True
-            decision.execution = result
+            decision.execution = dict(result, seal=seal_id)
             self.guardrail.commit_spend(decision)
         except Exception as exc:
             decision.executed = False
