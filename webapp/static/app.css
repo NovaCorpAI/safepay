@@ -472,3 +472,9 @@ code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
 .mlegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12.5px; color: var(--ink2); }
 .mlegend .cap { color: var(--seal); font-weight: 600; } .mlegend .left { color: var(--allow); font-weight: 600; }
 .mlegend .rel { color: var(--muted); }
+
+/* --- impact band ------------------------------------------------------ */
+.stats.stats3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 760px) { .stats.stats3 { grid-template-columns: 1fr; } }
+.impact .stat .l { font-size: 13px; line-height: 1.45; margin-top: 6px; }
+.impact .note { color: var(--muted); font-size: 13px; max-width: 90ch; margin-top: 12px; }

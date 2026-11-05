@@ -79,6 +79,20 @@ lookalike domain, or sent to a merchant that was registered last week and shows
 up on scam-report pages. A static allow-list is too blunt, and letting the model
 decide alone is exactly what goes wrong.
 
+This is not a hypothetical class of fraud; it is the most expensive one
+businesses already face, and agents inherit it at machine speed:
+
+- **USD 3.05 billion** lost to business email compromise in 2025, reported to
+  the FBI ([IC3 2025 Internet Crime Report](https://www.ic3.gov/AnnualReport/Reports/2025_IC3Report.pdf)).
+- **79%** of organizations were hit by attempted or actual payments fraud in
+  2024, with business email compromise the No. 1 avenue; vendor imposter fraud
+  was cited by **45%**, up 11 points ([AFP 2025 Payments Fraud and Control
+  Survey](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024)).
+
+SafePay's rules are these attacks by name: the lookalike payee, the "we changed
+our bank details" email, the invoice paid twice, the instructions hidden in the
+invoice.
+
 SafePay is the missing layer: a payments firewall that an operator describes in
 plain words once, and that every agent payment has to pass through. Spending
 caps are where most tools stop. SafePay also looks outward (is this payee what

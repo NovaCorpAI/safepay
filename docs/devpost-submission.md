@@ -37,6 +37,14 @@ looks outward (is this payee what it claims to be?) and inward
 up in plain words once, and that proves how well it works instead of asserting
 it.
 
+The fraud is not hypothetical. Business email compromise cost USD 3.05 billion
+in 2025 in losses reported to the FBI (IC3 2025 Internet Crime Report), and 79%
+of organizations were hit by attempted or actual payments fraud in 2024, with
+business email compromise the No. 1 avenue and vendor imposter fraud cited by
+45% (AFP 2025 Payments Fraud and Control Survey). An agent that pays invoices
+inherits all of it, at machine speed and without a clerk's doubt, so SafePay's
+rules are those attacks by name.
+
 ## What it does
 SafePay is a payment safety guardrail for agents that pay vendors. The
 operator writes the policy in plain words ("USD 300 per payment, 1,000 a day,
