@@ -610,6 +610,8 @@ The check is chained, but the public link carries only a hash of the
 business, the verdict and the rule fired: no names, document numbers or
 amounts. Code: `safepay/purchase_check.py` here, `lib/safepay.ts` in Impulsa.
 
+![Impulsa in production: SafePay stops a supplier document recorded twice](docs/img/impulsa-safepay-alert.png)
+
 ## The seal (proof the payee can check)
 
 Every payout SafePay releases carries a seal in the note PayPal shows the
