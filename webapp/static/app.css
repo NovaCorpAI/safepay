@@ -20,6 +20,8 @@
   color-scheme: light;
 }
 * { box-sizing: border-box; }
+/* Components set display (grid, flex); `hidden` must still win. */
+[hidden] { display: none !important; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font); line-height: 1.55;
   -webkit-font-smoothing: antialiased; }

@@ -383,7 +383,12 @@
     LAST_AUDIT = data;
     const view = scoped(data); const rows = auditRows(view);
     if ($('audit-grid') && window.agGrid) {
-      if (!auditApi) auditApi = agGrid.createGrid($('audit-grid'), { columnDefs: auditColumns, rowData: rows, defaultColDef: { resizable: true, sortable: true, filter: true } });
+      // Size the table to its rows (up to a scrolling maximum) so a short
+      // session is not a tall empty box, and say why it is empty when it is.
+      $('audit-grid').style.height = Math.max(150, Math.min(460, 50 + rows.length * 42 + 14)) + 'px';
+      const empty = '<span style="padding:12px;color:#6f685b;font-size:14px">No links from this session yet. Run the demo in the <a href="/console">Console</a>, or press <b>Show all sessions</b> to see the whole shared chain.</span>';
+      if (!auditApi) auditApi = agGrid.createGrid($('audit-grid'), { columnDefs: auditColumns, rowData: rows, overlayNoRowsTemplate: empty,
+        defaultColDef: { resizable: true, sortable: true, filter: true } });
       else auditApi.setGridOption('rowData', rows);
     }
     setStatus(data, rows.length);
