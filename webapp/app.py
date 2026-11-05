@@ -144,7 +144,7 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
-VERSION = "0.5.0"   # also the cache-buster on /static assets
+VERSION = "0.6.0"   # also the cache-buster on /static assets
 
 
 def _ctx() -> dict:

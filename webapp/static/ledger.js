@@ -43,7 +43,7 @@
 
   // --- the one filter ----------------------------------------------------
   function passes(d) {
-    if (filter.verdict === 'outside' ? d.event !== 'outside' : filter.verdict && d.verdict !== filter.verdict) return false;
+    if (filter.verdict === 'outside' ? d.event !== 'outside' : filter.verdict && (d.verdict !== filter.verdict || d.event === 'outside')) return false;
     if (filter.agent && d.agent !== filter.agent) return false;
     if (filter.category && d.category !== filter.category) return false;
     if (filter.text) {
@@ -187,7 +187,7 @@
   // --- toolbar -------------------------------------------------------------
   function chips() {
     const box = $('lchips'); if (!box) return;
-    const count = v => rows.filter(r => v === 'outside' ? r.event === 'outside' : r.verdict === v).length;
+    const count = v => rows.filter(r => v === 'outside' ? r.event === 'outside' : r.verdict === v && r.event !== 'outside').length;
     const chip = (v, label) => `<button type="button" class="chip ${filter.verdict === v ? 'on' : ''} ${v ? 'c-' + v : ''}" data-v="${v}" aria-pressed="${filter.verdict === v}">${label}${v ? ` <span>${count(v)}</span>` : ''}</button>`;
     let html = chip('', 'All') + chip('allow', 'Allowed') + chip('hold', 'Held') + chip('block', 'Blocked') + chip('outside', 'Outside');
     if (filter.agent) html += `<button type="button" class="chip on drop" data-k="agent">agent: ${esc(filter.agent)} ×</button>`;
