@@ -71,7 +71,7 @@ freezes and resumes an agent, from its row.
 AG Studio report: a links table and a checks table (joined on the link), measures
 for money released and stopped, holds, blocks, average risk and failed checks,
 and two finished pages (what SafePay let through and stopped; which checks catch
-what) plus a blank one. Its assistant is NVIDIA Nemotron on Nebius, wired
+what) plus a blank one. Its assistant is NVIDIA Nemotron 3 Ultra on Nebius, wired
 through AG Studio's own Direct LLM Runner and OpenAI-Responses adapter to a
 server proxy that holds the key, pins the model and keeps its own daily cap.
 One focused analyst agent with five Studio tools (view schema, view page, run a

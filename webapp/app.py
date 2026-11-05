@@ -278,9 +278,12 @@ def studio_llm():
         return jsonify({"error": {"message": "conversation too long; start a new one"}}), 413
     data = request.get_json(silent=True) or {}
     body = {k: v for k, v in data.items() if k in _STUDIO_KEYS}
-    body.update(model=os.environ.get("NEBIUS_STUDIO_MODEL") or cfg.nebius_model, stream=True,
+    # Ultra at medium effort: measured on the production chain it answered with
+    # the true totals; Super at low effort was faster but invented figures.
+    body.update(model=os.environ.get("NEBIUS_STUDIO_MODEL") or "nvidia/Nemotron-3-Ultra-550b-a55b",
+                stream=True,
                 max_output_tokens=min(int(data.get("max_output_tokens") or 4000), 4000),
-                reasoning={"effort": os.environ.get("NEBIUS_STUDIO_EFFORT") or "low"})
+                reasoning={"effort": os.environ.get("NEBIUS_STUDIO_EFFORT") or "medium"})
     try:
         _agent.cache.set(turns_key, turns + 1)
     except Exception:
