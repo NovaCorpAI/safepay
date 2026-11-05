@@ -56,9 +56,14 @@ replays the real links of the audit chain and animates new ones as they land.
 
 ![The Flow: a payment pulse travelling from the agent through policy, live web and reasoning to the verdict, PayPal, a human, and the chain](docs/img/flow.jpg)
 
-**The Ledger.** The hash chain as an AG Grid table, with AG Charts reading
-the same chain: the verdict mix, approved spend per agent (money that moved
-outside SafePay as its own bar) and average risk by category.
+**The Ledger.** The hash chain as an AG Grid table (Community edition). Click
+a link and a full-width detail row opens under it with every check it was
+judged on, its reasons, its seal and PayPal batch, and the hash of the link
+before it (marked "matches" or "break"). Verdict chips, a search box and a
+click on any of the three AG Charts (verdict mix, approved spend per agent,
+average risk by category) all drive one filter, so the grid, the pinned totals
+row (released vs stopped, outside the firewall, chain breaks) and the CSV
+export with full hashes always agree on what is shown.
 
 ![The Ledger page: the audit chain in AG Grid and three AG Charts](docs/img/ledger-page.jpg)
 
@@ -190,7 +195,8 @@ The console is four pages on one design:
   and "Tamper (demo)", which edits a row on a copy so the badge turns red.
   Three AG Charts read the same chain: the verdict mix, approved spend per
   agent (with anything that moved outside the firewall as its own bar), and
-  average risk by category.
+  average risk by category; clicking a slice or bar filters the grid. Each
+  row opens to its checks and hashes; Export CSV downloads what is shown.
 
 ### Hosted demo
 

@@ -419,3 +419,46 @@ code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
   border-radius: var(--radius-sm); padding: 9px 11px; margin: -4px 0 14px; line-height: 1.45; }
 .plan .support b { display: block; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
   color: var(--seal); margin-bottom: 3px; font-weight: 600; }
+
+/* --- ledger grid: toolbar, detail rows, totals ------------------------ */
+.ltools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+.lchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { padding: 5px 11px; font-size: 12.5px; border: 1px solid var(--line2); border-radius: 999px; background: var(--panel);
+  color: var(--ink2); cursor: pointer; font-family: var(--font); }
+.chip span { font-family: var(--mono); color: var(--muted); margin-left: 3px; }
+.chip.on { background: var(--accent-bg); border-color: var(--seal); color: var(--seal); font-weight: 600; }
+.chip.c-allow.on { background: var(--allow-bg); border-color: var(--allow); color: var(--allow); }
+.chip.c-hold.on { background: var(--hold-bg); border-color: var(--hold); color: var(--hold); }
+.chip.c-block.on, .chip.c-outside.on { background: var(--block-bg); border-color: var(--block); color: var(--block); }
+#lsearch { flex: 1; min-width: 200px; padding: 8px 12px; font-size: 13px; border: 1px solid var(--line2); border-radius: var(--radius-sm);
+  background: var(--panel); color: var(--fg); font-family: var(--font); }
+.ltools button.ghost { padding: 8px 12px; font-size: 13px; }
+.ltip { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+#audit-grid .ag-row { cursor: pointer; }
+#audit-grid .row-open { background: var(--accent-bg) !important; }
+#audit-grid .row-outside { box-shadow: inset 3px 0 0 var(--block); }
+#audit-grid .row-break { background: var(--block-bg) !important; }
+.lx { color: var(--seal); font-size: 12px; }
+.riskbar { display: inline-block; width: 46px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-right: 7px; overflow: hidden; }
+.riskbar i { display: block; height: 100%; }
+.riskbar.r-lo i { background: var(--allow); } .riskbar.r-mid i { background: var(--hold); } .riskbar.r-hi i { background: var(--block); }
+.num { font-family: var(--mono); font-size: 12px; }
+.ok-mark { color: var(--allow); font-weight: 600; } .bad-mark { color: var(--block); font-weight: 700; }
+.seal-link { font-family: var(--mono); font-size: 12px; color: var(--seal); }
+.ldet { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 18px; padding: 14px 18px 14px 48px;
+  height: 100%; overflow: auto; white-space: normal; line-height: 1.45; background: var(--panel2); border-left: 3px solid var(--seal); cursor: default; }
+.ldet h4 { margin: 0 0 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink2); font-weight: 500; }
+.ldet table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ldet th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; padding: 3px 6px; border-bottom: 1px solid var(--line2); }
+.ldet td { padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.ldet td.mk { color: var(--allow); font-weight: 700; width: 18px; }
+.ldet tr.fail td.mk, .ldet tr.fail td.nm { color: var(--block); font-weight: 700; }
+.ldet td.nm { font-family: var(--mono); white-space: nowrap; } .ldet td.rk, .ldet td.sv { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+.ldet-side { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px; align-content: start; }
+.ldet-side dt { color: var(--muted); } .ldet-side dd { margin: 0; overflow-wrap: anywhere; }
+.ldet-side ul { margin: 0; padding-left: 16px; }
+.ldet-side code { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
+.ltot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; height: 100%; padding: 0 16px; font-size: 13px;
+  color: var(--ink2); background: var(--bg2); white-space: normal; }
+.ltot .stop { color: var(--block); } .ltot .sep { color: var(--dim); }
+@media (max-width: 760px) { .ldet { grid-template-columns: 1fr; padding-left: 16px; } }

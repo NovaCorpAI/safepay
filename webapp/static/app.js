@@ -352,31 +352,9 @@
   document.querySelectorAll('.new-session').forEach(b => { if (b.id !== 'reset') b.onclick = async () => { await startRun(); location.reload(); }; });
 
   // --- ledger (Ledger page) ------------------------------------------
-  let auditApi = null, LAST_AUDIT = null, SHOW_ALL = false;
-  const vClass = v => v === 'allow' ? 'v-allow' : v === 'hold' ? 'v-hold' : 'v-block';
-  const auditColumns = [
-    { headerName: '#', field: 'seq', width: 70, sort: 'asc' },
-    { headerName: 'Time', field: 'time', width: 110 },
-    { headerName: 'Verdict', field: 'verdict', width: 120, cellRenderer: p => `<span class="v-pill ${vClass(p.value || '')}">${esc(p.value || '').toUpperCase()}</span>` },
-    { headerName: 'Link', field: 'event', width: 110 },
-    { headerName: 'Amount', field: 'amount', width: 120, valueFormatter: p => p.value == null ? '' : 'USD ' + Number(p.value).toFixed(2) },
-    { headerName: 'Recipient', field: 'recipient', flex: 1, minWidth: 180 },
-    { headerName: 'Agent', field: 'agent', width: 150 },
-    { headerName: 'Category', field: 'category', width: 120 },
-    { headerName: 'Risk', field: 'risk', width: 80, valueFormatter: p => p.value == null ? '' : Number(p.value).toFixed(2) },
-    { headerName: 'Paid', field: 'executed', width: 80, valueFormatter: p => p.value ? 'yes' : 'no' },
-    { headerName: 'Signed', field: 'signed', width: 95, valueFormatter: p => p.value ? 'signed' : 'unsigned' },
-    { headerName: 'Policy', field: 'policy', width: 105, headerTooltip: 'hash of the rules this link was judged under' },
-    { headerName: 'Hash', field: 'hash', width: 115 },
-  ];
+  let LAST_AUDIT = null, SHOW_ALL = false;
   const inSession = p => { const a = String((p.intent || {}).agent_id || ''); return p.event === 'outside' || a.endsWith(':' + RUN) || a === 'operator:' + RUN; };
   const scoped = data => SHOW_ALL ? data : { ...data, records: (data.records || []).filter(r => inSession(r.payload || {})) };
-  function auditRows(data) {
-    return (data.records || []).map(r => { const p = r.payload || {}, i = p.intent || {}; return {
-      seq: p.seq, time: new Date((p.ts || 0) * 1000).toLocaleTimeString(), verdict: p.verdict, event: p.event || 'decision',
-      amount: i.amount, recipient: i.recipient, agent: i.agent_id, category: i.category, risk: p.risk, executed: p.executed,
-      signed: !!(r.signature && r.signature.signed), hash: (r.sha256 || '').slice(0, 10), policy: (p.policy_hash || '').slice(0, 8) }; });
-  }
   function setStatus(data, shown) {
     const el = $('audit-status'); if (!el) return;
     if (!data.count) { el.className = 'status idle'; el.textContent = 'no decisions yet'; return; }
@@ -384,51 +362,11 @@
     if (data.ok) { el.className = 'status ok'; el.textContent = '✓ chain verified — ' + data.count + ' records intact' + scope; }
     else { el.className = 'status bad'; el.textContent = '✗ chain BROKEN at record #' + data.first_bad_seq + (data.simulated ? ' (simulated on a copy; the stored chain is intact, press Verify chain)' : ''); }
   }
-  const charts = {};
-  const INK = { allow: '#2e7d4f', hold: '#b07a12', block: '#b3261e', seal: '#2b3a8c', gold: '#a8842c', muted: '#6f685b' };
-  const CHART_BASE = { theme: { baseTheme: 'ag-default', palette: { fills: [INK.allow, INK.hold, INK.block, INK.seal, INK.gold], strokes: [INK.allow, INK.hold, INK.block, INK.seal, INK.gold] },
-    overrides: { common: { background: { fill: '#fbf8f2' }, title: { fontSize: 13, color: '#3f3a32', fontFamily: 'Fraunces, Georgia, serif', fontWeight: 600 } } } },
-    padding: { top: 10, right: 12, bottom: 8, left: 12 } };
-  function drawChart(id, options) {
-    const el = $(id); if (!el || !window.agCharts) return;
-    const opts = { ...CHART_BASE, ...options, container: el };
-    if (charts[id]) agCharts.AgCharts.update(charts[id], opts); else charts[id] = agCharts.AgCharts.create(opts);
-  }
-  function updateCharts(data) {
-    if (!$('charts')) return;
-    const recs = (data.records || []).map(r => r.payload || {});
-    const decisions = recs.filter(p => (p.event || 'decision') === 'decision');
-    $('charts').hidden = !decisions.length;
-    if (!decisions.length) return;
-    const mix = ['allow', 'hold', 'block'].map(v => ({ verdict: v.toUpperCase(), count: decisions.filter(p => p.verdict === v).length }));
-    const byAgent = {};
-    decisions.forEach(p => { if (p.verdict === 'allow') { const a = ((p.intent || {}).agent_id || '?').split(':')[0]; byAgent[a] = (byAgent[a] || 0) + Number((p.intent || {}).amount || 0); } });
-    const outside = recs.filter(p => p.event === 'outside').reduce((s, p) => s + Number((p.intent || {}).amount || 0), 0);
-    const agents = Object.entries(byAgent).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([agent, paid]) => ({ agent, paid }));
-    if (outside) agents.push({ agent: 'outside SafePay', paid: outside });
-    const byCat = {};
-    decisions.forEach(p => { const c = (p.intent || {}).category || 'uncategorized'; (byCat[c] = byCat[c] || []).push(Number(p.risk || 0)); });
-    const risk = Object.entries(byCat).map(([category, rs]) => ({ category, risk: rs.reduce((s, x) => s + x, 0) / rs.length })).sort((a, b) => b.risk - a.risk).slice(0, 6);
-    drawChart('chart-verdicts', { title: { text: 'Verdicts' }, data: mix, series: [{ type: 'donut', angleKey: 'count', calloutLabelKey: 'verdict', innerRadiusRatio: 0.6, fills: [INK.allow, INK.hold, INK.block] }], legend: { enabled: false } });
-    drawChart('chart-agents', { title: { text: 'Approved per agent (USD)' }, data: agents, series: [{ type: 'bar', xKey: 'agent', yKey: 'paid', fill: INK.seal }],
-      axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', label: { fontSize: 10 } }] });
-    drawChart('chart-risk', { title: { text: 'Average risk by category' }, data: risk, series: [{ type: 'bar', xKey: 'category', yKey: 'risk', fill: INK.gold }],
-      axes: [{ type: 'category', position: 'bottom', label: { fontSize: 10 } }, { type: 'number', position: 'left', min: 0, max: 1, label: { fontSize: 10 } }] });
-  }
   function showAudit(data) {
     LAST_AUDIT = data;
-    const view = scoped(data); const rows = auditRows(view);
-    if ($('audit-grid') && window.agGrid) {
-      // Size the table to its rows (up to a scrolling maximum) so a short
-      // session is not a tall empty box, and say why it is empty when it is.
-      $('audit-grid').style.height = Math.max(150, Math.min(460, 50 + rows.length * 42 + 14)) + 'px';
-      const empty = '<span style="padding:12px;color:#6f685b;font-size:14px">No links from this session yet. Run the demo in the <a href="/console">Console</a>, or press <b>Show all sessions</b> to see the whole shared chain.</span>';
-      if (!auditApi) auditApi = agGrid.createGrid($('audit-grid'), { columnDefs: auditColumns, rowData: rows, overlayNoRowsTemplate: empty,
-        defaultColDef: { resizable: true, sortable: true, filter: true } });
-      else auditApi.setGridOption('rowData', rows);
-    }
-    setStatus(data, rows.length);
-    try { updateCharts(view); } catch (e) { console.warn('charts', e); }
+    const view = scoped(data);
+    const shown = window.SafePayLedger ? window.SafePayLedger.show(data, view) : (view.records || []).length;
+    setStatus(data, shown);
     document.dispatchEvent(new CustomEvent('safepay:audit', { detail: data }));
   }
   async function loadAudit() {

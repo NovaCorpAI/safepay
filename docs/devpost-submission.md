@@ -228,8 +228,11 @@ pypi
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.
-Sponsor: Best Use of AG Grid (the audit ledger is an interactive AG Grid table
-with a live hash-chain verification badge); Best Use of Render (a live instance
+Sponsor: Best Use of AG Grid (the audit ledger is an AG Grid table where each
+link expands into a full-width detail row with its checks and the hash that ties
+it to the link before; verdict chips, search and clicks on three AG Charts drive
+one external filter that the pinned totals row and the CSV export follow;
+Community edition only); Best Use of Render (a live instance
 of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).
 
