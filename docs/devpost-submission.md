@@ -79,7 +79,13 @@ that settlement to the same chain and releases the budget of a payout that
 never left, via a signature-verified webhook or on demand. Every decision is
 appended to a hash-chained audit log: each record carries the hash of the one
 before it, so editing or dropping any earlier decision breaks every hash that
-follows, and a one-line verify walks the whole chain. Every released payout
+follows, and a one-line verify walks the whole chain. SafePay also ships its
+own payables agent: paste an invoice or a vendor email and it reads the payee,
+amount and invoice number (Nemotron reads, but every value must appear in the
+text, so a planted or invented payee is dropped), then pays through the same
+guardrail with no privileges; a resent invoice is blocked as a duplicate, a
+"we changed our bank details" email or an invoice that talks to the reviewer
+is held. Every released payout
 is sealed: the note PayPal shows the recipient carries a seal id ("Sealed by
 SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE"), and
 that public page shows the payee, with the address masked, the signed record of
@@ -244,6 +250,9 @@ session.
    line (approve one in Pending approvals); the last blocked by the daily cap.
    Then press Create the order through the gate: a real PayPal Agent Toolkit
    order, created only because SafePay allowed it.
+   Then, in "SafePay's own payables agent", click the four sample invoices in
+   order and press Read and pay: paid and sealed, duplicate blocked,
+   bank-details change blocked, injected invoice held.
    On any paid card, the "sealed SP-..." link opens the public verification
    page the payee reaches from the PayPal note.
 3. Ledger: press Tamper (demo) and watch the chain badge turn red, then Verify

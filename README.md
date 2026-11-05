@@ -248,9 +248,10 @@ releases pin whole agent frameworks); `pip install safepay` brings it.
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
 Desktop, Cursor, an agent framework) can route its payments through the guardrail
-without importing any SafePay code. It exposes thirteen tools: `safepay_evaluate`
+without importing any SafePay code. It exposes fourteen tools: `safepay_evaluate`
 (judge without paying), `safepay_pay` (evaluate, then pay via Payouts only on
-ALLOW), `safepay_create_order` (gate the Agent Toolkit order flow),
+ALLOW), `safepay_pay_invoice` (SafePay's own payables agent: invoice text in,
+judged payment out), `safepay_create_order` (gate the Agent Toolkit order flow),
 `safepay_pending_approvals`, `safepay_approve` and `safepay_reject` (the human
 in the loop for HOLD decisions), `safepay_payout_status` (settlement),
 `safepay_draft_policy` (plain words to a policy draft), `safepay_agents`,
@@ -449,6 +450,27 @@ the Payouts API, never trusted from the body. The hosted demo has this webhook
 live: a payout released there gets its settlement link from PayPal's push, no
 button needed. If a delivery fails verification, the reason PayPal gives (for
 example a wrong `PAYPAL_WEBHOOK_ID`) is printed to the host logs.
+
+## SafePay's own payables agent (invoice in, judged payment out)
+
+SafePay ships a native agent for the job it guards: paying vendor invoices.
+Paste an invoice or a vendor's billing email (console card, `POST
+/api/payables/pay`, the `safepay_pay_invoice` MCP tool, or
+`SafePayAgent.pay_invoice`). It reads the vendor, payee, amount, invoice number
+and purpose, then pays through the guardrail with no privileges: the same
+policy, history rules, web and reasoning checks and seal as any other agent.
+
+Reading is where an invoice attacks an agent, so the reader is built to be
+attacked. Nemotron extracts, but every value it returns (the email, the
+amount, the invoice number) must appear in the invoice text; a value it
+invented or was talked into is dropped and the rule-based reader's is used.
+An invoice with instructions aimed at the reviewer never reaches the model and
+is held. "We have updated our payment details" is held for a person even for a
+vendor the ledger has never seen. Four samples in `examples/invoices.json` show
+it in order: a real invoice is paid and sealed; the same invoice resent is
+blocked as a duplicate (even when the vendor's name is written differently);
+a bank-details change to a lookalike domain is blocked; an invoice that talks
+to the reviewer is held.
 
 ## The seal (proof the payee can check)
 

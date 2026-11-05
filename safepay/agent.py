@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from . import attest, seal
+from . import attest, payables, seal
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
@@ -129,9 +129,21 @@ class SafePayAgent:
             raw = None
         return PolicyConfig.from_dict(raw) if raw else self.policy
 
-    def pay(self, intent: PaymentIntent) -> dict[str, Any]:
-        """Evaluate one intent; execute on ALLOW, queue for a human on HOLD."""
+    def pay(self, intent: PaymentIntent,
+            extra_checks: list[CheckResult] | None = None) -> dict[str, Any]:
+        """Evaluate one intent; execute on ALLOW, queue for a human on HOLD.
+
+        `extra_checks` are failed findings a caller adds (the payables
+        agent's invoice flags): they can turn an ALLOW into a HOLD, never
+        loosen a HOLD or a BLOCK."""
         decision = self.guardrail.evaluate(intent, policy=self.policy_for(intent.agent_id))
+        flagged = [c for c in (extra_checks or []) if not c.passed]
+        if flagged and decision.verdict != Verdict.BLOCK:
+            decision.checks.extend(flagged)
+            if decision.verdict == Verdict.ALLOW:
+                decision.verdict = Verdict.HOLD
+                decision.reasons = []
+            decision.reasons += [f"{c.name}: {c.detail}" for c in flagged]
         approval_id = None
         if decision.verdict == Verdict.ALLOW:
             self._release(decision)
@@ -141,6 +153,23 @@ class SafePayAgent:
                 self.notifier.send_hold(approval_id, decision.to_dict())
         record = self.audit_log.append(decision)
         return self._result(decision, record, approval_id)
+
+    # --- SafePay's own payables agent: invoice text in, judged payment out --
+
+    def read_invoice(self, text: str) -> dict[str, Any]:
+        """Read an invoice into payment fields (nothing is paid)."""
+        return payables.read_invoice(text, self.guardrail.chat)
+
+    def pay_invoice(self, text: str, agent_id: str = "payables-agent",
+                    task_goal: str = "") -> dict[str, Any]:
+        """Read an invoice and pay it through the guardrail like any agent:
+        same policy, same history rules, same checks, same seal. The reader's
+        flags (instructions in the invoice, a bank-details change) hold it."""
+        read = self.read_invoice(text)
+        intent = payables.to_intent(read, agent_id, task_goal)
+        out = self.pay(intent, extra_checks=payables.flag_checks(read))
+        out["invoice"] = read
+        return out
 
     # --- operator controls: policy in plain words, freeze / resume an agent --
 

@@ -53,11 +53,13 @@ from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # n
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
 from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
 from safepay import seal as sealmod  # noqa: E402
+from safepay.payables import InvoiceError  # noqa: E402
 from dataclasses import fields  # noqa: E402
 
 app = Flask(__name__)
 
 _SCENARIOS = json.loads((ROOT / "examples" / "scenarios.json").read_text("utf-8"))
+_INVOICES = json.loads((ROOT / "examples" / "invoices.json").read_text("utf-8"))
 
 
 def _policy_from_scenarios() -> PolicyConfig:
@@ -379,6 +381,45 @@ def evaluate():
     intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
     result = _agent.pay(intent)
     return jsonify(result)
+
+
+@app.get("/api/payables/samples")
+def payables_samples():
+    return jsonify(_INVOICES)
+
+
+def _invoice_text() -> tuple[str, dict]:
+    data = request.get_json(force=True, silent=True) or {}
+    return str(data.get("text") or ""), data
+
+
+@app.post("/api/payables/read")
+def payables_read():
+    """Read an invoice into payment fields. Nothing is paid."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    text, _ = _invoice_text()
+    try:
+        return jsonify(_agent.read_invoice(text))
+    except InvoiceError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/api/payables/pay")
+def payables_pay():
+    """SafePay's payables agent: read the invoice, then pay it through the
+    guardrail like any other agent (same policy, checks, history and seal)."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    text, data = _invoice_text()
+    try:
+        agent_id = _agent.resolve_agent(str(data.get("agent_id") or "payables-agent"), _agent_key())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    try:
+        return jsonify(_agent.pay_invoice(text, agent_id, str(data.get("task_goal") or "")))
+    except InvoiceError as exc:
+        return jsonify({"error": str(exc)}), 400
 
 
 @app.post("/api/toolkit/order")

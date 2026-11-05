@@ -9,6 +9,7 @@ is enforced across a sequence of intents, not just one in isolation.
 
 from __future__ import annotations
 
+import re
 import statistics
 import time
 
@@ -82,17 +83,42 @@ def paid_history(rows: list[dict]) -> list[dict]:
     return out
 
 
-def vendor_key(intent: PaymentIntent) -> str:
-    """Who is being paid, as a stable key across payments: the merchant name
-    when the agent states one, else the registrable domain of the payee."""
-    name = (intent.merchant_name or "").strip().lower()
+_LEGAL = {"inc", "incorporated", "llc", "l.l.c", "ltd", "limited", "corp", "corporation",
+          "co", "company", "gmbh", "ag", "sa", "sas", "srl", "spa", "bv", "nv", "plc",
+          "pty", "lp", "llp", "oy", "ab", "as"}
+
+
+def norm_name(name: str | None) -> str:
+    """'Notion Labs, Inc.' and 'notion labs' -> 'notion labs': lowercase, no
+    punctuation, no trailing legal-form words. How a vendor is written varies
+    between invoices (and between model reads); who it is does not."""
+    words = re.sub(r"[^a-z0-9&]+", " ", (name or "").lower()).split()
+    while words and words[-1] in _LEGAL:
+        words.pop()
+    return " ".join(words)
+
+
+def vendor_key(intent: PaymentIntent, policy: PolicyConfig | None = None) -> str:
+    """Who is being paid, as a stable key across payments: the directory
+    vendor when the name or an alias matches, else the normalized merchant
+    name, else the registrable domain of the payee."""
+    if policy is not None:
+        found = _vendor_for(intent, policy)
+        if found:
+            return norm_name(found[0])
+    name = norm_name(intent.merchant_name)
     if name:
         return name
     return registrable(domain_of(intent.recipient)) or (intent.recipient or "").lower()
 
 
-def _row_vendor(r: dict) -> str:
-    return (r.get("merchant") or registrable(domain_of(r.get("recipient")))
+def _row_vendor(r: dict, policy: PolicyConfig | None = None) -> str:
+    m = r.get("merchant") or ""
+    if m and policy is not None:
+        found = _vendor_for(PaymentIntent(recipient="", amount=0, merchant_name=m), policy)
+        if found:
+            return norm_name(found[0])
+    return (norm_name(m) or registrable(domain_of(r.get("recipient")))
             or r.get("recipient", ""))
 
 
@@ -198,10 +224,15 @@ def check_policy(
     # Duplicate invoice: the same invoice already paid to the same vendor.
     ref = (intent.invoice_ref or "").strip().lower()
     if ref and policy.duplicate_window_days > 0:
-        vk = vendor_key(intent)
+        vk = vendor_key(intent, policy)
+        rd = registrable(domain_of(intent.recipient))
+        # Same invoice number and the same vendor, or the same payee domain:
+        # a vendor's name may be written differently on the resend.
         dup = next((r for r in _ledger_history(ledger, intent.agent_id,
                                                policy.duplicate_window_days)
-                    if r.get("invoice_ref") == ref and _row_vendor(r) == vk), None)
+                    if r.get("invoice_ref") == ref
+                    and (_row_vendor(r, policy) == vk
+                         or (rd and registrable(domain_of(r.get("recipient"))) == rd))), None)
         if dup:
             failures.append(
                 f"invoice '{intent.invoice_ref}' from '{intent.merchant_name or vk}' was "
@@ -258,11 +289,11 @@ def registrable(domain: str) -> str:
 
 
 def _vendor_for(intent: PaymentIntent, policy: PolicyConfig) -> tuple[str, dict] | None:
-    name = (intent.merchant_name or "").strip().lower()
+    name = norm_name(intent.merchant_name)
     if not name:
         return None
     for key, spec in policy.vendors.items():
-        names = {key.strip().lower()} | {a.strip().lower() for a in (spec or {}).get("aliases", [])}
+        names = {norm_name(key)} | {norm_name(a) for a in (spec or {}).get("aliases", [])}
         if name in names:
             return key, spec or {}
     return None
@@ -333,8 +364,9 @@ def check_history(intent: PaymentIntent, policy: PolicyConfig, ledger) -> CheckR
     this vendor was paid before. Both read only the ledger, no model and no
     web. None when there is no history for this vendor."""
     days = max(policy.duplicate_window_days, 90)
-    vk = vendor_key(intent)
-    prior = [r for r in _ledger_history(ledger, intent.agent_id, days) if _row_vendor(r) == vk]
+    vk = vendor_key(intent, policy)
+    prior = [r for r in _ledger_history(ledger, intent.agent_id, days)
+             if _row_vendor(r, policy) == vk]
     if not prior:
         return None
     rcpt = (intent.recipient or "").lower()

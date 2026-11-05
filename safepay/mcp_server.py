@@ -83,6 +83,22 @@ def pay(**kw: Any) -> dict[str, Any]:
     }
 
 
+def pay_invoice(text: str, task_goal: str = "", agent_id: str = "payables-agent") -> dict[str, Any]:
+    """Read an invoice and pay it through the guardrail (see payables.py)."""
+    from .payables import InvoiceError
+    try:
+        out = _agent.pay_invoice(text, agent_id, task_goal)
+    except InvoiceError as exc:
+        return {"error": str(exc)}
+    dec = out["decision"]
+    return {
+        "verdict": dec["verdict"], "risk": dec["risk"], "executed": dec["executed"],
+        "reasons": dec["reasons"], "invoice": out["invoice"]["intent"],
+        "flags": out["invoice"]["flags"], "seal": (dec.get("execution") or {}).get("seal"),
+        "approval_id": out.get("approval_id"), "stamp": out["stamp"],
+    }
+
+
 def create_order(**kw: Any) -> dict[str, Any]:
     """Gate a PayPal Agent Toolkit order: create it for real only on ALLOW."""
     if not toolkit_available():
@@ -212,6 +228,16 @@ try:
             purpose=purpose, task_goal=task_goal, merchant_name=merchant_name,
             agent_id=agent_id, invoice_ref=invoice_ref,
         )
+
+    @_MCP.tool()
+    def safepay_pay_invoice(text: str, task_goal: str = "",
+                            agent_id: str = "payables-agent") -> dict[str, Any]:
+        """SafePay's own payables agent. Paste an invoice or a vendor's billing
+        email: it is read into a payment (vendor, payee, amount, invoice number;
+        every field the model reads must appear in the text) and paid through
+        the guardrail only on ALLOW. Duplicate invoices are blocked; a changed
+        payee, a bank-details change or instructions in the invoice are held."""
+        return pay_invoice(text=text, task_goal=task_goal, agent_id=agent_id)
 
     @_MCP.tool()
     def safepay_create_order(

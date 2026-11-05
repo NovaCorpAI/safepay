@@ -194,6 +194,16 @@ button:disabled { opacity: .5; cursor: default; transform: none; }
 .proof .over { overflow-x: auto; }
 
 /* --- console --------------------------------------------------------- */
+.inv textarea { min-height: 150px; font-family: var(--mono); font-size: 12.5px; margin-top: 10px; }
+.inv-samples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.inv-samples button { font-size: 12.5px; padding: 5px 10px; }
+.inv-samples button small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.inv .row-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.inv-read { margin-top: 10px; font-size: 13.5px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; }
+.inv-read dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; }
+.inv-read dt { color: var(--muted); } .inv-read dd { margin: 0; overflow-wrap: anywhere; }
+.inv-read .flag { color: var(--hold); margin-top: 6px; }
+.inv-read .src { color: var(--muted); font-size: 12px; margin-top: 6px; }
 .pol .draft { margin-top: 14px; display: none; }
 .pol .draft.show { display: block; }
 .pol ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }

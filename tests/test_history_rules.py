@@ -140,3 +140,32 @@ def test_supabase_ledger_without_history_columns_degrades():
     assert db.rows and "merchant" not in db.rows[0]
     assert led.history("a", 0) == []
     assert led.spent_today("a") >= 0
+
+
+def test_duplicate_survives_a_differently_written_vendor_name():
+    g = _guard()
+    _pay(g, invoice_ref="NTN-1", merchant_name="Notion Labs, Inc.")
+    d = _pay(g, invoice_ref="NTN-1", merchant_name="notion labs")
+    assert d.verdict == Verdict.BLOCK
+
+
+def test_duplicate_by_payee_domain_when_names_differ():
+    g = _guard()
+    _pay(g, invoice_ref="X-9", merchant_name="Acme")
+    d = _pay(g, invoice_ref="X-9", merchant_name="Acme Design Studio")
+    assert d.verdict == Verdict.BLOCK
+
+
+def test_directory_alias_is_the_same_vendor():
+    vendors = {"Notion": {"domains": ["notion.so"], "aliases": ["Notion Labs"]}}
+    g = _guard(vendors=vendors)
+    _pay(g, recipient="billing@notion.so", amount=48, merchant_name="Notion", invoice_ref="A")
+    d = _pay(g, recipient="billing@notion.so", amount=48, merchant_name="Notion Labs, Inc.",
+             invoice_ref="A")
+    assert d.verdict == Verdict.BLOCK
+
+
+def test_norm_name():
+    from safepay.policy import norm_name
+    assert norm_name("Notion Labs, Inc.") == norm_name("notion labs") == "notion labs"
+    assert norm_name("Acme Co. Ltd") == "acme"

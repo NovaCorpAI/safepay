@@ -312,6 +312,41 @@
         merchant_name: merchant, purpose: $('t-purpose').value, task_goal: $('f-goal').value, agent_id: 'shopping-agent' }, '/api/toolkit/order');
       setBusy(false);
     };
+    if ($('inv-pay')) {
+      const showRead = r => {
+        const f = r.intent || {}, box = $('inv-read');
+        const row = (k, v) => v ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : '';
+        box.innerHTML = `<dl>${row('Vendor', f.merchant_name)}${row('Pay to', f.recipient)}${row('Amount', f.amount ? `${f.currency} ${Number(f.amount).toFixed(2)}` : '')}${row('Invoice', f.invoice_ref)}${row('For', f.purpose)}${row('Category', f.category)}</dl>`
+          + (r.flags || []).map(x => `<div class="flag">! ${esc(x.detail)}</div>`).join('')
+          + `<div class="src">read by ${esc(r.source || 'rules')}${(r.dropped || []).length ? ` · model values not found in the text and dropped: ${esc(r.dropped.join(', '))}` : ''}${(r.missing || []).length ? ` · missing: ${esc(r.missing.join(', '))}` : ''}</div>`;
+        box.hidden = false;
+      };
+      fetch('/api/payables/samples').then(r => r.json()).then(d => {
+        $('inv-samples').innerHTML = (d.samples || []).map((s, i) => `<button class="ghost" data-i="${i}" title="${esc(s.expect)}">${esc(s.label)}<small>${esc(s.expect)}</small></button>`).join('');
+        $('inv-samples').querySelectorAll('button').forEach(b => b.onclick = () => { $('inv-text').value = d.samples[+b.dataset.i].text; $('inv-read').hidden = true; });
+        if (!$('inv-text').value && d.samples && d.samples[0]) $('inv-text').value = d.samples[0].text;
+      }).catch(() => {});
+      $('inv-check').onclick = async () => {
+        const r = await (await fetch('/api/payables/read', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ text: $('inv-text').value }) })).json();
+        if (r.error) { $('inv-read').innerHTML = `<div class="flag">${esc(r.error)}</div>`; $('inv-read').hidden = false; } else showRead(r);
+      };
+      $('inv-pay').onclick = async () => {
+        setBusy(true); $('inv-pay').disabled = true;
+        try {
+          const text = $('inv-text').value;
+          const read = await (await fetch('/api/payables/read', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ text }) })).json();
+          if (read.error) { $('inv-read').innerHTML = `<div class="flag">${esc(read.error)}</div>`; $('inv-read').hidden = false; return; }
+          showRead(read);
+          const f = read.intent || {};
+          const el = pending({ amount: f.amount || 0, recipient: f.recipient || '?' });
+          try {
+            const [resp, body] = await post('/api/payables/pay', { text, agent_id: 'payables-agent' });
+            if (!resp.ok || body.error) refused(el, body.error || resp.status); else render(el, body);
+          } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; }
+          finally { loadAudit(); loadApprovals(); loadAgents(); }
+        } finally { setBusy(false); $('inv-pay').disabled = false; }
+      };
+    }
     $('reset').onclick = async () => { await startRun(); results.innerHTML = ''; loadAudit(); loadApprovals(); loadAgents(); };
   }
   document.querySelectorAll('.new-session').forEach(b => { if (b.id !== 'reset') b.onclick = async () => { await startRun(); location.reload(); }; });

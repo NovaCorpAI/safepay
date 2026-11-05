@@ -49,6 +49,15 @@
   </div>
 </div>
 
+<section class="card section inv" id="payables-card">
+  <h2>SafePay's own payables agent: paste an invoice</h2>
+  <p class="muted" style="font-size:14px;max-width:80ch">An agent that reads invoices and pays them, with no privileges: what it reads becomes a payment that goes through the same policy, history rules, web and reasoning checks and seal as any other agent. Nemotron reads the invoice, but every field it returns must appear in the text; an invoice that talks to the reviewer, or announces new bank details, is held for a person. Try the samples in order.</p>
+  <div class="inv-samples" id="inv-samples"></div>
+  <textarea id="inv-text" spellcheck="false" placeholder="Paste an invoice or a vendor's billing email"></textarea>
+  <div class="inv-read" id="inv-read" hidden></div>
+  <div class="row-btns"><button class="primary" id="inv-pay">Read and pay through SafePay</button><button class="ghost" id="inv-check">Only read it</button></div>
+</section>
+
 <section class="card section" id="toolkit-card">
   <h2>Agentic commerce: an order through the PayPal Agent Toolkit</h2>
   <p class="muted" style="font-size:14px;max-width:80ch">The agent wants to buy something. PayPal's guidance for the Toolkit's order flow is to create the order and invoke pay only after a person approves; SafePay is that approver, made automatic: the Toolkit's <code>create_order</code> runs only after the guardrail says ALLOW, and the buyer-approval link the Orders flow requires stays intact. Held or blocked, the Toolkit is never called.</p>
