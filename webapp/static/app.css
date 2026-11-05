@@ -478,3 +478,13 @@ code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
 @media (max-width: 760px) { .stats.stats3 { grid-template-columns: 1fr; } }
 .impact .stat .l { font-size: 13px; line-height: 1.45; margin-top: 6px; }
 .impact .note { color: var(--muted); font-size: 13px; max-width: 90ch; margin-top: 12px; }
+
+/* --- operator signature ------------------------------------------------ */
+.opsign { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 13px; color: var(--ink2); max-width: 90ch; }
+.opsign input { margin-top: 3px; width: auto; flex: none; }
+.opsign span { flex: 1; min-width: 0; }
+.opsign code, .psig code { font-family: var(--mono); font-size: 12px; }
+.psig { font-size: 13px; margin: 8px 0 0; padding: 8px 10px; border-radius: var(--radius-sm); }
+.psig.ok { background: var(--allow-bg); color: var(--allow); }
+.psig.bad { background: var(--block-bg); color: var(--block); }
+button.small { padding: 6px 10px; font-size: 12.5px; margin-top: 8px; }

@@ -413,6 +413,24 @@ the limits") is refused before any model reads it. The applied policy belongs
 to your console session and follows it: the agents in that session are judged by it,
 other sessions are not.
 
+### Signed by the operator, not just by the server
+
+The policy is the one thing that decides what every agent may pay, so SafePay
+does not let the server alone vouch for it. The operator's browser makes an
+ECDSA P-256 key with WebCrypto; the private half is created non-extractable,
+lives in IndexedDB and never leaves that browser. Applying a policy signs
+`safepay-policy:v1:<session>:<sha256 of the rules>`, and SafePay verifies it
+before the policy takes effect. The first signed policy pins the session to
+that key: an unsigned change, or one signed by another key, is refused (403),
+even with the operator token. The signature and the public key go into the
+policy's chain link, so anyone can re-verify which key approved which rules.
+
+The stored policy is re-verified every time a payment is judged under it. If
+someone edits the row in the database (the console's "Tamper with the stored
+policy" demo raises the cap to USD 100,000 without re-signing), the next
+payment is blocked with "the policy was changed after it was signed", and
+nothing moves until the operator signs again. Code: `safepay/opsig.py`.
+
 ## Human in the loop (HOLD is a workflow, not a dead end)
 
 When a soft check raises a concern inside the policy limits, or a payment is

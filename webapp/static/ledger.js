@@ -35,6 +35,7 @@
         policy: p.policy_hash || '', linked: bySeq[p.seq] !== false, checks, reasons: p.reasons || [],
         flagged: checks.filter(c => !c.passed).length, invoice: i.invoice_ref || '', purpose: i.purpose || '',
         task: i.task_goal || '', method: x.method || '', via: x.via || '',
+        opsig: (x.operator_sig && x.operator_sig.kid) || '',
       };
     });
   }
@@ -108,6 +109,7 @@
         ${item('This hash', `<code>${esc(d.hash)}</code>`)}
         ${item('Previous', `<code>${esc(d.prev)}</code> ${d.linked ? '<span class="ok-mark">✓ matches link ' + (d.seq - 1) + '</span>' : '<span class="bad-mark">✗ does not match</span>'}`)}
         ${item('Policy', `<code>${esc(d.policy)}</code>`)}
+        ${item('Operator', d.opsig ? `signed with key <code>${esc(d.opsig)}</code> (ES256, made in the operator's browser)` : '')}
       </dl></div>`;
   }
   function totalsHtml(t) {

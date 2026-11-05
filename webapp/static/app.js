@@ -165,6 +165,67 @@
     finally { loadAudit(); loadApprovals(); loadAgents(); }
   }
 
+  // --- operator key (WebCrypto) ----------------------------------------
+  // An ECDSA P-256 key made by this browser. The private half is created
+  // non-extractable and kept in IndexedDB, so no script (ours included) can
+  // read it; it can only sign. The server sees the public key and signatures.
+  const OPK = { key: null, jwk: null, kid: null };
+  const enc = s => new TextEncoder().encode(s);
+  const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  function idb(mode, value) {
+    return new Promise(resolve => {
+      try {
+        const req = indexedDB.open('safepay-operator', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('keys');
+        req.onerror = () => resolve(null);
+        req.onsuccess = () => {
+          try {
+            const tx = req.result.transaction('keys', mode === 'put' ? 'readwrite' : 'readonly');
+            const st = tx.objectStore('keys');
+            const r = mode === 'put' ? st.put(value, 'operator') : st.get('operator');
+            r.onsuccess = () => resolve(mode === 'put' ? true : r.result || null);
+            r.onerror = () => resolve(null);
+          } catch (e) { resolve(null); }
+        };
+      } catch (e) { resolve(null); }
+    });
+  }
+  async function opKey() {
+    if (OPK.key) return OPK;
+    if (!(window.crypto && crypto.subtle)) return null;
+    let rec = await idb('get');
+    if (!rec || !rec.priv) {
+      const pair = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']);
+      rec = { priv: pair.privateKey, jwk: await crypto.subtle.exportKey('jwk', pair.publicKey) };
+      await idb('put', rec);
+    }
+    const j = rec.jwk;
+    OPK.key = rec.priv; OPK.jwk = { kty: 'EC', crv: 'P-256', x: j.x, y: j.y };
+    const thumb = await crypto.subtle.digest('SHA-256', enc(JSON.stringify({ crv: 'P-256', kty: 'EC', x: j.x, y: j.y })));
+    OPK.kid = b64u(thumb).slice(0, 16);
+    if ($('p-kid')) $('p-kid').textContent = OPK.kid;
+    return OPK;
+  }
+  async function signPolicy(body) {
+    if (!$('p-sign') || !$('p-sign').checked) return null;
+    const k = await opKey(); if (!k) return null;
+    const m = await (await fetch('/api/policy/message', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify(body) })).json();
+    if (m.error) throw new Error(m.error);
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k.key, enc(m.message));
+    return { jwk: k.jwk, sig: b64u(sig) };
+  }
+  function showSig(r) {
+    const el = $('p-sig'); if (!el) return;
+    const t = $('p-tamper');
+    if (!r || (!r.pinned && !r.signed_by)) { el.hidden = true; if (t) t.hidden = true; return; }
+    el.hidden = false; if (t) t.hidden = !r.pinned;
+    el.className = 'psig ' + (r.tamper ? 'bad' : 'ok');
+    el.innerHTML = r.tamper
+      ? `✗ <b>Policy fails its signature check</b>: ${esc(r.tamper)}. Every payment is blocked until the operator signs again (Apply).`
+      : `✓ Signed by operator key <code>${esc(r.signed_by || '?')}</code>${r.pinned ? ` · session pinned to <code>${esc(r.pinned)}</code>${OPK.kid && OPK.kid === r.pinned ? ' (this browser)' : ''}` : ''}. Unsigned or foreign-key changes are refused.`;
+  }
+  if ($('p-sign')) opKey().catch(() => { $('p-kid').textContent = 'unavailable in this browser'; $('p-sign').checked = false; $('p-sign').disabled = true; });
+
   // --- policy in plain words (Console) --------------------------------
   function showRules(rules, custom, hash) {
     if (!$('p-rules')) return;
@@ -175,13 +236,15 @@
   const polMsg = (text, cls) => { const m = $('policy-msg'); if (m) { m.className = 'msg ' + (cls || ''); m.textContent = text; } };
   async function loadPolicy() {
     if (!$('p-rules')) return;
-    try { const r = await (await fetch('/api/policy?run=' + encodeURIComponent(RUN))).json(); showRules(r.rules, r.custom, r.policy_hash); }
+    try { const r = await (await fetch('/api/policy?run=' + encodeURIComponent(RUN))).json(); showRules(r.rules, r.custom, r.policy_hash); showSig(r); }
     catch (e) { showRules(CFG.rules, false, CFG.policyHash); }
   }
   async function applyPolicy(policy, quiet) {
-    const r = await (await opFetch('/api/policy/apply', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, policy }) })).json();
-    if (r.ok) { APPLIED = r.policy; store.set('safepay_policy', APPLIED); showRules(r.rules, true, r.policy_hash); loadAudit();
-      if (!quiet) polMsg(`Applied to this session and chained as link #${r.seq}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
+    let signature = null;
+    try { signature = await signPolicy({ run: RUN, policy }); } catch (e) { if (!quiet) polMsg('could not sign: ' + e.message, 'bad'); return {}; }
+    const r = await (await opFetch('/api/policy/apply', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, policy, signature }) })).json();
+    if (r.ok) { APPLIED = r.policy; store.set('safepay_policy', APPLIED); showRules(r.rules, true, r.policy_hash); loadAudit(); loadPolicy();
+      if (!quiet) polMsg(`Applied to this session and chained as link #${r.seq}${r.signed_by ? `, signed by operator key ${r.signed_by}${r.pinned_now ? ' (the session is now pinned to it)' : ''}` : ', unsigned'}. Every payment below is judged by these rules (hash ${(r.policy_hash || '').slice(0, 12)}).`, 'ok'); }
     else if (!quiet) polMsg(r.error || 'could not apply', 'bad');
     return r;
   }
@@ -207,7 +270,10 @@
     };
     $('policy-reset').onclick = async () => {
       try {
-        const r = await (await opFetch('/api/policy/reset', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN }) })).json();
+        const signature = await signPolicy({ run: RUN, reset: true });
+        const r = await (await opFetch('/api/policy/reset', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, signature }) })).json();
+        if (r.error) { polMsg(r.error, 'bad'); return; }
+        loadPolicy();
         APPLIED = null; store.set('safepay_policy', null); showRules(r.rules || CFG.rules, false, r.policy_hash);
         $('policy-draft-box').classList.remove('show');
         polMsg(r.seq != null ? `Back to the default policy for this session (chained as link #${r.seq}).` : 'Back to the default policy for this session.', 'ok');
@@ -215,6 +281,11 @@
       } catch (e) { polMsg('network error', 'bad'); }
     };
   }
+  if ($('p-tamper')) $('p-tamper').onclick = async () => {
+    const r = await (await fetch('/api/policy/tamper', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN }) })).json();
+    polMsg(r.error || 'Stored policy edited behind the operator\'s back: per-payment cap now USD 100,000, signature untouched. Run a payment and watch it.', r.error ? 'bad' : '');
+    loadPolicy();
+  };
   async function startRun() {
     RUN = newRun(); store.set('safepay_run', RUN); showSession();
     await fetch('/api/reset', { method: 'POST' });

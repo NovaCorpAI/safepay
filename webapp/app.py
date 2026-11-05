@@ -52,6 +52,7 @@ from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
+from safepay.opsig import SignatureError  # noqa: E402
 from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
 from safepay import seal as sealmod  # noqa: E402
 from safepay.payables import InvoiceError  # noqa: E402
@@ -258,9 +259,11 @@ def policy_apply():
     if not run:
         return jsonify({"error": "run id is required"}), 400
     try:
-        out = _agent.apply_policy(run, data.get("policy") or {})
-    except PolicyDraftError as exc:
+        out = _agent.apply_policy(run, data.get("policy") or {}, signature=data.get("signature"))
+    except (PolicyDraftError, SignatureError) as exc:
         return jsonify({"error": str(exc)}), 400
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
     except Exception as exc:
         return jsonify({"error": f"could not save the policy: {exc}"}), 503
     return jsonify(dict(out, ok=True))
@@ -271,9 +274,47 @@ def policy_in_force():
     """The policy that applies to ?run=<id> (the default when none was set)."""
     run = (request.args.get("run") or "")[:16].strip()
     pol = _agent.policy_for(f"console:{run}") if run else _policy
-    return jsonify({"run": run, "custom": pol.to_dict() != _policy.to_dict(),
-                    "policy": pol.to_dict(), "rules": describe_policy(pol),
-                    "policy_hash": policy_hash(pol)})
+    out = {"run": run, "custom": pol.to_dict() != _policy.to_dict(),
+           "policy": pol.to_dict(), "rules": describe_policy(pol),
+           "policy_hash": policy_hash(pol)}
+    if run:
+        try:
+            out.update(_agent.policy_status(run))
+        except Exception:
+            pass
+    return jsonify(out)
+
+
+@app.post("/api/policy/message")
+def policy_message():
+    """The exact text the operator's browser signs for a policy: the policy
+    is coerced and hashed here exactly as apply will do it."""
+    data = request.get_json(silent=True) or {}
+    run = str(data.get("run", ""))[:16].strip()
+    if not run:
+        return jsonify({"error": "run id is required"}), 400
+    try:
+        return jsonify(_agent.policy_message(run, data.get("policy") or {}, bool(data.get("reset"))))
+    except PolicyDraftError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+
+@app.post("/api/policy/tamper")
+def policy_tamper():
+    """Demo: edit this session's stored policy behind the operator's back
+    (the per-payment cap goes to USD 100,000) without re-signing it, the way
+    someone with database access would. The next payment shows the result."""
+    if not _tamper_demo_enabled():
+        return jsonify({"error": "tamper demo is off on this instance"}), 404
+    data = request.get_json(silent=True) or {}
+    run = str(data.get("run", ""))[:16].strip()
+    raw = _agent.control.policy_for(run) if run else None
+    if not raw:
+        return jsonify({"error": "this session has no stored policy to tamper with"}), 400
+    raw = dict(raw, per_tx_limit=100000.0, daily_limit=1000000.0)
+    _agent.control.set_policy(run, raw)
+    return jsonify({"ok": True, "signed": bool(raw.get("_sig")),
+                    "note": "per-payment cap raised to USD 100,000 in the store, signature untouched"})
 
 
 @app.post("/api/policy/reset")
@@ -282,7 +323,11 @@ def policy_reset():
     data = request.get_json(silent=True) or {}
     run = str(data.get("run", ""))[:16].strip()
     try:
-        return jsonify(dict(_agent.clear_policy(run), ok=True))
+        return jsonify(dict(_agent.clear_policy(run, signature=data.get("signature")), ok=True))
+    except SignatureError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
     except Exception as exc:
         return jsonify({"error": f"could not reset the policy: {exc}"}), 503
 

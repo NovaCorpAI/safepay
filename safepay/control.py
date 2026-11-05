@@ -64,6 +64,13 @@ class MemoryControl:
     def clear_policy(self, run: str) -> None:
         self._settings.pop(f"policy:{run}", None)
 
+    def setting(self, key: str) -> Any:
+        row = self._settings.get(key)
+        return row["value"] if row else None
+
+    def set_setting(self, key: str, value: Any) -> None:
+        self._settings[key] = {"value": value, "updated_ts": time.time()}
+
     # --- agent registry ---------------------------------------------------
     def agent(self, agent_id: str) -> dict[str, Any] | None:
         row = self._agents.get(agent_id)
@@ -151,6 +158,14 @@ class SupabaseControl:
 
     def clear_policy(self, run: str) -> None:
         self.db.delete("settings", {"key": f"eq.policy:{run}"})
+
+    def setting(self, key: str) -> Any:
+        rows = self.db.select("settings", {"select": "value", "key": f"eq.{key}"})
+        return rows[0]["value"] if rows else None
+
+    def set_setting(self, key: str, value: Any) -> None:
+        self.db.upsert("settings", {"key": key, "value": value, "updated_ts": time.time()},
+                       {"on_conflict": "key"})
 
     def agent(self, agent_id: str) -> dict[str, Any] | None:
         rows = self.db.select("agents", {"select": "*", "agent_id": f"eq.{agent_id}"})

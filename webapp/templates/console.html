@@ -20,6 +20,7 @@
     <ul class="q" id="policy-questions"></ul>
     <p class="src" id="policy-source"></p>
     <details><summary>Review the exact fields (editable JSON)</summary><textarea id="policy-json" spellcheck="false"></textarea></details>
+    <label class="opsign"><input type="checkbox" id="p-sign" checked><span>Sign it with my operator key <code id="p-kid">…</code>: ECDSA P-256 made by this browser (WebCrypto); the private half cannot be exported and never leaves it. The first signed policy pins the session to this key.</span></label>
     <div class="btns" style="margin-top:12px">
       <button class="primary" id="policy-apply">Apply to this session</button>
       <button class="ghost" id="policy-reset">Back to the default policy</button>
@@ -33,6 +34,8 @@
     <h2>Policy in force<span class="pill" id="p-custom" hidden>custom for this session</span></h2>
     <ul class="rules" id="p-rules"></ul>
     <p class="note" title="sha256 of these rules; every decision in the ledger carries the hash of the policy it was judged under">rules hash <code id="p-hash"></code></p>
+    <p class="psig" id="p-sig" hidden></p>
+    {% if cfg.tamperDemo %}<button class="danger small" id="p-tamper" hidden title="Edits this session's stored policy (cap to USD 100,000) without re-signing, the way someone with database access would">Tamper with the stored policy (demo)</button>{% endif %}
   </div>
   <div class="card">
     <h2>Custom payment intent</h2>

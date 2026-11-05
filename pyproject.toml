@@ -22,6 +22,7 @@ classifiers = [
 # (not requirements.txt) when this file exists, and the hosted console needs it.
 dependencies = [
     "requests>=2.31.0",
+    "cryptography>=42.0.0",
     "openai>=1.40.0",
     "tavily-python>=0.5.0",
     "flask>=3.0.0",

@@ -99,7 +99,10 @@ amount and invoice number (Nemotron reads, but every value must appear in the
 text, so a planted or invented payee is dropped), then pays through the same
 guardrail with no privileges; a resent invoice is blocked as a duplicate, a
 "we changed our bank details" email or an invoice that talks to the reviewer
-is held. For tasks whose final price is not known up front (a hotel,
+is held. The policy itself is signed in the operator's browser (WebCrypto, ECDSA
+P-256, a non-extractable key), pinned to the session, and re-verified on
+every payment, so a leaked operator token or an edit in the database cannot
+quietly loosen the rules. For tasks whose final price is not known up front (a hotel,
 compute, a batch of purchases) an agent opens a mandate: the ceiling is judged
 like any payment and authorized with PayPal (Orders v2, intent AUTHORIZE), each
 capture is checked on its own (the agent that opened it, not frozen, within what
@@ -265,6 +268,10 @@ session.
 1. Console: type a policy in plain words, e.g. "Up to $500 per payment and
    $1,000 a day. Ask me before anything over $300. No gambling or crypto."
    Press Draft the policy, review the fields, then Apply to this session.
+   The policy is signed in your browser with an operator key WebCrypto made
+   for you (the private half never leaves the browser); the session is now
+   pinned to it. "Tamper with the stored policy (demo)" edits the stored rules
+   without re-signing: the next payment is blocked until you Apply again.
 2. Press Run demo scenarios. Seven payments resolve: a Notion invoice paid; the
    same invoice to a lookalike domain blocked; USD 900 blocked by the cap; a
    casino payout held (open the merchant and reasoning checks to see the web

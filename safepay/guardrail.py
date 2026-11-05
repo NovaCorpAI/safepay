@@ -65,6 +65,19 @@ class Guardrail:
                 return Decision(verdict=Verdict.BLOCK, intent=intent, checks=checks,
                                 reasons=[f"agent: {checks[0].detail}"], policy_hash=ph)
 
+        # 0b. The rules themselves: a session pinned to an operator key whose
+        # stored policy no longer verifies (see opsig.py) moves nothing.
+        tamper = getattr(rules, "_tamper", None)
+        if tamper:
+            checks.append(CheckResult(
+                name="policy", passed=False, severity=Severity.CRITICAL,
+                detail=(f"the policy for this session failed its operator-signature check: {tamper}; "
+                        "nothing moves until the operator signs the rules again"),
+                risk=1.0, evidence=[{"rule": "policy_signature"}],
+            ))
+            return Decision(verdict=Verdict.BLOCK, intent=intent, checks=checks,
+                            reasons=[f"policy: {checks[-1].detail}"], policy_hash=ph)
+
         # 1. Hard rules first. A failure here is final.
         pol = check_policy(intent, rules, self.ledger)
         checks.append(pol)

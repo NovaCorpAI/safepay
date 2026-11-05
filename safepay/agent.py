@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from . import attest, mandate, payables, seal
+from . import attest, mandate, opsig, payables, seal
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
@@ -127,7 +127,55 @@ class SafePayAgent:
             raw = self.control.policy_for(run) if run else None
         except Exception:
             raw = None
-        return PolicyConfig.from_dict(raw) if raw else self.policy
+        pol = PolicyConfig.from_dict(raw) if raw else self.policy
+        # A session whose policy was signed by an operator key is pinned to
+        # that key: the stored rules are re-verified every time they are used.
+        # If they no longer verify (edited in the store, signature stripped,
+        # row deleted) the guardrail blocks until the operator signs again.
+        pin = self._pin(run)
+        if pin:
+            why = opsig.check_stored((raw or {}).get("_sig"), run, attest.policy_hash(pol), pin["kid"])
+            if why:
+                pol = PolicyConfig.from_dict(pol.to_dict())
+                pol._tamper = why  # type: ignore[attr-defined]
+        return pol
+
+    def _pin(self, run: str) -> dict[str, Any] | None:
+        if not run:
+            return None
+        try:
+            pin = self.control.setting(f"opkey:{run}")
+        except Exception:
+            return None
+        return pin if isinstance(pin, dict) and pin.get("kid") else None
+
+    def _sign_check(self, run: str, h: str, signature: dict[str, Any] | None) -> dict[str, Any] | None:
+        """Verify an operator signature for (run, hash) against the pin.
+        Returns the sealed signature (or None when unsigned and unpinned).
+        Pins the key on the first signed policy of a session."""
+        pin = self._pin(run)
+        if signature:
+            sealed = opsig.seal_policy(run, h, signature)
+            if pin and sealed["kid"] != pin["kid"]:
+                raise PermissionError(f"this session's policy is pinned to operator key {pin['kid']}; "
+                                      f"key {sealed['kid']} cannot change it")
+            if not pin:
+                self.control.set_setting(f"opkey:{run}", {"kid": sealed["kid"], "jwk": sealed["jwk"]})
+                sealed = dict(sealed, pinned_now=True)
+            return sealed
+        if pin:
+            raise PermissionError(f"this session's policy is signed by operator key {pin['kid']}; "
+                                  "an unsigned change is refused")
+        return None
+
+    def policy_status(self, run: str) -> dict[str, Any]:
+        """Signed by whom, pinned to whom, and whether it still verifies."""
+        pin = self._pin(run)
+        pol = self.policy_for(f"console:{run}") if run else self.policy
+        raw = (self.control.policy_for(run) if run else None) or {}
+        sig = raw.get("_sig") or {}
+        return {"pinned": pin["kid"] if pin else None, "signed_by": sig.get("kid"),
+                "tamper": getattr(pol, "_tamper", None)}
 
     def pay(self, intent: PaymentIntent,
             extra_checks: list[CheckResult] | None = None) -> dict[str, Any]:
@@ -294,7 +342,7 @@ class SafePayAgent:
         return draft_policy(text, self.guardrail.chat, base)
 
     def _policy_link(self, run: str, policy: PolicyConfig, what: str,
-                     source: str) -> dict[str, Any]:
+                     source: str, sealed: dict[str, Any] | None = None) -> dict[str, Any]:
         """Chain a policy change. The link carries the full policy and its
         hash; every decision judged under it carries the same hash, so the
         chain proves which rules governed which payment, and when they changed."""
@@ -307,28 +355,55 @@ class SafePayAgent:
             checks=[], reasons=[f"{what}: {len(rules)} rules in force, hash {h[:12]}"],
             executed=False,
             execution={"policy_hash": h, "policy": policy.to_dict(), "run": run,
-                       "source": source, "rules": rules},
+                       "source": source, "rules": rules,
+                       **({"operator_sig": sealed} if sealed else {})},
             event="policy", policy_hash=h,
         )
         return self.audit_log.append(decision)
 
-    def apply_policy(self, run: str, raw: dict[str, Any],
-                     source: str = "console") -> dict[str, Any]:
+    def apply_policy(self, run: str, raw: dict[str, Any], source: str = "console",
+                     signature: dict[str, Any] | None = None) -> dict[str, Any]:
         """Validate a policy dict and make it the policy for a console run.
-        The change is appended to the audit chain as a "policy" link."""
+        The change is appended to the audit chain as a "policy" link. With an
+        operator signature (see opsig.py) the policy is stored signed and the
+        session is pinned to that key; a pinned session refuses unsigned or
+        foreign-key changes (PermissionError)."""
         if not run:
             raise ValueError("a run id is required")
         policy = coerce_policy(raw, self.policy)
-        self.control.set_policy(run, policy.to_dict())
-        record = self._policy_link(run, policy, "policy applied", source)
+        h = attest.policy_hash(policy)
+        sealed = self._sign_check(run, h, signature)
+        stored = policy.to_dict()
+        if sealed:
+            stored["_sig"] = {k: v for k, v in sealed.items() if k != "pinned_now"}
+        self.control.set_policy(run, stored)
+        record = self._policy_link(run, policy, "policy applied" + (" (operator-signed)" if sealed else ""),
+                                   source, sealed)
         return {"run": run, "policy": policy.to_dict(), "rules": describe_policy(policy),
-                "policy_hash": attest.policy_hash(policy), "audit": record,
-                "seq": record["payload"].get("seq")}
+                "policy_hash": h, "audit": record, "seq": record["payload"].get("seq"),
+                "signed_by": sealed["kid"] if sealed else None,
+                "pinned_now": bool(sealed and sealed.get("pinned_now"))}
 
-    def clear_policy(self, run: str, source: str = "console") -> dict[str, Any]:
+    def policy_message(self, run: str, raw: dict[str, Any] | None, reset: bool = False) -> dict[str, Any]:
+        """What the operator's browser signs for this policy and session."""
+        policy = self.policy if reset else coerce_policy(raw or {}, self.policy)
+        h = attest.policy_hash(policy)
+        return {"policy_hash": h, "message": opsig.message(run, h)}
+
+    def clear_policy(self, run: str, source: str = "console",
+                     signature: dict[str, Any] | None = None) -> dict[str, Any]:
         out = {"run": run, "policy": self.policy.to_dict(),
                "rules": describe_policy(self.policy),
                "policy_hash": attest.policy_hash(self.policy)}
+        if run and self._pin(run):
+            # A pinned session goes back to the default by a signed change too.
+            h = out["policy_hash"]
+            sealed = self._sign_check(run, h, signature)
+            self.control.set_policy(run, dict(self.policy.to_dict(), _sig=sealed))
+            record = self._policy_link(run, self.policy, "policy reset to default (operator-signed)",
+                                       source, sealed)
+            out["audit"], out["seq"], out["signed_by"] = record, record["payload"].get("seq"), sealed["kid"]
+            return out
         if run and self.control.policy_for(run) is not None:
             self.control.clear_policy(run)
             record = self._policy_link(run, self.policy, "policy reset to default", source)
