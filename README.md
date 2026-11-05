@@ -267,6 +267,8 @@ first. The `mcp` package is optional; the core package and tests never need it.
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Durable, shared audit chain, ledger and approvals | In-memory state |
 | `PAYPAL_WEBHOOK_ID` | Accept PayPal Payouts webhooks at `/api/paypal/webhook` (signature verified with PayPal) | Settlements only on demand (console button, API, MCP tool) |
 | `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` / `TELEGRAM_WEBHOOK_SECRET` | Every HOLD is pushed to a Telegram chat with Approve and pay / Reject buttons; taps come back through `/api/telegram/webhook` | Approvals in the console, API and MCP only |
+| `SAFEPAY_CHECK_CACHE_SECONDS` | How long a merchant or reasoning result is reused for the same inputs (default 86400; 0 disables) | 24 h cache |
+| `SAFEPAY_EXTERNAL_DAILY_BUDGET` | Most paid web and model calls per UTC day; past it a check fails closed (HOLD) | 400 |
 | `SAFEPAY_OPERATOR_TOKEN` | Operator actions on the console API (apply a policy, freeze an agent, approve, issue a key, reconcile, tamper demo) require it in `X-SafePay-Operator` | Operator actions are open (a judge's zero-setup demo) |
 
 Get PayPal sandbox keys at `developer.paypal.com` > Apps & Credentials >
