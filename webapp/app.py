@@ -167,7 +167,12 @@ def _ctx() -> dict:
 
 def _page(name: str):
     """Render one of the console's pages with the shared status context."""
-    return render_template(f"{name}.html", page=name, cfg=_ctx(), version=VERSION)
+    cfg = _ctx()
+    if name == "studio":
+        # AG Studio's licence key is read by the browser anyway; it lives in
+        # AG_STUDIO_LICENSE_KEY so it stays out of the repository.
+        cfg["agStudioLicense"] = (os.environ.get("AG_STUDIO_LICENSE_KEY") or "").strip()
+    return render_template(f"{name}.html", page=name, cfg=cfg, version=VERSION)
 
 
 @app.get("/")

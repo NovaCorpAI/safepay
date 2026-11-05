@@ -4,6 +4,8 @@
 (function () {
   const host = document.getElementById('studio');
   if (!host || !window.agStudio) return;
+  const lic = (window.SAFEPAY || {}).agStudioLicense;
+  if (lic && agStudio.AgStudioLicenseManager) agStudio.AgStudioLicenseManager.setLicenseKey(lic);
   const status = document.getElementById('studio-status');
   const say = (t, cls) => { if (status) { status.textContent = t; status.className = 'status ' + (cls || 'idle'); } };
 
