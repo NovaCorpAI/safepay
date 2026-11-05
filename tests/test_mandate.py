@@ -153,3 +153,57 @@ def test_mcp_tools(agent, monkeypatch):
     assert mcp_server.capture_mandate(a, 50, "travel-agent:RUN1")["seal"].startswith("SP-")
     assert mcp_server.close_mandate(a, "travel-agent:RUN1")["mandate"]["closed"]
     assert mcp_server.capture_mandate("NOPE", 1)["error"]
+
+
+def test_mandate_uses_the_vaulted_card_once(agent):
+    a1 = _open(agent)
+    x = agent.audit_log.records[-1]["payload"]["execution"]
+    assert x["card"]["last_digits"] == "1111"
+    vault = agent.control.setting("paypal:vault:simulated")["vault_id"]
+    _open(agent, amount=50)
+    assert agent.control.setting("paypal:vault:simulated")["vault_id"] == vault   # created once
+    assert a1["authorization_id"]
+
+
+class FakeLive:
+    def __init__(self, bodies):
+        self.bodies = bodies
+
+    def __call__(self, path):
+        return self.bodies[path]
+
+
+def test_capture_event_settles_the_mandate_idempotently(agent, monkeypatch):
+    a = _open(agent)["authorization_id"]
+    cap = agent.capture(a, 120, "travel-agent:RUN1", "two nights")["decision"]["execution"]["capture_id"]
+    body = {"status": "COMPLETED", "amount": {"value": "120.00", "currency_code": "USD"},
+            "supplementary_data": {"related_ids": {"authorization_id": a}}}
+    monkeypatch.setattr(agent.paypal, "get_json", FakeLive({f"/v2/payments/captures/{cap}": body}))
+    out = agent.settle_payment_event("PAYMENT.CAPTURE.COMPLETED", {"id": cap})
+    assert not out["duplicate"] and out["status"] == "COMPLETED"
+    p = agent.audit_log.records[-1]["payload"]
+    assert p["event"] == "settlement" and p["verdict"] == "allow" and p["execution"]["authorization_id"] == a
+    assert agent.settle_payment_event("PAYMENT.CAPTURE.COMPLETED", {"id": cap})["duplicate"]
+    assert not agent.get_mandate(a)["closed"]          # settlements do not change the mandate's math
+
+
+def test_refund_event_is_a_block_settlement(agent, monkeypatch):
+    a = _open(agent)["authorization_id"]
+    cap = agent.capture(a, 50, "travel-agent:RUN1", "night")["decision"]["execution"]["capture_id"]
+    body = {"status": "REFUNDED", "amount": {"value": "50.00", "currency_code": "USD"},
+            "supplementary_data": {"related_ids": {"authorization_id": a}}}
+    monkeypatch.setattr(agent.paypal, "get_json", FakeLive({f"/v2/payments/captures/{cap}": body}))
+    agent.settle_payment_event("PAYMENT.CAPTURE.REFUNDED", {"id": cap})
+    assert agent.audit_log.records[-1]["payload"]["verdict"] == "block"
+
+
+def test_capture_of_an_unknown_authorization_is_outside(agent, monkeypatch):
+    body = {"status": "COMPLETED", "amount": {"value": "999.00", "currency_code": "USD"},
+            "supplementary_data": {"related_ids": {"authorization_id": "AUTHNOTOURS1"}}}
+    monkeypatch.setattr(agent.paypal, "get_json", FakeLive({"/v2/payments/captures/CAPX1": body}))
+    out = agent.settle_payment_event("PAYMENT.CAPTURE.COMPLETED", {"id": "CAPX1"})
+    p = agent.audit_log.records[-1]["payload"]
+    assert out["outside"] and p["event"] == "outside" and p["verdict"] == "block" and p["intent"]["amount"] == 999
+    v = agent.settle_payment_event.__self__  # noqa: F841
+    monkeypatch.setattr(agent.paypal, "get_json", FakeLive({"/v2/payments/authorizations/AUTHNOTOURS1": {"status": "VOIDED"}}))
+    assert agent.settle_payment_event("PAYMENT.AUTHORIZATION.VOIDED", {"id": "AUTHNOTOURS1"})["ignored"]

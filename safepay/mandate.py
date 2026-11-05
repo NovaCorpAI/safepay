@@ -39,13 +39,14 @@ def _x(rec: dict[str, Any]) -> dict[str, Any]:
     return x if isinstance(x, dict) else {}
 
 
-def links(audit_log: Any, authorization_id: str) -> list[dict[str, Any]]:
+def links(audit_log: Any, authorization_id: str,
+          events: tuple[str, ...] = EVENTS) -> list[dict[str, Any]]:
     """Every chain link of one mandate, oldest first. Uses the store's own
     query when it has one (Supabase), else scans the records it holds."""
     if hasattr(audit_log, "find_mandate"):
-        return audit_log.find_mandate(authorization_id)
+        return audit_log.find_mandate(authorization_id, events)
     return [r for r in list(getattr(audit_log, "records", []) or [])
-            if _p(r).get("event") in EVENTS and _x(r).get("authorization_id") == authorization_id]
+            if _p(r).get("event") in events and _x(r).get("authorization_id") == authorization_id]
 
 
 def state(audit_log: Any, authorization_id: str) -> dict[str, Any] | None:

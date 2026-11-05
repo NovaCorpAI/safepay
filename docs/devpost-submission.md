@@ -112,7 +112,9 @@ compute, a batch of purchases) an agent opens a mandate: the ceiling is judged
 like any payment and authorized with PayPal (Orders v2, intent AUTHORIZE), each
 capture is checked on its own (the agent that opened it, not frozen, within what
 is left) before PayPal is called, and closing voids the rest and gives it back
-to the daily cap. Every released payout
+to the daily cap. The agent card lives in PayPal's Vault (v3), so mandates are
+authorized with a payment token, and PayPal's capture and void webhooks are
+re-read and chained as settlements. Every released payout
 is sealed: the note PayPal shows the recipient carries a seal id ("Sealed by
 SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE"), and
 that public page shows the payee, with the address masked, the signed record of

@@ -68,7 +68,15 @@ class PayPalClient:
         for attempt in (1, 2):
             h = dict(headers or {})
             h["Authorization"] = f"Bearer {self._access_token()}"
-            resp = requests.request(method.upper(), url, headers=h, **kw)
+            for tries in range(3):
+                try:
+                    resp = requests.request(method.upper(), url, headers=h, **kw)
+                    break
+                except requests.exceptions.ConnectTimeout:
+                    # The connection never opened, so PayPal never saw the
+                    # request: retrying cannot pay twice.
+                    if tries == 2:
+                        raise
             if resp.status_code != 401 or attempt == 2:
                 return resp
             self._token, self._token_exp = None, 0.0
@@ -186,9 +194,31 @@ class PayPalClient:
             raise PayPalError(f"PayPal GET failed ({resp.status_code})")
         return resp.json()
 
+    def vault_card(self) -> dict[str, Any]:
+        """Save the agent card in PayPal's Vault (v3): a setup token, then a
+        payment token. The card number is sent once, here; every mandate
+        after that is authorized with the token. Returns {vault_id, brand,
+        last_digits, mode}."""
+        if not self.live:
+            return {"mode": "simulated", "vault_id": f"SIMVAULT{uuid.uuid4().hex[:10].upper()}",
+                    "brand": "VISA", "last_digits": self.SANDBOX_CARD["number"][-4:]}
+        if "sandbox" not in self._cfg.paypal_base_url:
+            raise PayPalError("the vaulted card here is PayPal's sandbox test card")
+        setup = self._post("/v3/vault/setup-tokens",
+                           {"payment_source": {"card": dict(self.SANDBOX_CARD)}}, None)
+        token = self._post("/v3/vault/payment-tokens",
+                           {"payment_source": {"token": {"id": setup.get("id"), "type": "SETUP_TOKEN"}}},
+                           None)
+        card = (token.get("payment_source") or {}).get("card") or {}
+        if not token.get("id"):
+            raise PayPalError("PayPal returned no payment token")
+        return {"mode": "sandbox", "vault_id": token["id"], "brand": card.get("brand"),
+                "last_digits": card.get("last_digits")}
+
     def authorize(self, amount: float, currency: str = "USD", description: str = "",
-                  idempotency_key: str | None = None) -> dict[str, Any]:
-        """Create an order with intent AUTHORIZE and authorize it at once.
+                  idempotency_key: str | None = None, vault_id: str | None = None) -> dict[str, Any]:
+        """Create an order with intent AUTHORIZE and authorize it at once,
+        charging the vaulted card when `vault_id` is given.
         Returns {mode, order_id, authorization_id, status, amount, expires}."""
         if not self.live:
             tag = uuid.uuid4().hex[:12].upper()
@@ -201,7 +231,8 @@ class PayPalClient:
         body = {"intent": "AUTHORIZE",
                 "purchase_units": [{"amount": {"currency_code": currency, "value": f"{amount:.2f}"},
                                     "description": (description or "SafePay mandate")[:127]}],
-                "payment_source": {"card": dict(self.SANDBOX_CARD)}}
+                "payment_source": {"card": {"vault_id": vault_id} if vault_id
+                                   else dict(self.SANDBOX_CARD)}}
         order = self._post("/v2/checkout/orders", body, idempotency_key)
         auths = (((order.get("purchase_units") or [{}])[0].get("payments") or {})
                  .get("authorizations") or [])
@@ -210,7 +241,8 @@ class PayPalClient:
         a = auths[0]
         return {"mode": "sandbox", "order_id": order.get("id"), "authorization_id": a.get("id"),
                 "status": a.get("status"), "amount": a.get("amount"),
-                "expires": a.get("expiration_time")}
+                "expires": a.get("expiration_time"),
+                "payment_source": "vault" if vault_id else "card"}
 
     def capture_authorization(self, authorization_id: str, amount: float, currency: str = "USD",
                               final: bool = False, note: str = "", invoice_id: str = "",

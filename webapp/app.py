@@ -718,6 +718,14 @@ def paypal_webhook():
     if not _agent.paypal.verify_webhook(dict(request.headers), event, webhook_id):
         return jsonify({"error": "webhook signature not verified"}), 403
     res = event.get("resource") or {}
+    etype = str(event.get("event_type") or "")
+    if etype.startswith("PAYMENT.CAPTURE.") or etype == "PAYMENT.AUTHORIZATION.VOIDED":
+        try:
+            return jsonify(dict(_agent.settle_payment_event(etype, res, source="webhook"), ok=True))
+        except ValueError as exc:
+            return jsonify({"ok": True, "ignored": str(exc)})
+        except Exception as exc:
+            return jsonify({"error": f"PayPal lookup failed: {exc}"}), 502
     batch_id = (res.get("payout_batch_id")
                 or (res.get("batch_header") or {}).get("payout_batch_id"))
     if not batch_id:

@@ -232,9 +232,14 @@ class SafePayAgent:
                                       "note": "payment execution disabled on this instance"}
             else:
                 try:
+                    card = self._vaulted_card()
                     res = self.paypal.authorize(intent.amount, intent.currency,
                                                 intent.purpose or intent.task_goal,
-                                                intent.idempotency_key)
+                                                intent.idempotency_key,
+                                                vault_id=(card or {}).get("vault_id"))
+                    if card:
+                        res = dict(res, card={"brand": card.get("brand"),
+                                              "last_digits": card.get("last_digits")})
                     decision.executed = True
                     decision.execution = dict(res, method="authorize")
                     self.guardrail.commit_spend(decision)
@@ -249,6 +254,82 @@ class SafePayAgent:
         auth = (decision.execution or {}).get("authorization_id")
         out["mandate"] = mandate.state(self.audit_log, auth) if decision.executed and auth else None
         return out
+
+    def _vaulted_card(self) -> dict[str, Any] | None:
+        """The agent card saved in PayPal's Vault, created on first use and
+        kept in the control store. None if the Vault is not available (then
+        the mandate is authorized with the card itself)."""
+        key = f"paypal:vault:{self.paypal.mode}"
+        try:
+            saved = self.control.setting(key)
+            if isinstance(saved, dict) and saved.get("vault_id"):
+                return saved
+            card = self.paypal.vault_card()
+            self.control.set_setting(key, card)
+            return card
+        except Exception:
+            return None
+
+    def settle_payment_event(self, event_type: str, resource: dict[str, Any],
+                             source: str = "webhook") -> dict[str, Any]:
+        """A PayPal capture or authorization event for a mandate. The state
+        is re-read from PayPal (never trusted from the event) and chained as
+        a settlement link of the mandate. A capture of an authorization
+        SafePay never opened is money that moved outside the firewall."""
+        is_capture = event_type.startswith("PAYMENT.CAPTURE.")
+        rid = str(resource.get("id") or "")
+        if not rid:
+            raise ValueError("event without a resource id")
+        body = self.paypal.get_json(("/v2/payments/captures/" if is_capture
+                                     else "/v2/payments/authorizations/") + rid)
+        status = str(body.get("status") or "")
+        amt = body.get("amount") or {}
+        auth_id = rid if not is_capture else str(
+            ((body.get("supplementary_data") or {}).get("related_ids") or {}).get("authorization_id")
+            or ((resource.get("supplementary_data") or {}).get("related_ids") or {}).get("authorization_id")
+            or "")
+        st = mandate.state(self.audit_log, auth_id) if auth_id else None
+        if st is None:
+            if not is_capture:
+                return {"ignored": True, "reason": "not a SafePay mandate", "status": status}
+            why = (f"capture {rid} of authorization {auth_id or '?'} that SafePay never opened "
+                   f"(reported by {source}; PayPal status {status})")
+            decision = Decision(
+                verdict=Verdict.BLOCK,
+                intent=PaymentIntent(recipient="unknown", amount=float(amt.get("value") or 0),
+                                     currency=amt.get("currency_code") or "USD", category="outside",
+                                     agent_id="outside-safepay"),
+                checks=[CheckResult("firewall", False, Severity.CRITICAL, why, 1.0,
+                                    [{"rule": "outside_firewall", "capture_id": rid}])],
+                reasons=[f"firewall: {why}"], executed=status == "COMPLETED",
+                execution={"capture_id": rid, "authorization_id": auth_id, "status": status,
+                           "source": source, "outside": True},
+                event="outside")
+            record = self.audit_log.append(decision)
+            return {"outside": True, "seq": record["payload"].get("seq"), "status": status}
+        prior = mandate.links(self.audit_log, auth_id, ("settlement",))
+        for r in prior:
+            x = (r.get("payload") or {}).get("execution") or {}
+            if x.get("resource_id") == rid and x.get("status") == status:
+                return {"duplicate": True, "seq": (r.get("payload") or {}).get("seq"), "status": status}
+        ok = status in ("COMPLETED", "VOIDED", "CAPTURED", "PARTIALLY_CAPTURED")
+        bad = status in ("DECLINED", "DENIED", "FAILED", "REVERSED", "REFUNDED", "PARTIALLY_REFUNDED")
+        verdict = Verdict.ALLOW if ok else Verdict.BLOCK if bad else Verdict.HOLD
+        what = "capture" if is_capture else "authorization"
+        intent = PaymentIntent(recipient=st["recipient"] or "", amount=float(amt.get("value") or 0),
+                               currency=amt.get("currency_code") or st["currency"],
+                               category=st["category"] or "purchase", merchant_name=st["merchant"],
+                               agent_id=st["agent_id"] or "", purpose=f"PayPal {event_type}")
+        decision = Decision(verdict=verdict, intent=intent, checks=[],
+                            reasons=[f"settlement: {what} {rid} is {status} at PayPal ({source})"],
+                            executed=ok and is_capture, event="settlement",
+                            policy_hash=st["policy_hash"],
+                            execution={"authorization_id": auth_id, "resource_id": rid,
+                                       "capture_id": rid if is_capture else None,
+                                       "status": status, "event_type": event_type, "source": source})
+        record = self.audit_log.append(decision)
+        return {"duplicate": False, "seq": record["payload"].get("seq"), "status": status,
+                "authorization_id": auth_id}
 
     def _frozen(self, agent_id: str) -> str | None:
         try:

@@ -577,8 +577,14 @@ state is read back from those links, so there is no second store that could
 disagree with the chain. Verified against the PayPal sandbox: USD 300
 authorized, USD 180 captured and sealed, a USD 200 draw and a draw by another
 agent blocked before PayPal was called, USD 120 voided; PayPal reports the
-authorization as VOIDED. In the sandbox, PayPal's published test card stands in
-for the company card (a vaulted payment token in production). Console card,
+authorization as VOIDED. The agent card lives in PayPal's Vault (v3): SafePay
+saves it once (setup token, then payment token) and every mandate after that is
+authorized with the token, never with the card number; in the sandbox that card
+is PayPal's published test card. PayPal's own events close the loop: a
+`PAYMENT.CAPTURE.*` or `PAYMENT.AUTHORIZATION.VOIDED` webhook is verified,
+re-read from PayPal's API and chained as a settlement of the mandate, and a
+capture of an authorization SafePay never opened is chained as money that moved
+outside the firewall. Console card,
 `POST /api/mandates`, `/api/mandates/<id>/capture` and `/close`, the
 `safepay_open_mandate`, `safepay_capture` and `safepay_close_mandate` MCP tools,
 or `SafePayAgent.open_mandate` / `capture` / `close_mandate`.
