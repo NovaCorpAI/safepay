@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Pricing{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Pricing</span>
+  <h1>Open source to start. Pay when agents move real money.</h1>
+  <p>The guardrail, the MCP server and this console are MIT-licensed and free to self-host with your own keys. The hosted service charges for <b>decisions</b>: one payment an agent asked SafePay to judge. A decision is what costs us money (a live-web lookup and two model calls when it is not cached; a policy block costs nothing), so the price follows the cost, and you always know what a month will cost before it ends.</p>
+</div>
+
+<div class="plans section">
+  <div class="plan">
+    <div class="pname">Open source</div>
+    <div class="price">USD 0<span>forever</span></div>
+    <p class="pdesc">The whole guardrail, self-hosted.</p>
+    <ul>
+      <li>Python library, CLI, MCP server (13 tools), this console</li>
+      <li>Bring your own PayPal, Tavily and Nebius keys</li>
+      <li>Hash-chained, HMAC-signed audit log</li>
+      <li>MIT license, <code>pip install safepay</code></li>
+    </ul>
+    <a class="pbtn ghost" href="https://github.com/NovaCorpAI/safepay" target="_blank" rel="noopener">Get the code</a>
+  </div>
+  <div class="plan">
+    <div class="pname">Sandbox</div>
+    <div class="price">USD 0<span>/ month</span></div>
+    <p class="pdesc">Hosted, for building and testing an agent.</p>
+    <ul>
+      <li>1,000 decisions a month</li>
+      <li>PayPal sandbox only, our web and model keys included</li>
+      <li>Policy in plain words, approvals in the console</li>
+      <li>30-day chain retention</li>
+    </ul>
+    <a class="pbtn ghost" href="#early">Request access</a>
+  </div>
+  <div class="plan featured">
+    <div class="ribbon">Most teams</div>
+    <div class="pname">Team</div>
+    <div class="price">USD 149<span>/ month</span></div>
+    <p class="pdesc">Agents that pay real vendors.</p>
+    <ul>
+      <li>10,000 decisions a month, then USD 0.015 each</li>
+      <li>Live PayPal: Payouts, Orders through the Agent Toolkit</li>
+      <li>Unlimited agents, agent keys, freeze switch</li>
+      <li>One-tap approvals on Telegram, Slack next</li>
+      <li>Outside-the-firewall alerts, settlement webhooks</li>
+      <li>1-year chain retention, signed exports</li>
+    </ul>
+    <a class="pbtn primary" href="#early">Start with Team</a>
+  </div>
+  <div class="plan">
+    <div class="pname">Business</div>
+    <div class="price">USD 799<span>/ month</span></div>
+    <p class="pdesc">Finance and security sign off on it.</p>
+    <ul>
+      <li>60,000 decisions a month, then USD 0.010 each</li>
+      <li>Operator roles, SSO, approval rules per amount</li>
+      <li>Daily reconciliation against PayPal, automated</li>
+      <li>7-year chain retention for audit and disputes</li>
+      <li>99.9% uptime SLA, priority support</li>
+    </ul>
+    <a class="pbtn ghost" href="#early">Talk to us</a>
+  </div>
+</div>
+
+<div class="grid section">
+  <div class="card">
+    <h2>Platforms and payment providers</h2>
+    <p class="muted" style="font-size:14.5px">Agent platforms and PSPs embed SafePay so every agent on them pays through the same firewall: white-label console, per-tenant policies, the chain anchored to a public ledger for independent verification, a dedicated model deployment. Priced on volume, by contract.</p>
+  </div>
+  <div class="card">
+    <h2>Services</h2>
+    <ul class="rules">
+      <li><b>Onboarding</b>: your policy written with you, the integration in front of your agent, the vendor directory built from your payables. Two weeks, USD 2,500, credited against a year of Business.</li>
+      <li><b>Agent payment audit</b>: our attack benchmark, extended to your agent and your PayPal flows (injected invoices, lookalike vendors, inflated amounts, drains), with a report and the fixes. USD 4,000.</li>
+    </ul>
+  </div>
+</div>
+
+<section class="section proof">
+  <h2>Why the numbers hold</h2>
+  <div class="card">
+    <div class="over"><table>
+      <tr><th>Cost per decision</th><th>USD</th><th>Basis</th></tr>
+      <tr><td>Live-web lookup (Tavily, 1 search)</td><td class="n">0.005 to 0.008</td><td>Tavily plan or pay-as-you-go rate</td></tr>
+      <tr><td>Two Nemotron calls (merchant judgment, intent)</td><td class="n">about 0.003</td><td>about 3k input and 2k output tokens at USD 0.30 and 0.90 per million on Nebius</td></tr>
+      <tr><td>A payment blocked by policy</td><td class="n">0</td><td>no model call, no search</td></tr>
+      <tr><td>A repeated payment (same payee and task)</td><td class="n">0</td><td>served from the 24-hour check cache</td></tr>
+      <tr><td><b>Blended, typical payables mix</b></td><td class="n"><b>about 0.005</b></td><td>gross margin about 65% on Team at full use, more below it</td></tr>
+    </table></div>
+    <p class="note">Prices are our launch proposal for the hosted service, built on measured cost per decision; the first teams are onboarded by hand and shape them. Payment volume itself is never taxed: you pay for the judgment, not a percentage of the money.</p>
+  </div>
+</section>
+
+<section class="card early accent section" id="early">
+  <h2>Early access</h2>
+  <p>Tell us what your agents pay for. We put SafePay in front of their PayPal payouts with you, by hand.</p>
+  <form id="early-form" novalidate>
+    <div class="row2">
+      <div><label for="e-email">Work email</label><input id="e-email" type="email" autocomplete="email" placeholder="you@company.com" required></div>
+      <div><label for="e-company">Company (optional)</label><input id="e-company" autocomplete="organization" placeholder="Acme"></div>
+    </div>
+    <div class="row2">
+      <div><label for="e-use">What does your agent pay for? (optional)</label><input id="e-use" placeholder="SaaS invoices, contractor payouts, ad spend…"></div>
+      <div><label for="e-vol">Monthly volume</label>
+        <select id="e-vol"><option value="unknown">Not sure yet</option><option value="under_1k">Under USD 1,000</option><option value="1k_10k">USD 1,000 to 10,000</option><option value="10k_100k">USD 10,000 to 100,000</option><option value="over_100k">Over USD 100,000</option></select></div>
+    </div>
+    <div class="btns"><button class="primary" type="submit" id="early-submit">Request early access</button></div>
+    <p class="msg" id="early-msg" aria-live="polite"></p>
+    <p class="note">Stored in SafePay's own database and used only to contact you about SafePay. No newsletter.</p>
+  </form>
+</section>
+{% endblock %}

@@ -374,3 +374,24 @@ code { background: rgba(43,58,140,.06); padding: 1px 4px; border-radius: 3px; }
 .flow .cap { color: #b3aa98; } .flow .cap b { color: #f3eee4; font-family: var(--mono); }
 .flow .legend { color: #b3aa98; } .flow .dim { color: #8d846f; }
 .flow .ghost { color: #f3eee4; border-color: #4a4538; } .flow .ghost:hover { background: #2a2820; }
+
+/* Pricing */
+.plans { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: stretch; }
+@media (max-width: 980px) { .plans { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .plans { grid-template-columns: 1fr; } }
+.plan { position: relative; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line2);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px 18px 18px; border-top: 3px solid var(--line2); }
+.plan.featured { border-top-color: var(--seal); box-shadow: 0 14px 34px -18px rgba(43,58,140,.45); }
+.plan .ribbon { position: absolute; top: -12px; right: 14px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em;
+  text-transform: uppercase; background: var(--seal); color: #fbf8f2; padding: 3px 8px; border-radius: 3px; }
+.plan .pname { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink2); }
+.plan .price { font-family: var(--serif); font-size: 34px; font-weight: 600; margin-top: 8px; letter-spacing: -.02em; }
+.plan .price span { font-family: var(--font); font-size: 13px; color: var(--muted); font-weight: 400; margin-left: 6px; }
+.plan .pdesc { color: var(--muted); font-size: 14px; margin-top: 4px; min-height: 2.6em; }
+.plan ul { list-style: none; padding: 0; margin: 14px 0 18px; font-size: 13.5px; flex: 1; }
+.plan li { padding: 6px 0 6px 18px; border-bottom: 1px dashed var(--line); position: relative; }
+.plan li::before { content: "✓"; position: absolute; left: 0; color: var(--allow); font-weight: 700; }
+.plan .pbtn { display: block; text-align: center; text-decoration: none; padding: 10px 14px; border-radius: var(--radius-sm);
+  font-weight: 600; font-size: 14px; }
+.plan .pbtn.primary { background: var(--seal); color: #fbf8f2; }
+.plan .pbtn.ghost { border: 1px solid var(--line2); color: var(--fg); }

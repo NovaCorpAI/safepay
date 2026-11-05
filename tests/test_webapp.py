@@ -38,6 +38,8 @@ def test_pages_render(client):
     assert b"audit-grid" in client.get("/ledger").data              # the AG Grid mount point
     assert b"policy-text" in client.get("/console").data
     assert b"agents-list" in client.get("/agents").data
+    pricing = client.get("/pricing").data
+    assert b"USD 149" in pricing and b'id="early-form"' in pricing
     assert client.get("/static/app.js").status_code == 200
     assert client.get("/static/flow.js").status_code == 200
 

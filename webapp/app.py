@@ -139,7 +139,7 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
-VERSION = "0.4.1"   # also the cache-buster on /static assets
+VERSION = "0.4.2"   # also the cache-buster on /static assets
 
 
 def _page(name: str):
@@ -179,6 +179,11 @@ def agents_page():
 @app.get("/ledger")
 def ledger_page():
     return _page("ledger")
+
+
+@app.get("/pricing")
+def pricing_page():
+    return _page("pricing")
 
 
 @app.get("/api/scenarios")

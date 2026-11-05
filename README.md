@@ -453,6 +453,19 @@ in a loop. SafePay watches the account two ways:
 Both paths are idempotent per payout, so a webhook retry or a second
 reconcile never flags the same money twice.
 
+## Business model
+
+Open core, priced on decisions (one payment an agent asked SafePay to
+judge). Self-hosting is free and MIT forever. The hosted service: Sandbox
+free (1,000 decisions a month), Team USD 149 a month (10,000 decisions, live
+PayPal, Telegram approvals), Business USD 799 a month (60,000 decisions,
+SSO, automated reconciliation, seven-year retention), and volume contracts
+for agent platforms and payment providers, plus onboarding and agent
+payment audits as services. An uncached decision costs about USD 0.011 in
+web and model calls and the blended cost with the check cache is about
+USD 0.005, so the price follows the cost and nobody pays a percentage of
+the money moved. Details: [/pricing](https://safepay.agentposhq.com/pricing).
+
 ## Durable state (Supabase)
 
 By default the spend ledger, the audit chain and the approval queue live in

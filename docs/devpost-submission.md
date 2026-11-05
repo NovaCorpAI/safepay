@@ -146,6 +146,37 @@ cheap deterministic rules should run first and stop the obvious cases for free;
 the model should be spent only on the judgment calls; and the live web belongs
 as a soft signal in front of a human, never as a silent gate.
 
+## Business model (monetization)
+Open core, priced on decisions. The guardrail, the MCP server and the console
+are MIT-licensed and free to self-host with your own keys; that is how
+developers adopt it. The hosted service charges for decisions, one payment
+an agent asked SafePay to judge, because a decision is what costs money: a
+live-web lookup and two model calls when it is not cached, nothing when
+policy blocks it or the same payment was judged in the last day.
+
+- Open source: free forever, self-hosted.
+- Sandbox: free, 1,000 decisions a month, PayPal sandbox only.
+- Team: USD 149 a month, 10,000 decisions, then USD 0.015 each. Live PayPal
+  (Payouts, Agent Toolkit orders), unlimited agents and keys, Telegram
+  approvals, outside-the-firewall alerts, one-year chain retention.
+- Business: USD 799 a month, 60,000 decisions, then USD 0.010 each. Operator
+  roles and SSO, automated reconciliation against PayPal, seven-year chain
+  retention for audit and disputes, 99.9% SLA.
+- Platforms and payment providers: embedded and white-label, per-tenant
+  policies, the chain anchored to a public ledger, priced on volume.
+- Services: onboarding (policy and integration, two weeks, USD 2,500,
+  credited against a year of Business) and an agent payment audit (our
+  attack benchmark extended to the customer's agent and PayPal flows,
+  USD 4,000).
+
+Unit economics: an uncached decision costs about USD 0.011 (one Tavily
+search at USD 0.005 to 0.008, two Nemotron calls at about USD 0.003 on
+Nebius); with policy blocks and the 24-hour check cache the blended cost
+is about USD 0.005, so Team keeps a gross margin around 65% at full use.
+We charge for the judgment, never a percentage of the money moved. These
+are launch prices built on measured cost; the first teams, onboarded by
+hand, will shape them. Pricing is on the site: /pricing.
+
 ## What is next for SafePay
 SafePay already runs as an MCP server, so any MCP agent (Claude Desktop, Cursor,
 an agent framework) can install it as a spending gate with no code. Next: anchor
