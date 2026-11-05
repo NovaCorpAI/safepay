@@ -80,14 +80,15 @@
   <h2>Why the numbers hold</h2>
   <div class="card">
     <div class="over"><table>
-      <tr><th>Cost per decision</th><th>USD</th><th>Basis</th></tr>
-      <tr><td>Live-web lookup (Tavily, 1 search)</td><td class="n">0.005 to 0.008</td><td>Tavily plan or pay-as-you-go rate</td></tr>
-      <tr><td>Two Nemotron calls (merchant judgment, intent)</td><td class="n">about 0.003</td><td>about 3k input and 2k output tokens at USD 0.30 and 0.90 per million on Nebius</td></tr>
+      <tr><th>Cost per decision (measured)</th><th>USD</th><th>Basis</th></tr>
+      <tr><td>Live-web lookup (Tavily, 1 search)</td><td class="n">0.005 to 0.008</td><td>Tavily plan or pay-as-you-go rate; 90% of the variable cost</td></tr>
+      <tr><td>Two Nemotron calls (merchant judgment, intent)</td><td class="n">0.0006</td><td>measured: about 770 input and 200 output tokens per call at USD 0.30 and 0.90 per million on Nebius</td></tr>
+      <tr><td>A payment that passes policy (full checks)</td><td class="n">0.0056 to 0.0086</td><td>one search plus two model calls</td></tr>
       <tr><td>A payment blocked by policy</td><td class="n">0</td><td>no model call, no search</td></tr>
       <tr><td>A repeated payment (same payee and task)</td><td class="n">0</td><td>served from the 24-hour check cache</td></tr>
-      <tr><td><b>Blended, typical payables mix</b></td><td class="n"><b>about 0.005</b></td><td>gross margin about 65% on Team at full use, more below it</td></tr>
+      <tr><td><b>Blended, measured on 37 decisions</b></td><td class="n"><b>0.0032 to 0.0048</b></td><td>the 7 demo scenarios and the 30 benchmark payments, no cache</td></tr>
     </table></div>
-    <p class="note">Prices are our launch proposal for the hosted service, built on measured cost per decision; the first teams are onboarded by hand and shape them. Payment volume itself is never taxed: you pay for the judgment, not a percentage of the money.</p>
+    <p class="note">At full use Team costs us USD 32 to 86 in web and model calls (gross margin 42% in the worst case, every payment new and checked at pay-as-you-go rates; about 70% at the measured mix). For comparison, card fraud screening is sold at about USD 0.05 per screened transaction. Prices are our launch proposal for the hosted service; the first teams are onboarded by hand and shape them. Payment volume is never taxed: you pay for the judgment, not a percentage of the money, and PayPal's own fees stay on your PayPal account.</p>
   </div>
 </section>
 

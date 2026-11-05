@@ -169,10 +169,15 @@ policy blocks it or the same payment was judged in the last day.
   attack benchmark extended to the customer's agent and PayPal flows,
   USD 4,000).
 
-Unit economics: an uncached decision costs about USD 0.011 (one Tavily
-search at USD 0.005 to 0.008, two Nemotron calls at about USD 0.003 on
-Nebius); with policy blocks and the 24-hour check cache the blended cost
-is about USD 0.005, so Team keeps a gross margin around 65% at full use.
+Unit economics, measured on 37 decisions (the demo scenarios and the
+benchmark payments) with token counts from Nebius: a payment that passes
+policy costs USD 0.0056 to 0.0086 (one Tavily search at USD 0.005 to 0.008,
+which is 90% of it, and two Nemotron calls at USD 0.0006 together, about
+770 input and 200 output tokens each); a policy block or a cached repeat
+costs nothing; the measured blend is USD 0.0032 to 0.0048 per decision.
+Team at full use costs us USD 32 to 86, a gross margin of about 70% at the
+measured mix and 42% in the worst case. Card fraud screening sells at about
+USD 0.05 per screened transaction, so a decision at USD 0.015 is cheap.
 We charge for the judgment, never a percentage of the money moved. These
 are launch prices built on measured cost; the first teams, onboarded by
 hand, will shape them. Pricing is on the site: /pricing.

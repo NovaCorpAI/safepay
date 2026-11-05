@@ -461,10 +461,12 @@ free (1,000 decisions a month), Team USD 149 a month (10,000 decisions, live
 PayPal, Telegram approvals), Business USD 799 a month (60,000 decisions,
 SSO, automated reconciliation, seven-year retention), and volume contracts
 for agent platforms and payment providers, plus onboarding and agent
-payment audits as services. An uncached decision costs about USD 0.011 in
-web and model calls and the blended cost with the check cache is about
-USD 0.005, so the price follows the cost and nobody pays a percentage of
-the money moved. Details: [/pricing](https://safepay.agentposhq.com/pricing).
+payment audits as services. Measured cost: a payment that passes policy
+costs USD 0.0056 to 0.0086 in web and model calls (the Tavily search is 90%
+of it; the two Nemotron calls cost USD 0.0006 together), a policy block or
+a cached repeat costs nothing, and the blend over the demo and benchmark
+payments is USD 0.0032 to 0.0048, so the price follows the cost and nobody
+pays a percentage of the money moved. Details: [/pricing](https://safepay.agentposhq.com/pricing).
 
 ## Durable state (Supabase)
 
