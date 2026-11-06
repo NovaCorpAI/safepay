@@ -5,6 +5,7 @@
   const el = $('proof-grid'); if (!el || !window.agGrid) return;
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const LABEL = { payout: 'Payout batch', order: 'Order', authorization: 'Authorization', capture: 'Capture' };
+  const PLURAL = { payout: 'payout batches', order: 'orders', authorization: 'authorizations', capture: 'captures' };
   const GOOD = ['SUCCESS', 'COMPLETED', 'CAPTURED', 'VOIDED', 'CREATED', 'APPROVED', 'PARTIALLY_CAPTURED'];
   let api = null;
 
@@ -48,7 +49,7 @@
     api.setGridOption('rowData', d.items || []);
     const c = d.counts || {};
     $('proof-counts').innerHTML = ['payout', 'order', 'authorization', 'capture'].map(k =>
-      `<div class="stat"><div class="n">${c[k] || 0}</div><div class="l">${LABEL[k].toLowerCase()}s in the PayPal sandbox</div></div>`).join('');
+      `<div class="stat"><div class="n">${c[k] || 0}</div><div class="l">${PLURAL[k]} in the PayPal sandbox</div></div>`).join('');
     const st = $('proof-status');
     st.className = 'status ' + (d.chain_ok ? 'ok' : 'bad');
     st.textContent = (d.chain_ok ? '✓ chain verified, ' : '✗ chain broken, ') + d.links + ' links read · PayPal ' + d.paypal_mode;
