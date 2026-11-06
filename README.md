@@ -25,6 +25,10 @@ Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 to the real PayPal sandbox, and the web check (Tavily) and the reasoning
 (NVIDIA Nemotron on Nebius) run live. Each browser gets its own session.
 
+Short on time? **[Take the 3-minute tour](https://safepay.agentposhq.com/?tour=1)**:
+ten steps across the real pages (not a demo page), with a button that runs the
+scenarios or the chain check for you. Arrow keys move, Esc ends it.
+
 1. **Console → type a policy in plain words → Draft → Apply.** For example
    "Up to $500 per payment and $1,000 a day. Ask me before anything over $300.
    No gambling or crypto." Nemotron drafts the rules; you see every field before
@@ -451,6 +455,21 @@ policy" demo raises the cap to USD 100,000 without re-signing), the next
 payment is blocked with "the policy was changed after it was signed", and
 nothing moves until the operator signs again. Code: `safepay/opsig.py`.
 
+### Learned from your own decisions
+
+Every held payment a person approved or rejected is a link in the chain.
+**Learn from my approvals** reads them back and proposes what the written
+policy is missing, as a draft that goes through the same review and the same
+operator signature as any other: a vendor approved 2 or more times and never
+rejected joins the vendor directory at the median approved amount; a
+recipient or category rejected 2 or more times and never approved is blocked.
+Each proposal cites the chain links it rests on. Loosening (raising the "ask
+me" threshold) is only ever asked, never drafted. When Nemotron is configured
+it reviews the proposals and explains each in a sentence, and may advise
+dropping one; it never sees payment free text and cannot add or change a
+rule, so an injected invoice cannot write policy. Nothing applies by itself.
+Code: `safepay/learn.py`, `POST /api/policy/learn`.
+
 ## Human in the loop (HOLD is a workflow, not a dead end)
 
 When a soft check raises a concern inside the policy limits, or a payment is
@@ -601,6 +620,32 @@ outside the firewall. Console card,
 `safepay_open_mandate`, `safepay_capture` and `safepay_close_mandate` MCP tools,
 or `SafePayAgent.open_mandate` / `capture` / `close_mandate`.
 
+### AP2 mandates on top
+
+AP2 (the Agent Payments Protocol) carries three signed objects through an
+agentic purchase; SafePay produces and checks them on its PayPal mandates,
+with the field names of the AP2 SDK (`ap2.models.mandate`, `payment_request`):
+
+- **IntentMandate**, signed by the operator. Opening a mandate in the console
+  sends one, signed in the browser with the same P-256 key that signs the
+  policy (an ES256 compact JWS whose `transaction_data` carries the sha256 of
+  the mandate). SafePay verifies it before PayPal is called, against the
+  session's pinned operator key when there is one, and then enforces it: a
+  payee outside its `merchants` is blocked, and no capture is allowed after
+  its `intent_expiry`.
+- **CartMandate**, built from the AgentPOS store's own quote as a W3C
+  PaymentRequest. Its total must be the ceiling being authorized and it must
+  come from the payee's domain. The store does not sign AP2 carts yet, so
+  `merchant_authorization` is null, and says so.
+- **PaymentMandate**, one per PayPal capture, bound to the intent and cart by
+  their hashes and signed with SafePay's published Ed25519 key
+  (`safepay_authorization`, an extension field; `user_authorization` stays
+  null because the person signed the intent, not each capture).
+
+`GET /api/mandates/<id>/ap2` returns all of them, rebuilt from the chain.
+Verified in production against the PayPal sandbox (authorization
+`74L74407C64042417`). Code: `safepay/ap2.py`.
+
 ## Buying from an agent-ready store (AgentPOS)
 
 [AgentPOS](https://agentposhq.com) is our open-source point of sale for AI
@@ -635,6 +680,17 @@ The check is chained, but the public link carries only a hash of the
 business, the verdict and the rule fired: no names, document numbers or
 amounts. Code: `safepay/purchase_check.py` here, `lib/safepay.ts` in Impulsa.
 
+What the owner does with each alert is measured: **Corregir** (corrected:
+an error that did not get saved, with its amount) or **Registrar igual**
+(recorded anyway: an alert that was not needed). Impulsa reports it back to
+SafePay (`POST /api/check/purchase/outcome`), shows each owner a "Protegido
+por SafePay" panel with their own tally, and the public aggregates are live at
+[`/api/impact`](https://safepay.agentposhq.com/api/impact) and on the home
+page, with the operator's own test accounts excluded. A backtest over the
+purchases Impulsa held before SafePay (20 supply purchases, one business)
+raised no alerts: no false alarms on clean data, from a sample too small to
+say more, which is why the live outcomes are the measure.
+
 ![Impulsa in production: SafePay stops a supplier document recorded twice](docs/img/impulsa-safepay-alert.png)
 ![Impulsa in production: a unit cost 2.5x this product's purchase history is held](docs/img/impulsa-safepay-price.png)
 
@@ -656,6 +712,28 @@ what PayPal later reported for the payout. `GET /api/v/<id>` returns the same
 as JSON. A seal is derived from the idempotency key when there is one, so a
 retried payment keeps its seal. It turns "an agent paid you" into "an agent
 paid you, and here is the signed record of why it was allowed to".
+
+### A receipt anyone can verify, without SafePay
+
+The chain is HMAC-signed, which only SafePay can check. So every seal also
+has a receipt that does not need SafePay at all: `{body, hash, signature}`,
+the same envelope as AgentPOS merchant receipts, where `hash` is the sha256 of
+the canonical body and `signature` is Ed25519 over
+`"safepay-receipt-1" LF hash`. The public key is published at
+[`/.well-known/safepay-seal-keys.json`](https://safepay.agentposhq.com/.well-known/safepay-seal-keys.json).
+The receipt names the payee by domain and by the sha256 of its address (the
+payee can match it; nobody else learns the address), and carries the chain
+link's seq and hash. The seal page verifies it in the visitor's browser with
+WebCrypto; `POST /api/merchant/verify` returns it to the merchant; and
+offline, with the key file saved once:
+
+```bash
+python -m safepay.receipt receipt.json safepay-seal-keys.json
+# OK
+# SP-B821E3F9A7: USD 400 (minor units), payment.released, chain link #119
+```
+
+Code: `safepay/receipt.py`, `webapp/static/receipt.js`.
 
 ## Who is asking: agent keys and the operator token
 

@@ -120,7 +120,18 @@ is sealed: the note PayPal shows the recipient carries a seal id ("Sealed by
 SafePay SP-3F9A0C21BE. Verify: safepay.agentposhq.com/v/SP-3F9A0C21BE"), and
 that public page shows the payee, with the address masked, the signed record of
 why the payment was allowed: the checks it passed, the policy fingerprint, the
-hash and chain proofs and what PayPal reported. The web console shows this ledger as an
+hash and chain proofs and what PayPal reported. Each seal also carries a
+receipt anyone can verify without SafePay: Ed25519, public key at
+/.well-known/safepay-seal-keys.json, the same envelope as AgentPOS receipts,
+checked in the visitor's browser or offline. Mandates speak AP2: the operator
+signs an AP2 IntentMandate in the browser (ES256, the policy key) that
+SafePay verifies and enforces (merchants, expiry) before PayPal is called;
+an AgentPOS purchase adds a CartMandate from the store's quote; each capture
+is a PaymentMandate signed with the published key. And the policy learns
+from the operator: repeated, unanimous approvals and rejections become a
+signed-draft proposal (a vendor at its usual amount, a recipient or category
+blocked), each citing its chain links, reviewed by Nemotron, applied only
+when the operator signs it. The web console shows this ledger as an
 interactive table with a live verification badge, and a demo button that tampers
 with a row so you can watch the badge turn red.
 
@@ -168,6 +179,13 @@ goal mismatch attack that a pure rule set lets through: in the prompt-injection
 demo it holds a payment to an attacker that sat inside every spending limit,
 while allowing the real invoice. And every decision, allowed or blocked, leaves a
 signed, verifiable record in a chain you can re-verify.
+
+It runs inside a product with real users. Impulsa, our SaaS for
+micro-businesses in Chile, checks every supplier document with SafePay before
+saving it, and measures what each owner does with an alert (corrected or
+recorded anyway), so precision and money not double-recorded are counted,
+not estimated; the aggregates are public at /api/impact, test accounts
+excluded, zeros shown as zeros.
 
 We also measured it instead of asserting it. On a reproducible attack benchmark
 in the repo (17 realistic attacks on a wallet-holding agent, 8 legitimate
@@ -245,10 +263,11 @@ audit chain, write-only), and we onboard the first teams by hand: their agents'
 real payouts decide what SafePay builds next.
 
 ## Built with
-python, paypal, paypal-payouts, paypal-webhooks, paypal-agent-toolkit,
-model-context-protocol, nvidia-nemotron, nebius, tavily, telegram-bot-api,
-flask, gunicorn, ag-grid, supabase, postgres, vercel, render, hmac, sha-256,
-pypi
+python, paypal, paypal-payouts, paypal-orders, paypal-vault, paypal-webhooks,
+paypal-agent-toolkit, ap2, model-context-protocol, nvidia-nemotron, nebius,
+tavily, telegram-bot-api, flask, gunicorn, ag-grid, ag-studio, ag-charts,
+supabase, postgres, vercel, render, webcrypto, ed25519, ecdsa-p256, hmac,
+sha-256, pypi
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.
@@ -275,12 +294,17 @@ from the included render.yaml blueprint with gunicorn).
 8. `docs/img/gallery-proof.png`: every PayPal object in the chain, re-read live from PayPal's API.
 9. `docs/img/impulsa-safepay-alert.png`: SafePay inside Impulsa (production), a supplier document recorded twice.
 10. `docs/img/impulsa-safepay-price.png`: SafePay inside Impulsa, a unit cost 2.5x its history held.
+11. `docs/img/gallery-seal-receipt.png`: the seal's Ed25519 receipt, verified in the browser against the published key.
+12. `docs/img/gallery-tour.png`: the 3-minute judge tour, running the scenarios on the real console.
 
 ## Testing instructions (paste in Devpost's "testing instructions" field)
 Live demo: https://safepay.agentposhq.com . No login, no keys. Every PayPal
 call goes to the real PayPal sandbox; the web check (Tavily) and the
 reasoning (NVIDIA Nemotron on Nebius) run live. Each browser gets its own
 session.
+
+Fastest path: https://safepay.agentposhq.com/?tour=1 , a 3-minute guided tour
+across the real pages (it can run the scenarios and the chain check for you).
 
 1. Console: type a policy in plain words, e.g. "Up to $500 per payment and
    $1,000 a day. Ask me before anything over $300. No gambling or crypto."
@@ -306,7 +330,13 @@ session.
    PayPal, USD 180 captured and sealed, a USD 200 draw blocked (only 120 left),
    and the rest voided when the mandate closes.
    On any paid card, the "sealed SP-..." link opens the public verification
-   page the payee reaches from the PayPal note.
+   page the payee reaches from the PayPal note; its signed receipt is
+   verified in your browser against /.well-known/safepay-seal-keys.json.
+   The mandate legend links "AP2 mandates": the IntentMandate your browser
+   signed, and a signed PaymentMandate per capture.
+   After approving or rejecting a few held payments, press "Learn from my
+   approvals" under the policy: a draft citing the chain links, applied only
+   when you sign it.
 3. Proof: every PayPal sandbox id in the chain; press Ask PayPal on any row
    and PayPal's own API answers. Ledger: approve a held payment from the
    grid's Act column, then press Tamper (demo) and watch the chain badge turn red, then Verify

@@ -23,7 +23,7 @@
       x: "Each released payment carries a seal. Its receipt is signed with Ed25519 and verified right here, in your browser, against the key at /.well-known. Same envelope as AgentPOS receipts." },
     { path: "/proof", sel: "#proof-grid", t: "Don't trust our screenshots",
       x: "Every PayPal id in the chain, re-read live from PayPal: payouts, orders, authorizations, captures. If we invented one, PayPal says so." },
-    { path: "/", sel: ".impact", t: "In a real product, today",
+    { path: "/", sel: "#impulsa-impact|.impact", t: "In a real product, today",
       x: "Impulsa, a SaaS for Chilean micro-businesses, runs SafePay's purchase check on every supplier invoice. What owners did with each alert is measured, and shown here as live aggregates, test accounts excluded." },
   ];
   const get = () => { try { const v = sessionStorage.getItem(KEY); return v === null ? null : +v; } catch (e) { return null; } };
