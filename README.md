@@ -19,6 +19,11 @@ wallet-holding agent, not a claim.
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
 
+**We are looking for pilot teams and partners.** If you build agents that pay,
+run accounts payable, or work on payments or fraud and want to try SafePay
+with your own flows, write to **security@novacorplabs.com**. Pilots are free
+and onboarded by hand.
+
 ## Judge in 3 clicks
 
 **https://safepay.agentposhq.com** · no login, no keys; every PayPal call goes

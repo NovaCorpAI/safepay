@@ -347,6 +347,7 @@ Repository, tests (CI on every push) and the threat model:
 https://github.com/NovaCorpAI/safepay (SECURITY.md).
 
 ## Links
+- Looking for pilot teams and partners: security@novacorplabs.com (pilots are free and onboarded by hand)
 - Repo: https://github.com/NovaCorpAI/safepay
 - Demo video: (YouTube link, under 3 min, to add)
 - Live demo: https://safepay.agentposhq.com (no login, no setup)
