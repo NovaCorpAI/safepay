@@ -1,0 +1,17 @@
+{
+  "computed": "2026-11-06",
+  "source": "impulsa: compras_insumos (supply purchases), computed in the database, aggregate counts only",
+  "excluded": "operator test accounts",
+  "purchases": 20,
+  "businesses": 1,
+  "supplies": 9,
+  "period": ["2026-03-26", "2026-04-10"],
+  "rules": {
+    "price_above_history": {"evaluable": 4, "flagged": 0,
+      "method": "unit cost above 2x the median of at least 2 earlier purchases of the same supply by the same business"},
+    "duplicate_document": {"evaluable": 0, "flagged": 0,
+      "method": "this table stores no document number; exact repeats (same supply, supplier, date, quantity, total) checked instead",
+      "exact_repeats": 0}
+  },
+  "reading": "No false alarms on the real purchases that existed before SafePay. The sample is small (one business, 20 purchases), so it says the rules are quiet on clean data, not how many errors they catch; the live outcomes measure that."
+}
