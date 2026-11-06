@@ -461,6 +461,15 @@ class SafePayAgent:
 
     # --- operator controls: policy in plain words, freeze / resume an agent --
 
+    def learn_policy(self, run: str, scope: str = "session") -> dict[str, Any]:
+        """A policy draft from the operator's own approvals and rejections
+        (see learn.py). Nothing is applied: it goes through review and the
+        operator's signature like any draft."""
+        from . import learn
+        base = self.policy_for(f"console:{run}") if run else self.policy
+        records = list(getattr(self.audit_log, "records", []) or [])
+        return learn.learn(records, base, self.guardrail.chat, run if scope == "session" and run else None)
+
     def draft_policy(self, text: str, run: str = "") -> dict[str, Any]:
         """Plain words -> a validated policy draft (nothing applied)."""
         base = self.policy_for(f"console:{run}") if run else self.policy
@@ -580,6 +589,9 @@ class SafePayAgent:
             checks=list(held.decision.checks),
             reasons=list(held.decision.reasons) + [why],
             policy_hash=held.decision.policy_hash,
+            # Its own event, so the person's decision (and its reasons) are
+            # written into the link: policy learning reads them back.
+            event="approval",
         )
         self._release(decision)
         record = self.audit_log.append(decision)
@@ -598,6 +610,9 @@ class SafePayAgent:
             checks=list(held.decision.checks),
             reasons=list(held.decision.reasons) + [why],
             policy_hash=held.decision.policy_hash,
+            # Its own event, so the person's decision (and its reasons) are
+            # written into the link: policy learning reads them back.
+            event="approval",
         )
         record = self.audit_log.append(decision)
         self.approvals.resolve(approval_id, REJECTED, note)
@@ -627,7 +642,7 @@ class SafePayAgent:
         flight). Idempotent: the same state for the same batch is not appended
         twice. `source` says who asked (console, webhook, mcp, poll)."""
         links = self._links_for_batch(batch_id)
-        origin = next((p for p in links if p.get("event", "decision") == "decision"), None)
+        origin = next((p for p in links if p.get("event", "decision") in ("decision", "approval")), None)
         if origin is None:
             raise ValueError(f"no released payout '{batch_id}' in this audit log")
         state = self.paypal.get_payout(batch_id)

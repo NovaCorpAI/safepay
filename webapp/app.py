@@ -567,6 +567,17 @@ def policy_draft():
         return jsonify({"error": str(exc)}), 400
 
 
+@app.post("/api/policy/learn")
+def policy_learn():
+    """A policy draft learned from the operator's approve/reject links.
+    Nothing is applied here."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    scope = "all" if data.get("scope") == "all" else "session"
+    return jsonify(_agent.learn_policy(str(data.get("run", ""))[:16], scope))
+
+
 @app.post("/api/policy/apply")
 @operator_required
 def policy_apply():

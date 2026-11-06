@@ -266,6 +266,18 @@
     else if (!quiet) polMsg(r.error || 'could not apply', 'bad');
     return r;
   }
+  function showDraft(r) {
+    const props = r.proposals || [];
+    const lines = props.length
+      ? props.filter(p => p.kind !== 'question' && p.model_keep !== false).map(p => `<li>${esc(p.text)} <span class="muted">(links ${p.evidence.map(n => '#' + n).join(', ')})</span>${p.model_reason ? `<br><span class="muted">${esc(p.model_reason)}</span>` : ''}</li>`)
+      : (r.summary || []).map(s => `<li>${esc(s)}</li>`);
+    $('policy-summary').innerHTML = lines.join('');
+    $('policy-questions').innerHTML = (r.questions || []).map(s => `<li>${esc(s)}</li>`).join('');
+    $('policy-source').textContent = (r.source === 'rules' ? 'Read by the rule parser' : (props.length ? r.source[0].toUpperCase() + r.source.slice(1) : 'Read by ' + r.source)) +
+      (r.changed && r.changed.length ? ' · changes: ' + r.changed.join(', ') : ' · nothing changed from the policy in force');
+    $('policy-json').value = JSON.stringify(r.policy, null, 2);
+    $('policy-draft-box').classList.add('show');
+  }
   if ($('policy-draft')) {
     $('policy-draft').onclick = async () => {
       const btn = $('policy-draft'); const text = $('policy-text').value;
@@ -273,14 +285,23 @@
       try {
         const r = await (await fetch('/api/policy/draft', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ text, run: RUN }) })).json();
         if (r.error) { polMsg(r.error, 'bad'); return; }
-        $('policy-summary').innerHTML = (r.summary || []).map(s => `<li>${esc(s)}</li>`).join('');
-        $('policy-questions').innerHTML = (r.questions || []).map(s => `<li>${esc(s)}</li>`).join('');
-        $('policy-source').textContent = (r.source === 'rules' ? 'Read by the rule parser' : 'Read by ' + r.source) +
-          (r.changed && r.changed.length ? ' · changes: ' + r.changed.join(', ') : ' · nothing changed from the policy in force');
-        $('policy-json').value = JSON.stringify(r.policy, null, 2);
-        $('policy-draft-box').classList.add('show');
+        showDraft(r);
       } catch (e) { polMsg('network error', 'bad'); }
       finally { btn.disabled = false; btn.textContent = 'Draft the policy'; }
+    };
+    $('policy-learn').onclick = async () => {
+      const btn = $('policy-learn'); btn.disabled = true; btn.textContent = 'reading your decisions…'; polMsg('');
+      try {
+        let r = await (await fetch('/api/policy/learn', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN }) })).json();
+        if (!r.error && !r.decisions) r = await (await fetch('/api/policy/learn', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, scope: 'all' }) })).json();
+        if (r.error) { polMsg(r.error, 'bad'); return; }
+        if (!(r.proposals || []).length) {
+          polMsg(`${r.decisions || 0} human decisions in the chain (${r.approved || 0} approved, ${r.rejected || 0} rejected): no repeated, unanimous pattern to learn yet. Approve or reject a few held payments first.`, 'ok');
+          return;
+        }
+        showDraft(r);
+      } catch (e) { polMsg('network error', 'bad'); }
+      finally { btn.disabled = false; btn.textContent = 'Learn from my approvals'; }
     };
     $('policy-apply').onclick = async () => {
       let policy; try { policy = JSON.parse($('policy-json').value); } catch (e) { polMsg('the JSON is not valid: ' + e.message, 'bad'); return; }

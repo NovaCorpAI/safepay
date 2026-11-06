@@ -43,7 +43,7 @@ def items(records: list[dict[str, Any]], limit: int = 200) -> list[dict[str, Any
         i = p.get("intent") or {}
         ev = p.get("event") or "decision"
         found: list[tuple[str, str]] = []
-        if x.get("payout_batch_id") and ev in ("decision", "outside"):
+        if x.get("payout_batch_id") and ev in ("decision", "approval", "outside"):
             found.append(("payout", x["payout_batch_id"]))
         if ev == "authorize" and x.get("authorization_id"):
             found.append(("authorization", x["authorization_id"]))

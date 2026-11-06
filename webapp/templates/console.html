@@ -12,6 +12,7 @@
   <textarea id="policy-text" placeholder="Example: Up to $300 per payment and $1,000 a day. Ask me before anything over $100. No gambling or crypto. Hold any new payee for me."></textarea>
   <div class="btns" style="margin-top:12px">
     <button class="primary" id="policy-draft">Draft the policy</button>
+    <button class="ghost" id="policy-learn" title="Rules proposed from the held payments you approved or rejected, each citing its chain links. You review and sign them; nothing applies by itself.">Learn from my approvals</button>
     <span class="muted" style="font-size:13px">{{ 'Nemotron reads your words' if cfg.nebiusOn else 'A rule parser reads your words (no Nemotron key)' }}; you review every field before it applies. The model never applies anything by itself.</span>
   </div>
   <div class="draft" id="policy-draft-box">
