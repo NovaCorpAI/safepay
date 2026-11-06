@@ -197,7 +197,7 @@
       studioWidgetTitleFontFamily: serif, studioWidgetTitleTextColor: ink, studioWidgetTitleFontWeight: 600,
       studioWidgetSubtitleFontFamily: sans, studioWidgetSubtitleTextColor: muted,
       studioWidgetCaptionFontFamily: sans, studioWidgetCaptionTextColor: muted,
-      studioTextWidgetFontSize: phone ? 18 : 22, studioValueWidgetFontSize: 28,
+      studioTextWidgetFontSize: phone ? 18 : 22, studioValueWidgetFontSize: 24,
       gridRowBorder: [1, line], gridHeaderRowBorder: [1, line2],
       valueChangeUpColor: allow, valueChangeDownColor: block,
       chartFontFamily: sans, chartTextColor: ink, chartSubtleTextColor: muted,
