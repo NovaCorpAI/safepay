@@ -514,3 +514,7 @@ button.ga:disabled { opacity: .6; cursor: default; }
 /* --- studio ------------------------------------------------------------ */
 .studio-host { height: calc(100vh - 140px); min-height: 640px; margin-top: 14px; border: 1px solid var(--line2);
   border-radius: var(--radius); overflow: hidden; background: var(--panel); }
+
+/* --- merchant check ------------------------------------------------------ */
+.merchant-check { font-size: 12.5px; line-height: 1.6; border-top: 1px dashed var(--line2); }
+.merchant-check.ok b { color: var(--allow); } .merchant-check.no b { color: var(--block); }

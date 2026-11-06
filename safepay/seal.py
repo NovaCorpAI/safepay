@@ -161,3 +161,51 @@ def view(found: dict[str, Any], seal_id: str) -> dict[str, Any]:
         "status_ts": status_ts,
         "status_when": _when(status_ts) if status_ts else "",
     }
+
+
+def _host(value: Any) -> str:
+    v = str(value or "").strip().lower()
+    if "@" in v:
+        return v.rsplit("@", 1)[1]
+    if "://" in v:
+        v = v.split("://", 1)[1]
+    return v.split("/", 1)[0].split(":", 1)[0]
+
+
+def merchant_check(found: dict[str, Any], seal_id: str, amount: float | None = None,
+                   currency: str | None = None, domain: str | None = None) -> dict[str, Any]:
+    """What a merchant asks before it delivers: is this seal a payment SafePay
+    approved and PayPal settled, for this amount, to me, on an intact chain?
+    Every condition is reported; `verified` is true only when all hold."""
+    v = view(found, seal_id)
+    p = (found.get("record") or {}).get("payload") or {}
+    intent = p.get("intent") or {}
+    checks: list[dict[str, Any]] = []
+
+    def add(name: str, ok: bool, detail: str) -> None:
+        checks.append({"name": name, "ok": bool(ok), "detail": detail})
+
+    add("approved", v["verdict"] == "allow" and v["executed"],
+        "SafePay allowed it and the money was sent" if v["verdict"] == "allow" and v["executed"]
+        else f"verdict {v['verdict']}, executed {v['executed']}")
+    add("chain", bool(v["intact"]) and v["linked"] is not False,
+        "the signed record is intact and linked to the one before" if v["intact"] and v["linked"] is not False
+        else "the record does not verify")
+    add("paypal", v["payout_status"] == "SUCCESS",
+        f"PayPal reports the {v['kind']} as {v['payout_status']}")
+    if amount is not None:
+        ok = abs(float(amount) - float(v["amount"] or 0)) < 0.005
+        add("amount", ok, f"sealed amount {v['currency']} {float(v['amount'] or 0):.2f}"
+                          + ("" if ok else f", not {float(amount):.2f}"))
+    if currency:
+        ok = str(currency).upper() == str(v["currency"] or "").upper()
+        add("currency", ok, f"sealed in {v['currency']}")
+    if domain:
+        want = _host(domain)
+        hosts = {_host(intent.get("recipient")), _host(intent.get("merchant_url"))} - {""}
+        ok = any(h == want or h.endswith("." + want) for h in hosts)
+        add("payee", ok, f"the payment was made out to {want}" if ok
+            else "the payment was not made out to this merchant")
+    return {"seal": seal_id, "verified": all(c["ok"] for c in checks), "checks": checks,
+            "amount": v["amount"], "currency": v["currency"], "kind": v["kind"],
+            "status": v["payout_status"], "when": v["when"], "chain_seq": v["seq"]}

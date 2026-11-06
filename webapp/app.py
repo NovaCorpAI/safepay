@@ -393,6 +393,26 @@ def seal_page(seal_id: str = ""):
     return resp, (404 if q and view is None and err and "no payment" in err else 200)
 
 
+@app.post("/api/merchant/verify")
+def merchant_verify():
+    """For a merchant, before it delivers: does this seal prove a payment SafePay
+    approved and PayPal settled, for this amount, made out to this merchant,
+    on an intact chain? Read-only; reveals nothing beyond what the payee
+    already knows."""
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    data = request.get_json(silent=True) or {}
+    sid, view, err = _seal_lookup(str(data.get("seal") or ""))
+    if view is None:
+        return jsonify({"verified": False, "error": err}), 404 if err and "no payment" in err else 400
+    try:
+        amount = None if data.get("amount") in (None, "") else float(data["amount"])
+    except (TypeError, ValueError):
+        return jsonify({"error": "amount must be a number"}), 400
+    found = sealmod.find(_agent.audit_log, sid)
+    return jsonify(sealmod.merchant_check(found, sid, amount, data.get("currency"), data.get("domain")))
+
+
 @app.get("/api/v/<seal_id>")
 def seal_api(seal_id: str):
     sid, view, err = _seal_lookup(seal_id)

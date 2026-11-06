@@ -417,8 +417,16 @@
             const el2 = pending({ amount: q.total, recipient: intent.recipient });
             const [r2, c] = await post(`/api/mandates/${encodeURIComponent(o.mandate.authorization_id)}/capture`,
               { agent_id: 'shopping-agent', amount: q.total, final: true, purpose: `Pay AgentPOS cart ${q.cart_id}` });
-            if (!r2.ok || c.error) refused(el2, c.error || r2.status); else render(el2, c);
-            msg(`Cart ${q.cart_id}: quoted by the store, judged by SafePay, paid through PayPal.`);
+            if (!r2.ok || c.error) { refused(el2, c.error || r2.status); return; }
+            render(el2, c);
+            // The merchant's side: before it delivers, the store checks the seal.
+            const sealId = (c.decision.execution || {}).seal;
+            const host = new URL(q.intent.merchant_url).hostname;
+            const v = await (await fetch('/api/merchant/verify', { method: 'POST', headers: jsonHeaders(),
+              body: JSON.stringify({ seal: sealId, amount: q.total, currency: 'USD', domain: host }) })).json();
+            const line = (v.checks || []).map(x => `${x.ok ? '✓' : '✗'} ${esc(x.name)}: ${esc(x.detail)}`).join('<br>');
+            el2.insertAdjacentHTML('beforeend', `<div class="exec merchant-check ${v.verified ? 'ok' : 'no'}"><b>${v.verified ? '● The store verified the seal before delivering' : '● The store refused to deliver'}</b> (${esc(host)} asked SafePay about ${esc(sealId || '?')})<br>${line || esc(v.error || '')}</div>`);
+            msg(`Cart ${q.cart_id}: quoted by the store, judged by SafePay, paid through PayPal, verified by the store.`);
           } else msg(`Cart ${q.cart_id}: SafePay did not open a mandate, nothing was paid.`);
         } catch (e) { msg('network error'); }
         finally { setBusy(false); $('s-buy').disabled = false; loadAudit(); loadAgents(); }

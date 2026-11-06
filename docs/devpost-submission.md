@@ -102,7 +102,8 @@ guardrail with no privileges; a resent invoice is blocked as a duplicate, a
 is held. SafePay also works on both sides of agentic commerce we build: its shopping
 agent buys from a real agent-ready store made with AgentPOS (our open-source
 point of sale for agents), paying the store's own quote through a PayPal
-mandate; and its purchase-check rules run inside Impulsa, our SaaS in
+mandate, and the store verifies the payment's seal with SafePay before it
+delivers; and its purchase-check rules run inside Impulsa, our SaaS in
 production for micro-businesses in Chile, before a supplier document is saved.
 The policy itself is signed in the operator's browser (WebCrypto, ECDSA
 P-256, a non-extractable key), pinned to the session, and re-verified on

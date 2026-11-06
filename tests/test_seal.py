@@ -83,3 +83,28 @@ def test_seal_pages(agent, monkeypatch):
     assert c.get("/api/v/garbage").status_code == 404
     assert c.get("/v").status_code == 200
     assert c.get("/v?id=SP-0000000000").status_code == 404
+
+
+def test_merchant_check(monkeypatch):
+    import webapp.app as appmod
+    from safepay.agent import SafePayAgent
+    from safepay.models import PaymentIntent
+    for k in ("PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "TAVILY_API_KEY", "NEBIUS_API_KEY",
+              "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "TELEGRAM_BOT_TOKEN"):
+        monkeypatch.setenv(k, " ")
+    a = SafePayAgent()
+    monkeypatch.setattr(appmod, "_agent", a)
+    o = a.open_mandate(PaymentIntent(recipient="orders@demo.agentposhq.com", amount=4, category="digital goods",
+                                     merchant_name="AgentPOS Demo Store", merchant_url="https://demo.agentposhq.com",
+                                     agent_id="shopping-agent:R1", purpose="cart", task_goal="buy the guide"))
+    auth = o["mandate"]["authorization_id"]
+    sid = a.capture(auth, 4, "shopping-agent:R1", "cart", final=True)["decision"]["execution"]["seal"]
+    c = appmod.app.test_client()
+    ok = c.post("/api/merchant/verify", json={"seal": sid, "amount": 4, "currency": "USD", "domain": "demo.agentposhq.com"}).get_json()
+    assert ok["verified"] and {x["name"] for x in ok["checks"]} == {"approved", "chain", "paypal", "amount", "currency", "payee"}
+    wrong = c.post("/api/merchant/verify", json={"seal": sid, "amount": 40, "domain": "evil.example"}).get_json()
+    assert not wrong["verified"]
+    bad = {x["name"]: x["ok"] for x in wrong["checks"]}
+    assert bad["amount"] is False and bad["payee"] is False and bad["approved"] is True
+    assert c.post("/api/merchant/verify", json={"seal": "SP-0000000000"}).status_code == 404
+    assert c.post("/api/merchant/verify", json={"seal": "nope"}).status_code == 400

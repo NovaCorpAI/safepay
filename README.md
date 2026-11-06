@@ -615,6 +615,13 @@ agent. AgentPOS settles in USDC on Stellar; here the catalog and quote are the
 store's real ones and the rail is a PayPal sandbox mandate (1 USDC = 1 USD).
 Code: `safepay/agentpos.py`; only the configured store is ever called.
 
+The merchant's side closes the loop: before it delivers, the store asks
+`POST /api/merchant/verify` with the seal, the amount and its own domain, and
+SafePay answers from the signed chain whether the payment was approved, settled
+at PayPal, for that amount, made out to that merchant, on an intact record
+(`safepay.seal.merchant_check`). The console's store card ends with the store's
+check: "the store verified the seal before delivering".
+
 ## Inside a product in production: Impulsa
 
 [Impulsa](https://impulsaapp.cl) is a SaaS from the same team for
