@@ -58,6 +58,7 @@
 <footer>
   <div class="wrap">
     <a href="https://github.com/NovaCorpAI/safepay" target="_blank" rel="noopener">github.com/NovaCorpAI/safepay</a>
+    <a href="/?tour=1" data-tour-start>3-minute judge tour</a>
     <a href="/v">Verify a seal</a>
     <a href="https://pypi.org/project/safepay/" target="_blank" rel="noopener">pip install safepay</a>
     <a href="https://safepay-ygzp.onrender.com" target="_blank" rel="noopener">second instance on Render</a>
@@ -66,5 +67,6 @@
 </footer>
 {% block scripts %}{% endblock %}
 <script src="{{ url_for('static', filename='app.js') }}?v={{ version }}"></script>
+<script src="{{ url_for('static', filename='tour.js') }}?v={{ version }}" defer></script>
 </body>
 </html>

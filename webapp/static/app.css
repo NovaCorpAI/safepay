@@ -518,3 +518,21 @@ button.ga:disabled { opacity: .6; cursor: default; }
 /* --- merchant check ------------------------------------------------------ */
 .merchant-check { font-size: 12.5px; line-height: 1.6; border-top: 1px dashed var(--line2); }
 .merchant-check.ok b { color: var(--allow); } .merchant-check.no b { color: var(--block); }
+
+/* Judge tour */
+.tour-hl { outline: 3px solid var(--seal); outline-offset: 6px; border-radius: var(--radius-sm); transition: outline-color .3s; }
+#tour { position: fixed; z-index: 60; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: min(380px, calc(100vw - 32px)); background: var(--panel); color: var(--fg); border: 1px solid var(--line2);
+  border-radius: var(--radius); box-shadow: 0 18px 50px rgba(0,0,0,.22); padding: 0 18px 16px; overflow: hidden; }
+#tour .tour-bar { height: 3px; margin: 0 -18px 12px; background: var(--line); }
+#tour .tour-bar span { display: block; height: 100%; background: var(--seal); transition: width .4s; }
+#tour .tour-head { display: flex; justify-content: space-between; align-items: center; }
+#tour .tour-n { font: 600 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+#tour .tour-x { background: none; border: 0; color: var(--muted); font-size: 22px; line-height: 1; cursor: pointer; padding: 2px 6px; }
+#tour h3 { font-family: var(--serif); font-size: 19px; margin: 8px 0 6px; text-wrap: balance; }
+#tour p { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--ink2, var(--fg)); }
+#tour .tour-btns { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 560px) { #tour { left: 12px; right: 12px; width: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); } #tour p { font-size: 13.5px; } }
+@media (prefers-reduced-motion: reduce) { #tour .tour-bar span { transition: none; } }
+.tour-hl { scroll-margin-top: 110px; scroll-margin-bottom: 300px; }
+#tour.top { bottom: auto; top: calc(16px + env(safe-area-inset-top, 0px)); }
