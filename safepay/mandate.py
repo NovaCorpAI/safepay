@@ -49,6 +49,14 @@ def links(audit_log: Any, authorization_id: str,
             if _p(r).get("event") in events and _x(r).get("authorization_id") == authorization_id]
 
 
+def _at(ts: Any) -> str:
+    from datetime import datetime, timezone
+    try:
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat().replace("+00:00", "Z")
+    except (TypeError, ValueError, OverflowError, OSError):
+        return ""
+
+
 def state(audit_log: Any, authorization_id: str) -> dict[str, Any] | None:
     """The mandate as the chain records it, or None if it was never opened."""
     recs = links(audit_log, authorization_id)
@@ -63,7 +71,7 @@ def state(audit_log: Any, authorization_id: str) -> dict[str, Any] | None:
         q, e = _p(r), _x(r)
         if q.get("event") == "capture" and q.get("executed"):
             amt = round(float((q.get("intent") or {}).get("amount") or 0), 2)
-            captures.append({"seq": q.get("seq"), "amount": amt, "seal": e.get("seal"),
+            captures.append({"seq": q.get("seq"), "amount": amt, "seal": e.get("seal"), "at": _at(q.get("ts")),
                              "capture_id": e.get("capture_id"), "final": bool(e.get("final")),
                              "purpose": (q.get("intent") or {}).get("purpose")})
             closed = closed or bool(e.get("final"))
@@ -80,6 +88,7 @@ def state(audit_log: Any, authorization_id: str) -> dict[str, Any] | None:
         "released": voided if voided else (round(authorized - captured, 2) if closed else 0.0),
         "closed": closed, "expires": x.get("expires"), "opened_seq": p.get("seq"),
         "policy_hash": p.get("policy_hash") or "", "mode": x.get("mode"), "captures": captures,
+        "ap2": x.get("ap2"), "cart": x.get("ap2_cart"),
     }
 
 
@@ -94,6 +103,10 @@ def capture_checks(st: dict[str, Any], amount: float, agent_id: str,
                                   [{"rule": "agent_paused"}]))
     else:
         checks.append(CheckResult("agent", True, Severity.INFO, f"agent '{agent_id}' is active"))
+    from .ap2 import intent_checks
+    for ok, detail in intent_checks(st.get("ap2")):
+        checks.append(CheckResult("ap2_intent", ok, Severity.INFO if ok else Severity.CRITICAL, detail,
+                                  0.0 if ok else 1.0, [] if ok else [{"rule": "ap2_intent_expired"}]))
     if st["closed"]:
         checks.append(CheckResult("mandate", False, Severity.CRITICAL,
                                   "the mandate is closed; nothing is left to capture", 1.0,

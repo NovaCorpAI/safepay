@@ -67,6 +67,12 @@ def message(run: str, policy_hash: str) -> str:
 def verify(jwk: dict[str, Any], run: str, policy_hash: str, sig: str) -> bool:
     """True when `sig` (WebCrypto's raw r||s, base64url) is the operator key's
     ECDSA P-256 / SHA-256 signature over message(run, policy_hash)."""
+    return verify_bytes(jwk, message(run, policy_hash).encode(), sig)
+
+
+def verify_bytes(jwk: dict[str, Any], data: bytes, sig: str) -> bool:
+    """ECDSA P-256 / SHA-256 over arbitrary bytes; `sig` is raw r||s base64url
+    (WebCrypto's output, and JWS ES256's)."""
     from cryptography.exceptions import InvalidSignature
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import ec
@@ -84,7 +90,7 @@ def verify(jwk: dict[str, Any], run: str, policy_hash: str, sig: str) -> bool:
         key = ec.EllipticCurvePublicNumbers(
             int.from_bytes(_b64u_decode(pub["x"]), "big"),
             int.from_bytes(_b64u_decode(pub["y"]), "big"), ec.SECP256R1()).public_key()
-        key.verify(der, message(run, policy_hash).encode(), ec.ECDSA(hashes.SHA256()))
+        key.verify(der, data, ec.ECDSA(hashes.SHA256()))
         return True
     except (InvalidSignature, ValueError):
         return False

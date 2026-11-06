@@ -771,7 +771,22 @@ def mandate_open():
         intent = PaymentIntent(**{k: v for k, v in data.items() if k in allowed})
     except (TypeError, ValueError) as exc:
         return jsonify({"error": f"bad intent: {exc}"}), 400
-    return jsonify(_agent.open_mandate(intent))
+    ap2_intent, cart = data.get("ap2"), data.get("cart")
+    if ap2_intent is not None and not isinstance(ap2_intent, dict):
+        return jsonify({"error": "ap2 must be {intent_mandate, user_authorization}"}), 400
+    if cart is not None and not isinstance(cart, dict):
+        return jsonify({"error": "cart must be the store's quote"}), 400
+    return jsonify(_agent.open_mandate(intent, ap2_intent=ap2_intent, cart=cart))
+
+
+@app.get("/api/mandates/<auth_id>/ap2")
+def mandate_ap2(auth_id: str):
+    """The mandate as AP2 objects: the operator-signed IntentMandate, the
+    store's CartMandate, and a SafePay-signed PaymentMandate per capture."""
+    if not _AUTH_RE.match(auth_id or ""):
+        return jsonify({"error": "not a valid authorization id"}), 400
+    b = _agent.mandate_ap2(auth_id)
+    return (jsonify(b), 200) if b else (jsonify({"error": "no such mandate"}), 404)
 
 
 @app.get("/api/mandates/<auth_id>")

@@ -214,6 +214,24 @@
     const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k.key, enc(m.message));
     return { jwk: k.jwk, sig: b64u(sig) };
   }
+  // AP2 IntentMandate, signed by the operator key (ES256 compact JWS whose
+  // transaction_data carries the mandate's sha256 over canonical JSON).
+  const canon = o => Array.isArray(o) ? '[' + o.map(canon).join(',') + ']'
+    : (o && typeof o === 'object') ? '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canon(o[k])).join(',') + '}'
+    : JSON.stringify(o);
+  const hostOf = s => { s = String(s || '').toLowerCase(); if (s.includes('@') && !s.includes('://')) return s.split('@').pop(); try { return new URL(s.includes('://') ? s : 'https://' + s).hostname.replace(/^www\./, ''); } catch (e) { return s; } };
+  async function signIntent(description, merchants, minutes) {
+    const k = await opKey().catch(() => null); if (!k) return null;
+    const exp = new Date(Date.now() + (minutes || 60) * 60000).toISOString().replace(/\.\d+Z$/, 'Z');
+    const mandate = { user_cart_confirmation_required: false, natural_language_description: String(description || '').slice(0, 500),
+      merchants: merchants && merchants.length ? merchants : null, skus: null, requires_refundability: false, intent_expiry: exp };
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', enc(canon(mandate))))].map(b => b.toString(16).padStart(2, '0')).join('');
+    const part = o => b64u(enc(JSON.stringify(o)));
+    const head = part({ alg: 'ES256', typ: 'JWT', kid: k.kid, jwk: k.jwk });
+    const body = part({ aud: 'safepay', iat: Math.floor(Date.now() / 1000), nonce: b64u(crypto.getRandomValues(new Uint8Array(12))), transaction_data: [hash] });
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k.key, enc(head + '.' + body));
+    return { intent_mandate: mandate, user_authorization: head + '.' + body + '.' + b64u(sig) };
+  }
   function showSig(r) {
     const el = $('p-sig'); if (!el) return;
     const t = $('p-tamper');
@@ -409,8 +427,9 @@
           if (q.error) { msg(q.error); return; }
           msg(`The store quoted ${q.total} ${q.asset} for cart ${q.cart_id}. SafePay is judging it…`);
           const intent = { ...q.intent, task_goal: $('s-task').value, agent_id: 'shopping-agent' };
+          const ap2 = await signIntent($('s-task').value, [hostOf(q.intent.merchant_url)], 30);
           const el = pending(intent);
-          const [resp, o] = await post('/api/mandates', intent);
+          const [resp, o] = await post('/api/mandates', { ...intent, ap2: ap2 || undefined, cart: q });
           if (!resp.ok || o.error) { refused(el, o.error || resp.status); return; }
           render(el, o);
           if (o.mandate && !o.mandate.closed) {
@@ -442,7 +461,8 @@
         box.innerHTML = `<div class="mbar"><i class="cap" style="width:${pct(m.captured)}%"></i><i class="left" style="width:${pct(m.remaining)}%"></i><i class="rel" style="width:${pct(m.released)}%"></i></div>
           <div class="mlegend"><span><b>USD ${m.authorized.toFixed(2)}</b> authorized · ${esc(m.authorization_id)}</span>
           <span class="cap">captured ${m.captured.toFixed(2)}</span><span class="left">left ${m.remaining.toFixed(2)}</span>
-          ${m.closed ? `<span class="rel">released ${m.released.toFixed(2)}</span><span>closed</span>` : ''}</div>`;
+          ${m.closed ? `<span class="rel">released ${m.released.toFixed(2)}</span><span>closed</span>` : ''}
+          ${m.ap2 ? `<span class="ap2">AP2 intent signed by <code>${esc(m.ap2.kid)}</code> · <a href="/api/mandates/${encodeURIComponent(m.authorization_id)}/ap2" target="_blank" rel="noopener">AP2 mandates</a></span>` : ''}</div>`;
         $('m-capture').disabled = $('m-close').disabled = !!m.closed;
       };
       const hotel = () => {
@@ -461,7 +481,11 @@
         } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; return null; }
         finally { loadAudit(); loadAgents(); }
       }
-      const open = amount => step('/api/mandates', { ...hotel(), amount }, { amount, recipient: hotel().recipient });
+      const open = async amount => {
+        const h = hotel();
+        const ap2 = await signIntent(`${h.task_goal}, up to USD ${amount}`, [hostOf(h.recipient)], 60);
+        return step('/api/mandates', { ...h, amount, ap2: ap2 || undefined }, { amount, recipient: h.recipient });
+      };
       const capture = (amount, purpose) => step(`/api/mandates/${encodeURIComponent(M.authorization_id)}/capture`,
         { agent_id: AG, amount, purpose }, { amount, recipient: M.recipient });
       const close = () => step(`/api/mandates/${encodeURIComponent(M.authorization_id)}/close`,

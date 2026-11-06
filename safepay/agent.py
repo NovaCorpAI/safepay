@@ -221,11 +221,46 @@ class SafePayAgent:
 
     # --- mandates: authorize a budget, capture what the task costs ----------
 
-    def open_mandate(self, intent: PaymentIntent) -> dict[str, Any]:
+    def open_mandate(self, intent: PaymentIntent, ap2_intent: dict[str, Any] | None = None,
+                     cart: dict[str, Any] | None = None) -> dict[str, Any]:
         """Judge a ceiling like any payment; on ALLOW authorize it with
-        PayPal. The ceiling counts against the daily cap from now on."""
+        PayPal. The ceiling counts against the daily cap from now on.
+        With an AP2 IntentMandate signed by the operator (and optionally the
+        store's cart), both are verified first and a failure blocks."""
+        from . import ap2 as ap2mod
         decision = self.guardrail.evaluate(intent, policy=self.policy_for(intent.agent_id))
         decision.event = "authorize"
+        extra: dict[str, Any] = {}
+        mandate_checks: list[CheckResult] = []
+        if ap2_intent is not None:
+            pin = self._pin(run_of(intent.agent_id))
+            try:
+                v = ap2mod.verify_intent(ap2_intent, intent.recipient, (pin or {}).get("kid"))
+                extra["ap2"] = v
+                mandate_checks.append(CheckResult(
+                    "ap2_intent", True, Severity.INFO,
+                    f"AP2 IntentMandate signed by operator key {v['kid']}"
+                    f"{' (the pinned key)' if v['pinned'] else ''}; payee is one of its merchants; "
+                    f"valid until {v['intent_mandate']['intent_expiry']}"))
+            except ap2mod.MandateError as exc:
+                mandate_checks.append(CheckResult("ap2_intent", False, Severity.CRITICAL, str(exc), 1.0,
+                                                  [{"rule": "ap2_intent"}]))
+        if cart is not None:
+            try:
+                extra["ap2_cart"] = ap2mod.cart_mandate(cart, intent.recipient, intent.amount)
+                c = extra["ap2_cart"]["contents"]
+                mandate_checks.append(CheckResult(
+                    "ap2_cart", True, Severity.INFO,
+                    f"AP2 CartMandate {c['id']} from {c['merchant_name']}: its total is the ceiling authorized"))
+            except ap2mod.MandateError as exc:
+                mandate_checks.append(CheckResult("ap2_cart", False, Severity.CRITICAL, str(exc), 1.0,
+                                                  [{"rule": "ap2_cart"}]))
+        if mandate_checks:
+            decision.checks = mandate_checks + list(decision.checks)
+            failed = [c for c in mandate_checks if not c.passed]
+            if failed:
+                decision.verdict = Verdict.BLOCK
+                decision.reasons = [f"{c.name}: {c.detail}" for c in failed] + list(decision.reasons)
         if decision.verdict == Verdict.ALLOW:
             if not self.config.execute_payments:
                 decision.execution = {"mode": "disabled",
@@ -241,7 +276,7 @@ class SafePayAgent:
                         res = dict(res, card={"brand": card.get("brand"),
                                               "last_digits": card.get("last_digits")})
                     decision.executed = True
-                    decision.execution = dict(res, method="authorize")
+                    decision.execution = dict(res, method="authorize", **extra)
                     self.guardrail.commit_spend(decision)
                 except Exception as exc:
                     decision.execution = {"error": str(exc)}
@@ -414,6 +449,15 @@ class SafePayAgent:
 
     def get_mandate(self, authorization_id: str) -> dict[str, Any] | None:
         return mandate.state(self.audit_log, authorization_id)
+
+    def mandate_ap2(self, authorization_id: str) -> dict[str, Any] | None:
+        """The mandate's AP2 objects (intent, cart, one PaymentMandate per
+        capture), rebuilt from its chain links."""
+        from . import ap2 as ap2mod
+        st = mandate.state(self.audit_log, authorization_id)
+        if st is None:
+            return None
+        return ap2mod.bundle(st, st.get("ap2"), st.get("cart"))
 
     # --- operator controls: policy in plain words, freeze / resume an agent --
 
