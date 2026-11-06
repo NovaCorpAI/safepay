@@ -503,7 +503,39 @@ def merchant_verify():
     except (TypeError, ValueError):
         return jsonify({"error": "amount must be a number"}), 400
     found = sealmod.find(_agent.audit_log, sid)
-    return jsonify(sealmod.merchant_check(found, sid, amount, data.get("currency"), data.get("domain")))
+    out = sealmod.merchant_check(found, sid, amount, data.get("currency"), data.get("domain"))
+    try:
+        from safepay import receipt
+        out["receipt"] = receipt.issue(found, sid)
+    except Exception:
+        out["receipt"] = None
+    return jsonify(out)
+
+
+@app.get("/.well-known/safepay-seal-keys.json")
+def seal_keys():
+    """The public half of the key that signs seal receipts. Pin it once;
+    verify any receipt offline afterwards."""
+    from safepay import receipt
+    resp = jsonify(receipt.keyset())
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
+
+
+@app.get("/api/v/<seal_id>/receipt")
+def seal_receipt(seal_id: str):
+    """A signed receipt for a seal (AgentPOS receipt envelope, Ed25519)."""
+    from safepay import receipt
+    sid, view, err = _seal_lookup(seal_id)
+    if view is None:
+        return jsonify({"seal": sid, "found": False, "error": err}), 404
+    r = receipt.issue(sealmod.find(_agent.audit_log, sid), sid)
+    if r is None:
+        return jsonify({"error": "receipts are not configured on this instance"}), 503
+    resp = jsonify(r)
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
 
 
 @app.get("/api/v/<seal_id>")

@@ -31,6 +31,9 @@
 .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .two p { font-size: 14px; color: var(--ink2); }
 .err { color: var(--block); margin-top: 12px; }
+.receipt details { margin-top: 12px; } .receipt summary { cursor: pointer; color: var(--dim); }
+.rc-json { max-height: 320px; overflow: auto; font-size: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; white-space: pre-wrap; word-break: break-all; }
+.receipt textarea { width: 100%; box-sizing: border-box; font-family: var(--mono); font-size: 12px; margin: 8px 0; padding: 8px; background: var(--panel); color: var(--fg); border: 1px solid var(--line2); border-radius: var(--radius-sm); }
 </style>
 {% endblock %}
 {% block content %}
@@ -83,6 +86,21 @@
     <p class="note">Machine-readable: <a href="/api/v/{{ v.seal }}">/api/v/{{ v.seal }}</a>. The recipient is masked; nothing here names the payer's agents or other payments.</p>
   </div>
 </section>
+
+<section class="section">
+  <div class="card receipt" id="receipt" data-seal="{{ v.seal }}">
+    <h2>Signed receipt, verifiable without SafePay</h2>
+    <p>The checks above are SafePay's word. This receipt is not: it is signed with an Ed25519 key whose public half is published at <a href="/.well-known/safepay-seal-keys.json">/.well-known/safepay-seal-keys.json</a>. Save it, and anyone can verify it offline, years from now, with any Ed25519 library. Same envelope as AgentPOS merchant receipts: <code>sha256(canonical(body))</code>, signed over <code>"safepay-receipt-1" LF hash</code>.</p>
+    <ul class="proofs" id="rc-steps"><li><span class="ic na">·</span><span>Verifying in this browser…</span></li></ul>
+    <details><summary>Receipt JSON</summary><pre id="rc-json" class="rc-json"></pre></details>
+    <details><summary>Verify a receipt you saved</summary>
+      <textarea id="rc-paste" rows="6" placeholder='{"body": {...}, "hash": "...", "signature": "..."}' spellcheck="false"></textarea>
+      <button type="button" id="rc-check">Verify pasted receipt</button>
+      <ul class="proofs" id="rc-paste-out"></ul>
+    </details>
+  </div>
+</section>
+<script src="{{ url_for('static', filename='receipt.js') }}?v={{ version }}" defer></script>
 {% endif %}
 
 <section class="section two">
