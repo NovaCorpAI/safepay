@@ -265,11 +265,16 @@ of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).
 
 ## Image gallery (upload in this order)
-1. `docs/img/flow.jpg` (thumbnail): the Flow, a payment pulse travelling through the layers.
-2. `docs/img/home.jpg`: the home page, "every payment, sealed", with live figures from the chain.
-3. `docs/img/ledger-page.jpg`: the hash chain in AG Grid and the three AG Charts.
-Add frames from the video for the policy in plain words, the casino HOLD with
-its evidence open, the Telegram card and the tamper demo.
+1. `docs/img/gallery-flow.png` (thumbnail): the Flow, real chain links replayed as pulses through the layers.
+2. `docs/img/gallery-impact.png`: the fraud an agent with a wallet walks into (FBI IC3, AFP), next to the live chain figures.
+3. `docs/img/gallery-ledger.png`: the AG Grid ledger, a blocked Impulsa purchase opened to its checks and hashes, the Act column, totals and the AG Charts.
+4. `docs/img/gallery-studio.png`: AG Studio over the whole chain; the Nemotron 3 Ultra analyst answers "how much did SafePay stop" with the real totals.
+5. `docs/img/gallery-mandate-card.png`: a mandate authorized with a Vault payment token, captured, the rest released.
+6. `docs/img/gallery-mandate-overdraw.png`: a capture over what is left, blocked before PayPal is called.
+7. `docs/img/gallery-store-merchant-check.png`: buying from an AgentPOS store, and the store verifying the seal before it delivers.
+8. `docs/img/gallery-proof.png`: every PayPal object in the chain, re-read live from PayPal's API.
+9. `docs/img/impulsa-safepay-alert.png`: SafePay inside Impulsa (production), a supplier document recorded twice.
+10. `docs/img/impulsa-safepay-price.png`: SafePay inside Impulsa, a unit cost 2.5x its history held.
 
 ## Testing instructions (paste in Devpost's "testing instructions" field)
 Live demo: https://safepay.agentposhq.com . No login, no keys. Every PayPal
