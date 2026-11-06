@@ -124,7 +124,7 @@
     { headerName: 'Signed', field: 'signed', width: 90, valueFormatter: p => p.value ? 'HMAC' : 'unsigned' },
     { headerName: 'Policy', field: 'policy', width: 100, headerTooltip: 'hash of the rules this link was judged under', valueFormatter: p => (p.value || '').slice(0, 8) },
     { headerName: 'Hash', field: 'hash', width: 112, tooltipField: 'hash', valueFormatter: p => (p.value || '').slice(0, 10) },
-    { colId: 'act', headerName: 'Act', width: 196, pinned: 'right', sortable: false, filter: false,
+    { colId: 'act', headerName: 'Act', width: 196, pinned: innerWidth < 640 ? null : 'right', sortable: false, filter: false,
       headerTooltip: 'approve or reject a held payment, or freeze an agent, from the row (operator actions)',
       cellRenderer: p => {
         const d = p.data; if (!d || d._detail || d._total) return '';

@@ -152,8 +152,12 @@
       expressions,
     };
     const adapter = window.openaiAdapter({ endpoint: '/api/studio', model: 'nemotron' });
+    const phone = matchMedia('(max-width: 760px)').matches;
     api = agStudio.createStudioWithAi(host, {
-      data, mode: 'edit', initialState,
+      data, initialState, theme: safepayTheme(phone),
+      // On a phone the report is for reading: one column, no editing chrome.
+      mode: phone ? 'view' : 'edit',
+      responsiveLayoutBreakpoints: [{ maxWidth: 760, layout: agStudio.singleColumnLayout }],
       // One focused analyst instead of Studio's five delegating agents: a
       // question about the chain should cost a handful of turns, not dozens.
       ai: ({ api: a }) => agStudio.createAiHarness(a, ({ tools: { studio } }) => ({
@@ -170,6 +174,38 @@
     });
     say(`${t.links.length} links and ${t.checks.length} checks loaded · chain ${audit.ok ? 'verified' : 'BROKEN'}`, audit.ok ? 'ok' : 'bad');
   }
+  // AG Studio in SafePay's own identity: the console's paper, ink, seal blue
+  // and verdict colours, its typefaces, read from the page's CSS tokens.
+  function safepayTheme(phone) {
+    const css = getComputedStyle(document.documentElement);
+    const v = (n, d) => (css.getPropertyValue(n) || '').trim() || d;
+    const ink = v('--fg', '#1d1b17'), muted = v('--muted', '#6f685b'), line = v('--line', '#ddd3c1');
+    const line2 = v('--line2', '#c9bda7'), paper = v('--panel', '#fbf8f2'), bg = v('--bg', '#f3eee4');
+    const seal = v('--seal', '#2b3a8c'), allow = v('--allow', '#2e7d4f'), hold = v('--hold', '#b07a12');
+    const block = v('--block', '#b3261e'), gold = v('--gold', '#a8842c');
+    const sans = v('--font', 'IBM Plex Sans, sans-serif'), serif = v('--serif', 'Fraunces, Georgia, serif');
+    // Series order matters: released (1st) in seal blue, stopped (2nd) in block red.
+    const fills = [seal, block, allow, hold, gold, '#5b6bb5', '#6f9e7f', '#c9a25a', '#c46b64', muted];
+    const palette = {};
+    fills.forEach((c, i) => { palette[`chartPaletteFills${i + 1}Color`] = c; palette[`chartPaletteStrokes${i + 1}Color`] = c; });
+    return agStudio.studioTheme.withParams(Object.assign({
+      fontFamily: sans, fontSize: 13, textColor: ink, backgroundColor: paper, borderColor: line2,
+      studioCanvasBackgroundColor: bg, studioCanvasFontFamily: sans,
+      studioMinWidth: phone ? 0 : 600, studioCanvasMinWidth: phone ? 0 : 560, studioAiPanelWidth: 300, studioCanvasStandaloneMinWidth: 0,
+      studioToggleButtonActiveBackgroundColor: seal, studioToggleButtonActiveBorderColor: seal, studioToggleButtonActiveColor: seal,
+      studioWidgetBackgroundColor: paper, studioWidgetBorder: [1, line], studioWidgetBorderRadius: 6,
+      studioWidgetTitleFontFamily: serif, studioWidgetTitleTextColor: ink, studioWidgetTitleFontWeight: 600,
+      studioWidgetSubtitleFontFamily: sans, studioWidgetSubtitleTextColor: muted,
+      studioWidgetCaptionFontFamily: sans, studioWidgetCaptionTextColor: muted,
+      studioTextWidgetFontSize: phone ? 18 : 22, studioValueWidgetFontSize: 28,
+      gridRowBorder: [1, line], gridHeaderRowBorder: [1, line2],
+      valueChangeUpColor: allow, valueChangeDownColor: block,
+      chartFontFamily: sans, chartTextColor: ink, chartSubtleTextColor: muted,
+      chartAxisLineColor: line2, chartGridLineColor: line, chartAxisLabelColor: muted, chartAxisTitleColor: ink,
+      studioLinearGaugeLabelColor: muted,
+    }, palette));
+  }
+
   document.querySelectorAll('[data-page]').forEach(b => {
     b.onclick = () => { if (api) api.setState({ ...api.getState(), selectedPageId: b.dataset.page }); };
   });

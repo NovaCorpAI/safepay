@@ -536,3 +536,14 @@ button.ga:disabled { opacity: .6; cursor: default; }
 @media (prefers-reduced-motion: reduce) { #tour .tour-bar span { transition: none; } }
 .tour-hl { scroll-margin-top: 110px; scroll-margin-bottom: 300px; }
 #tour.top { bottom: auto; top: calc(16px + env(safe-area-inset-top, 0px)); }
+
+/* Phone pass */
+@media (max-width: 760px) {
+  .nav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .status-strip .wrap { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .status-strip .wrap::-webkit-scrollbar { display: none; }
+  .status-strip .chip { flex: 0 0 auto; white-space: nowrap; }
+  table.apis { display: block; overflow-x: auto; }
+}
