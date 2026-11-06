@@ -113,6 +113,12 @@
     };
     p.querySelector(".tour-next").focus({ preventScroll: true });
     setTimeout(place, 50); setTimeout(place, 900);
+    // Pages that load data shift after the first scroll: bring the target back.
+    [700, 1600].forEach((ms) => setTimeout(() => {
+      const t = document.querySelector(".tour-hl"); if (!t) return;
+      const r = t.getBoundingClientRect();
+      if (r.bottom < 60 || r.top > innerHeight - 60) { t.scrollIntoView({ behavior: "smooth", block: "center" }); setTimeout(place, 500); }
+    }, ms));
   }
   document.addEventListener("keydown", (e) => {
     const i = get(); if (i === null || !document.getElementById("tour")) return;
