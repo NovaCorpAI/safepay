@@ -216,9 +216,102 @@ def check_purchase():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     record = _agent.audit_log.append(decision)
+    try:
+        from safepay import impact
+        impact.record_check(_agent.control, source, decision.execution["business"],
+                            decision.verdict.value, [f["rule"] for f in findings])
+    except Exception:
+        pass
     return jsonify({"verdict": decision.verdict.value, "findings": findings,
                     "chain_seq": (record.get("payload") or {}).get("seq"),
                     "sha256": record.get("sha256")})
+
+
+def _keyed_source():
+    """The agent a request's key names, or a Flask error response."""
+    key = _agent_key()
+    if not key:
+        return None, (jsonify({"error": "an agent key is required (Authorization: Bearer spk_...)"}), 401)
+    try:
+        return _agent.resolve_agent("", key), None
+    except ValueError as exc:
+        return None, (jsonify({"error": str(exc)}), 401)
+
+
+def _link_by_seq(seq: int):
+    log = _agent.audit_log
+    if hasattr(log, "db"):
+        rows = log.db.select("audit", {"select": "record", "seq": f"eq.{int(seq)}"})
+        return rows[0]["record"] if rows else None
+    return next((r for r in log.records if (r.get("payload") or {}).get("seq") == int(seq)), None)
+
+
+@app.post("/api/check/purchase/outcome")
+def check_purchase_outcome():
+    """What the owner did with an alert: corrected the document (an error
+    that was not saved) or recorded it anyway (an alert that was not needed).
+    Chained as an "outcome" link of the check; counted once per alert."""
+    from safepay import impact
+    from safepay.models import Decision, PaymentIntent, Verdict
+    if _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    source, err = _keyed_source()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    outcome = str(data.get("outcome") or "")
+    if outcome not in impact.OUTCOMES:
+        return jsonify({"error": f"outcome must be one of {list(impact.OUTCOMES)}"}), 400
+    try:
+        seq = int(data.get("seq"))
+        amount = float(data.get("amount") or 0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "seq and amount must be numbers"}), 400
+    rec = _link_by_seq(seq)
+    p = (rec or {}).get("payload") or {}
+    x = p.get("execution") or {}
+    if p.get("event") != "check" or x.get("source") != source:
+        return jsonify({"error": "no purchase check of yours with that seq"}), 404
+    done_key = f"impact:outcome:{source}:{seq}"
+    if _agent.control.setting(done_key):
+        return jsonify({"ok": True, "duplicate": True})
+    business = x.get("business") or ""
+    currency = str(data.get("currency") or (p.get("intent") or {}).get("currency") or "CLP")[:3].upper()
+    decision = Decision(
+        verdict=Verdict.ALLOW,
+        intent=PaymentIntent(recipient=f"{source}:{business}", amount=0.0, currency=currency,
+                             category="supplier-purchase", agent_id=source,
+                             purpose=f"{source}: the owner {outcome.replace('_', ' ')} after the alert on link #{seq}"),
+        reasons=[f"outcome of check #{seq}: {outcome}"], event="outcome",
+        execution={"source": source, "business": business, "check_seq": seq, "outcome": outcome,
+                   "rules": x.get("rules") or []})
+    record = _agent.audit_log.append(decision)
+    _agent.control.set_setting(done_key, {"outcome": outcome, "seq": (record.get("payload") or {}).get("seq")})
+    impact.record_outcome(_agent.control, source, business, outcome, amount, currency)
+    return jsonify({"ok": True, "duplicate": False, "chain_seq": (record.get("payload") or {}).get("seq")})
+
+
+@app.get("/api/check/purchase/summary")
+def check_purchase_summary():
+    """One business's tally (the app that runs the checks asks for its own)."""
+    from safepay import impact, purchase_check
+    source, err = _keyed_source()
+    if err:
+        return err
+    business = purchase_check._h(request.args.get("business") or "")
+    return jsonify(dict(impact.summary(_agent.control, source, business), business=business))
+
+
+@app.get("/api/impact")
+def impact_totals():
+    """Public, aggregate only: what the checks did in Impulsa, live, plus the
+    historical backtest. Test accounts are excluded."""
+    from safepay import impact
+    try:
+        live = impact.totals(_agent.control, "impulsa")
+    except Exception as exc:
+        return jsonify({"error": f"could not read the tallies: {exc}"}), 503
+    return jsonify({"live": live, "backtest": impact.backtest()})
 
 
 @app.get("/api/agentpos/catalog")
