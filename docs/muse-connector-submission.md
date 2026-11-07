@@ -4,6 +4,38 @@ Submission copy for <https://platform.muse.ai> ("Submit a connector", Meta login
 required). Sections follow the platform docs (5.1 to 5.6). Fill the items marked
 **[Anael]** before submitting; everything else is ready to paste.
 
+## The form, step 1 (Overview), field by field
+
+| Field | Value |
+| --- | --- |
+| Connector name | SafePay Check |
+| Company or developer | NovaCorp Labs |
+| Product website | https://safepay.agentposhq.com |
+| Example prompts | "Before you buy this, check it with SafePay." · "Check this USD 48 Notion invoice with SafePay before paying it." · "Is this SafePay receipt real?" · "What are my SafePay payment rules?" · "What did SafePay check this week?" |
+| Connector icon | `webapp/static/seal.svg` (square 64x64 viewBox; the form accepts SVG) |
+| Category | Payments |
+| Your name | **[Anael]** |
+| Work email | **[Anael: an @novacorplabs.com address]** |
+| Support email or URL | security@novacorplabs.com |
+| Privacy policy | https://safepay.agentposhq.com/privacy |
+| Terms of service | https://safepay.agentposhq.com/terms |
+| Anything else | See below |
+
+**Anything else (paste):**
+SafePay Check moves no money. It is a pre-payment check: Muse sends the
+merchant, the total and the person's request; SafePay answers allow, hold or
+block with the reasons, judged against the person's own payment rules, payee
+history, a live web check of the merchant and an intent check, and returns a
+signed attestation (Ed25519, public key at
+/.well-known/safepay-seal-keys.json). Muse's own checkout (PayPal, Shop Pay,
+Stripe Link) still makes the payment. The log keeps only hashes of the payee
+and the request, so revoking a key leaves no personal data behind. Remote MCP
+over streamable HTTP at https://safepay.agentposhq.com/mcp, Bearer key auth,
+tested with the official MCP Python SDK. Benchmark of 17 payment attacks, case
+by case: https://safepay.agentposhq.com/security
+
+Steps 2 (Technical specs) and 3 (Review) take sections 5.3 to 5.6 below.
+
 ## 5.1 Connector overview
 
 **Name:** SafePay Check
@@ -49,7 +81,7 @@ regions where Muse is available.
 - Security page: <https://safepay.agentposhq.com/security>
 - Support contact and security contact: security@novacorplabs.com **[Anael: confirm the mailbox receives mail]**
 - Maintenance developer: **[Anael: name and email]**
-- Brand assets: the seal mark `webapp/static/seal.svg` (export a 512 px PNG).
+- Brand assets: the seal mark `webapp/static/seal.svg` (the form accepts SVG).
 - Muse developer terms: accepted at submission.
 
 ## 5.3 Data processing questionnaire
@@ -112,5 +144,5 @@ against <https://safepay.agentposhq.com/.well-known/safepay-seal-keys.json>.
 - [ ] security@novacorplabs.com receives mail
 - [ ] Privacy and terms reviewed by a lawyer (Chile, Ley 19.628 and 21.719)
 - [ ] Reviewer key created the day of submission
-- [ ] 512 px PNG of the seal mark
+- [x] Icon: seal.svg (the form accepts SVG)
 - [ ] Do not describe SafePay as "partnered with" or "endorsed by" Meta (connector terms)
