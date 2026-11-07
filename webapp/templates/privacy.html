@@ -35,7 +35,12 @@
 
 <section class="section card">
   <h2>Keeping and deleting</h2>
-  <p>Agent keys are shown once and stored only as a hash; you can revoke a key at any time. The audit log is append-only by design: removing one record would break the verification of every record after it, so records are kept for as long as the service runs. Do not put personal data in task descriptions that the decision does not need. For businesses that use SafePay through Impulsa, the public log keeps only a hash of the business, never names, document numbers or amounts.</p>
+  <p>Agent keys are shown once and stored only as a hash; you can revoke a key at any time. The audit log is append-only by design: removing one record would break the verification of every record after it. So the records that come from outside agents keep no personal data to begin with:</p>
+  <ul>
+    <li><b>SafePay Check connector</b> (<code>/mcp</code>): the payee address, the task text, the purpose and any order reference are used to judge the payment and are not stored; the log keeps only their hashes, the merchant name and domain, the amount, the verdict and the rule names. Revoking the key ends access; nothing personal remains to delete.</li>
+    <li><b>Impulsa</b>: the log keeps only a hash of the business, never names, document numbers or amounts.</li>
+    <li><b>Payments SafePay releases itself</b> (console, API, mandates): the record keeps the payment details needed to prove what was paid and why, for as long as the service runs. Do not put personal data the decision does not need in a task or purpose.</li>
+  </ul>
   <p>You can ask what we hold about you, and ask us to correct it, at <b>security@novacorplabs.com</b>. We follow Chile's personal data law (Ley 19.628, and Ley 21.719 when it takes effect).</p>
 </section>
 {% endblock %}

@@ -590,6 +590,40 @@ blocked as a duplicate (even when the vendor's name is written differently);
 a bank-details change to a lookalike domain is blocked; an invoice that talks
 to the reviewer is held.
 
+## Any agent asks before it pays: SafePay Check (remote MCP)
+
+The largest agents now pay through their own checkout: Meta's Muse checks out
+with PayPal, Shop Pay and Stripe Link; ChatGPT uses ACP. SafePay does not need
+to hold the money to protect it. **SafePay Check** is a remote MCP server at
+`https://safepay.agentposhq.com/mcp` (streamable HTTP, stateless, JSON
+responses, agent-key auth) that any agent calls before it pays:
+
+| Tool | What it does | Moves money |
+| --- | --- | --- |
+| `safepay_check_payment` | Judges merchant, amount and task with the same guardrail as every payment (policy, history, live web check, intent); chains a `precheck` link; returns allow, hold or block, the reasons and a signed `safepay-precheck-1` attestation valid 15 minutes | No |
+| `safepay_verify` | Verifies a seal id, a seal receipt or a precheck against the published Ed25519 key | No |
+| `safepay_policy` | The rules this key is judged under, in plain words | No |
+| `safepay_recent_checks` | This account's latest checks | No |
+
+No tool moves money, which is also what Meta's Muse Connector Platform
+requires today (its guidelines do not approve money-movement tools); the
+submission copy is in [`docs/muse-connector-submission.md`](docs/muse-connector-submission.md).
+The chain keeps no personal data from these checks: the payee address, the
+task text, the purpose and the reference are stored only as hashes. Tested
+with the official MCP Python SDK (`streamablehttp_client`): handshake, tool
+list, a check, its attestation verified, a blocked payment.
+
+```bash
+claude mcp add --transport http safepay https://safepay.agentposhq.com/mcp \
+  --header "Authorization: Bearer spk_your_key"
+```
+
+[`/connect`](https://safepay.agentposhq.com/connect) creates a key for your
+console session (your session's policy applies) and runs a live check;
+[`/security`](https://safepay.agentposhq.com/security) shows the attack
+benchmark case by case. SafePay Check is not a listed Muse connector yet:
+listing goes through Meta's review.
+
 ## Mandates: authorize a budget, capture what the task costs
 
 An agent booking a hotel or renting compute does not know the final bill when

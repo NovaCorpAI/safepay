@@ -37,7 +37,7 @@
         Authorization: 'Bearer ' + KEY }, body: JSON.stringify(body) })).json();
       const d = (r.result || {}).structuredContent || {};
       if (!d.verdict) { $('cx-out').textContent = d.error || (r.error || {}).message || 'No answer.'; return; }
-      $('cx-out').innerHTML = `<p><span class="verdict ${esc(d.verdict)}">${esc(d.verdict)}</span> · ${esc(d.what_to_do)}<br>
+      $('cx-out').innerHTML = `<p><span class="verdict ${esc(d.verdict)}">${esc(d.verdict)}</span> · ${esc(d.recommendation)}<br>
         Check <code>${esc(d.check_id)}</code>, chain link #${esc(d.chain_seq)}, valid until ${esc(d.valid_until)}.
         ${d.attestation ? 'Signed attestation returned (Ed25519).' : ''}</p>
         <ul class="note">${(d.checks || []).map((c) => `<li>${c.passed ? '✓' : '✗'} ${esc(c.name)}: ${esc(c.detail)}</li>`).join('')}</ul>`;

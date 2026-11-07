@@ -23,9 +23,12 @@ Tools
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
+import re
 import time
+from dataclasses import replace
 from typing import Any
 
 from . import receipt, seal
@@ -45,11 +48,11 @@ TOOLS: list[dict[str, Any]] = [
         "name": "safepay_check_payment",
         "title": "Check a payment before paying",
         "description": (
-            "Call this BEFORE paying anyone (checkout, invoice, transfer). SafePay judges the payment "
-            "against the user's policy, the payee's history, a live web check of the merchant and an "
-            "intent check against the task, and answers allow, hold or block with the reasons and a "
-            "signed attestation. allow: proceed to checkout. hold: show the reasons and ask the user. "
-            "block: do not pay. This tool never moves money; it only records the check."),
+            "Checks a planned payment before it is made. Judges the merchant, amount and task against "
+            "the account's payment rules, the payee's payment history, a live web check of the merchant "
+            "and an intent check, and returns allow, hold or block with the reasons, a check id and a "
+            "signed attestation valid for 15 minutes. Moves no money and stores no payee address or "
+            "task text, only their hashes."),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -70,8 +73,9 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "safepay_verify",
         "title": "Verify a SafePay seal or attestation",
-        "description": ("Verify a SafePay seal id (SP-XXXXXXXXXX) or a signed receipt or precheck "
-                        "attestation (JSON). Returns whether it is genuine, intact and what it states."),
+        "description": ("Verifies a SafePay seal id (SP-XXXXXXXXXX), a signed receipt or a precheck "
+                        "attestation against SafePay's published Ed25519 key. Returns whether it is "
+                        "genuine and intact, and what it states."),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -84,14 +88,14 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "safepay_policy",
         "title": "Show the payment rules",
-        "description": "The payment rules this account is judged under, in plain words, with their fingerprint.",
+        "description": "Returns the payment rules this account is judged under, in plain words, with their fingerprint.",
         "inputSchema": {"type": "object", "properties": {}},
         "annotations": dict(_READ, title="Show the payment rules"),
     },
     {
         "name": "safepay_recent_checks",
         "title": "Recent checks",
-        "description": "This account's latest payment checks: verdict, merchant, amount and when.",
+        "description": "Returns this account's latest payment checks: verdict, merchant, amount and time.",
         "inputSchema": {"type": "object", "properties": {
             "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10}}},
         "annotations": dict(_READ, title="Recent checks"),
@@ -109,6 +113,29 @@ def _host(v: Any) -> str:
 
 def _iso(ts: float) -> str:
     return receipt._iso(ts) or ""
+
+
+def _h(v: str) -> str:
+    return "sha256:" + hashlib.sha256(v.strip().lower().encode()).hexdigest()[:16]
+
+
+def _for_chain(decision: Any, payee: str, task: str, purpose: str, ref: str | None) -> Any:
+    """The link the chain keeps: no payee address, task text, purpose or
+    reference, only their hashes; check details scrubbed of them; evidence
+    reduced to the rule names. Merchant, amount and verdict stay."""
+    secrets = [s for s in (payee, task, purpose, ref or "") if s and len(s) >= 4]
+    pat = re.compile("|".join(re.escape(s) for s in sorted(secrets, key=len, reverse=True)), re.I) if secrets else None
+    scrub = (lambda t: pat.sub("[redacted]", t)) if pat else (lambda t: t)
+    d = copy.copy(decision)
+    d.intent = replace(decision.intent, recipient=_h(payee), task_goal=_h(task),
+                       purpose=_h(purpose) if purpose else "", invoice_ref=_h(ref) if ref else None,
+                       merchant_url=(f"https://{_host(decision.intent.merchant_url)}"
+                                     if decision.intent.merchant_url else None))
+    d.checks = [replace(c, detail=scrub(c.detail),
+                        evidence=[{"rule": e["rule"]} for e in c.evidence if isinstance(e, dict) and e.get("rule")])
+                for c in decision.checks]
+    d.reasons = [scrub(r) for r in decision.reasons]
+    return d
 
 
 def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -133,7 +160,7 @@ def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, A
     decision = agent.guardrail.evaluate(intent, policy=policy)
     decision.event = "precheck"
     decision.execution = {"method": "precheck", "client": "mcp", "moved_money": False}
-    record = agent.audit_log.append(decision)
+    record = agent.audit_log.append(_for_chain(decision, payee, task, intent.purpose, intent.invoice_ref))
     p = record.get("payload") or {}
     now = time.time()
     check_id = "SC-" + hashlib.sha256(f"{p.get('seq')}|{record.get('sha256')}".encode()).hexdigest()[:10].upper()
@@ -151,11 +178,11 @@ def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, A
                   "merchantDomain": _host(url) or None},
         "movedMoney": False,
     }) if j else None
-    todo = {"allow": "Safe to proceed to checkout for this merchant and amount.",
-            "hold": "Do not pay yet: show the user the reasons below and ask them to decide.",
-            "block": "Do not pay. Tell the user why."}[decision.verdict.value]
+    todo = {"allow": "No rule or check objected to this merchant and amount.",
+            "hold": "A person should review this payment before it is made; see the reasons.",
+            "block": "The account's rules do not allow this payment; see the reasons."}[decision.verdict.value]
     return {
-        "verdict": decision.verdict.value, "what_to_do": todo, "check_id": check_id,
+        "verdict": decision.verdict.value, "recommendation": todo, "check_id": check_id,
         "risk": round(decision.risk, 3), "reasons": list(decision.reasons),
         "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in decision.checks],
         "moved_money": False, "valid_until": _iso(now + VALID_FOR), "chain_seq": p.get("seq"),
@@ -244,8 +271,8 @@ def handle(msg: Any, agent: Any, key: str | None) -> dict[str, Any] | None:
         asked = str(params.get("protocolVersion") or "")
         return _ok(mid, {"protocolVersion": asked if asked in SUPPORTED else PROTOCOL,
                          "capabilities": {"tools": {"listChanged": False}}, "serverInfo": SERVER,
-                         "instructions": ("Call safepay_check_payment before every payment and follow its "
-                                          "what_to_do. SafePay never moves money.")})
+                         "instructions": ("SafePay Check judges planned payments and verifies SafePay seals "
+                                          "and attestations. No tool moves money.")})
     if method == "ping":
         return _ok(mid, {})
     if method == "tools/list":

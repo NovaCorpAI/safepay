@@ -1,5 +1,7 @@
 """SafePay Check: remote MCP connector (streamable HTTP, JSON-RPC), no money moves."""
 
+import json
+
 import pytest
 
 from safepay import receipt
@@ -62,7 +64,7 @@ def test_calls_need_a_valid_key(client):
 def test_check_allows_blocks_and_signs_without_moving_money(client, agent):
     key = agent.issue_key("muse-agent:RUNX", "test")["key"]
     ok = call(client, key, "safepay_check_payment", {
-        "merchant_name": "Notion", "amount": 48, "merchant_url": "https://www.notion.so", "payee": "billing@notion.so",
+        "merchant_name": "Notion", "amount": 48, "merchant_url": "https://www.notion.so/pricing", "payee": "billing@notion.so",
         "task": "Pay our monthly software invoices", "category": "software"})["structuredContent"]
     assert ok["verdict"] == "allow" and ok["moved_money"] is False and ok["check_id"].startswith("SC-")
     assert receipt.verify(ok["attestation"], signer=receipt.public_jwk()["x"]) == (True, "OK")
@@ -71,7 +73,12 @@ def test_check_allows_blocks_and_signs_without_moving_money(client, agent):
     assert link["event"] == "precheck" and not link["executed"] and link["intent"]["agent_id"] == "muse-agent:RUNX"
     big = call(client, key, "safepay_check_payment", {"merchant_name": "Notion", "amount": 900,
                                                       "task": "Pay our monthly software invoices"})["structuredContent"]
-    assert big["verdict"] == "block" and "Do not pay" in big["what_to_do"]
+    assert big["verdict"] == "block" and "do not allow" in big["recommendation"]
+    chained = [r["payload"] for r in agent.audit_log.records if r["payload"].get("event") == "precheck"]
+    blob = json.dumps(chained)
+    for secret in ("billing@notion.so", "Pay our monthly software invoices", "/pricing"):
+        assert secret not in blob                                    # no personal data in the chain
+    assert chained[0]["intent"]["recipient"].startswith("sha256:") and chained[0]["intent"]["merchant_name"] == "Notion"
     assert agent.guardrail.ledger.spent_today("muse-agent:RUNX") == 0          # nothing was spent
     v = call(client, key, "safepay_verify", {"attestation": ok["attestation"]})["structuredContent"]
     assert v["genuine"] and v["kind"] == "precheck" and v["states"]["check"] == ok["check_id"]

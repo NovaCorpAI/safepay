@@ -44,7 +44,7 @@
 <section class="section">
   <h2>Tools</h2>
   <div class="tools">
-    <div class="tool"><b>safepay_check_payment</b><span class="tag">records a check, moves no money</span><p>Before checkout: merchant, amount, task. Answers allow, hold or block with reasons, a check id and a signed precheck attestation valid for 15 minutes.</p></div>
+    <div class="tool"><b>safepay_check_payment</b><span class="tag">records a check, moves no money</span><p>Before checkout: merchant, amount, task. Answers allow, hold or block with reasons, a check id and a signed precheck attestation valid for 15 minutes. The log keeps only hashes of the payee and the task.</p></div>
     <div class="tool"><b>safepay_verify</b><span class="tag ok">read only</span><p>Verifies a seal id, a seal receipt or a precheck attestation against the published Ed25519 key.</p></div>
     <div class="tool"><b>safepay_policy</b><span class="tag ok">read only</span><p>The rules this key is judged under, in plain words, with their fingerprint.</p></div>
     <div class="tool"><b>safepay_recent_checks</b><span class="tag ok">read only</span><p>This account's latest checks: verdict, merchant, amount, when.</p></div>
@@ -57,9 +57,9 @@
   <pre>Connect to the SafePay Check MCP server at https://safepay.agentposhq.com/mcp
 (streamable HTTP, auth: Authorization: Bearer header). Test every tool, then save
 it as a skill. From now on, before any purchase or payment, call
-safepay_check_payment with the merchant, the total and my request, and follow its
-what_to_do: allow = continue to checkout, hold = show me the reasons and ask,
-block = do not pay.</pre>
+safepay_check_payment with the merchant, the total and my request. If the verdict
+is allow, continue to checkout; if hold, show me the reasons and ask me; if block,
+do not pay and tell me why.</pre>
   <p class="note">Muse Code (terminal agent): add a streamable HTTP server named <code>safepay</code> with this URL and the <code>Authorization</code> header to the <code>mcpServers</code> block of <code>~/.config/muse/settings.json</code>, following the field names in the Muse Code documentation.</p>
   <p class="note">SafePay Check is not a listed Muse connector yet; listing goes through Meta's review on the Muse Connector Platform. Muse availability depends on your region.</p>
 </section>

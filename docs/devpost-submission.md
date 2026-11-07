@@ -9,19 +9,29 @@ filled once the video is up. No em dashes used, per house style.
 SafePay
 
 ## Tagline (one line)
-The payables firewall for AI agents: it checks the payee on the live web, holds
-what a person should see, pays the rest through PayPal, and is measured against
-real attacks.
+The firewall any AI agent asks before it pays: it judges the payment, pays
+through PayPal or lets the agent's own checkout proceed, and leaves proof
+anyone can verify without us. In production inside a real SaaS.
 
 ## Elevator pitch (shorter, if a short field is asked)
-Agents are starting to pay the bills. An agent that can pay can be prompt
+Agents are starting to pay the bills, and the biggest ones now check out on
+their own: Meta's Muse buys through PayPal. An agent that can pay can be prompt
 injected by an invoice email, handed a real vendor's name on a lookalike
-domain, or sent to a merchant registered last week. Spending caps alone do not
-catch any of that. SafePay does: policy you write in plain words, live web
-verification of the payee, intent reasoning on every payment, one-tap human
-approvals (console, MCP, Telegram), a kill switch per agent, and a signed
-record of each decision. On a reproducible benchmark of 17 attacks it catches
-16 to 17, with zero false positives.
+domain, or sent to a merchant registered last week. Spending caps do not catch
+that. SafePay does, and proves it:
+
+- In production: its rules check every supplier purchase inside Impulsa, our
+  SaaS for micro-businesses in Chile, and what owners do with each alert is
+  measured.
+- Any agent can ask before it pays: SafePay Check is a remote MCP server
+  (/mcp) that judges a payment before the agent's own checkout and returns a
+  signed attestation, moving no money, within the rules of Meta's Muse
+  Connector Platform.
+- Evidence nobody else gives: a hash-chained log, Ed25519 receipts verifiable
+  offline, operator-signed policy, and AP2 Intent, Cart and Payment mandates on
+  PayPal authorize and capture.
+- Measured: 16 of 17 attacks caught (17 with the new-payee hold), zero false
+  positives, case by case at /security.
 
 ---
 
@@ -305,6 +315,11 @@ session.
 
 Fastest path: https://safepay.agentposhq.com/?tour=1 , a 3-minute guided tour
 across the real pages (it can run the scenarios and the chain check for you).
+
+Connect your own agent: https://safepay.agentposhq.com/connect creates a key
+and runs a live check through the MCP endpoint; the same endpoint works from
+Claude (`claude mcp add --transport http ...`), Cursor or any MCP client.
+Every attack case, verdict by verdict: https://safepay.agentposhq.com/security
 
 1. Console: type a policy in plain words, e.g. "Up to $500 per payment and
    $1,000 a day. Ask me before anything over $300. No gambling or crypto."
