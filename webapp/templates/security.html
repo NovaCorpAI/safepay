@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Security{% endblock %}
+{% block head %}
+<style>
+.sec .bt { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sec .bt th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line2); }
+.sec .bt td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sec .bt { table-layout: fixed; min-width: 720px; }
+.sec .bt td.v { font-family: var(--mono); font-size: 12px; word-break: break-word; }
+.sec .ok { color: var(--allow); font-weight: 600; } .sec .bad { color: var(--block); font-weight: 600; }
+.sec .wrap { overflow-x: auto; }
+.sec .ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.sec .ctl .card p { font-size: 14px; color: var(--ink2); margin: 6px 0 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="sec">
+<div class="page-head">
+  <span class="eyebrow">Security</span>
+  <h1>Measured against real attacks, not described.</h1>
+  <p>Every case below is a payment an agent with a wallet is tricked or pushed into: instructions hidden in invoices and vendor pages, goal mismatches, a lookalike payee, an inflated amount, a slow drain, a duplicate invoice, a changed bank account. The same runner, the same cases and the raw results are in the repository (<code>benchmark/attacks/</code>), so anyone can rerun them.</p>
+</div>
+
+{% if bench %}
+<section class="section">
+  <h2>Results</h2>
+  <div class="stats stats3">
+    {% for mode, label in [('policy', 'Rules only (no model, no web)'), ('full', 'Full guardrail'), ('strict', 'Full + hold new payees')] %}
+    {% set m = bench[mode] %}
+    <div class="stat {{ 'ok' if m.attacks_caught == m.attacks_total else '' }}">
+      <div class="n">{{ m.attacks_caught }}/{{ m.attacks_total }}</div>
+      <div class="l">{{ label }}: attacks caught; {{ m.legit_total - m.legit_false_positives }}/{{ m.legit_total }} legitimate invoices allowed</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="note">Model checks are not deterministic: one borderline case (an unknown payee with a plausible invoice) can flip between runs in full mode, which is why the strict mode exists and is reported separately.</p>
+</section>
+
+<section class="section card">
+  <h2>Every case</h2>
+  <div class="wrap">
+  <table class="bt">
+    <colgroup><col style="width:22%"><col style="width:42%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup>
+    <tr><th>Case</th><th>What happens</th><th>Full</th><th>Strict</th><th>Caught by</th></tr>
+    {% for r in bench.full.results %}
+    {% set s = bench.strict.results[loop.index0] %}
+    <tr>
+      <td><code>{{ r.id }}</code><br><span class="note">{{ r.kind }} · {{ r.category | replace('_', ' ') }}</span></td>
+      <td>{{ r.note }}</td>
+      <td class="v"><span class="{{ 'ok' if (r.kind == 'attack' and r.caught) or (r.kind != 'attack' and not r.caught) else 'bad' }}">{{ r.verdicts | join(', ') }}</span></td>
+      <td class="v"><span class="{{ 'ok' if (s.kind == 'attack' and s.caught) or (s.kind != 'attack' and not s.caught) else 'bad' }}">{{ s.verdicts | join(', ') }}</span></td>
+      <td>{{ s.caught_by | join(', ') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <h2>How the system protects itself and your data</h2>
+  <div class="ctl">
+    <div class="card"><h2>Evidence nobody can rewrite</h2><p>Every decision is a link in a hash chain, HMAC-signed; editing or dropping one breaks every hash after it, and the ledger re-verifies the whole chain on demand. Seals and prechecks carry Ed25519 receipts verifiable offline against <a href="/.well-known/safepay-seal-keys.json">our published key</a>.</p></div>
+    <div class="card"><h2>Rules signed by the operator</h2><p>The policy is signed in the operator's browser with a non-extractable P-256 key and re-verified on every payment; an edited policy blocks everything until it is signed again.</p></div>
+    <div class="card"><h2>Isolation and keys</h2><p>Each agent key names one account; a caller sees only its own policy and checks. Keys are shown once and stored only as a hash. All traffic is HTTPS.</p></div>
+    <div class="card"><h2>Least data</h2><p>The connector moves no money and never sees card or bank credentials. Purchase checks for Impulsa keep only a hash of the business in the public chain, no names, document numbers or amounts.</p></div>
+    <div class="card"><h2>Incidents</h2><p>A security incident involving user data is reported to affected users and platform partners within 48 hours of discovery. Report a vulnerability to security@novacorplabs.com or through GitHub's private reporting.</p></div>
+    <div class="card"><h2>Threat model</h2><p>Every attacker we design for, what stops them and what does not yet, is in <a href="https://github.com/NovaCorpAI/safepay/blob/master/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.</p></div>
+  </div>
+</section>
+</div>
+{% endblock %}

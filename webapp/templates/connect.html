@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Connect an agent{% endblock %}
+{% block head %}
+<style>
+.cx pre { background: var(--panel2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px;
+  overflow-x: auto; font: 12.5px/1.5 var(--mono); white-space: pre; margin: 8px 0 0; }
+.cx .endpoint { font: 600 15px var(--mono); user-select: all; word-break: break-all; }
+.cx .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 10px; }
+.cx .tool { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--panel); }
+.cx .tool b { font-family: var(--mono); font-size: 13px; }
+.cx .tool p { margin: 6px 0 0; font-size: 13.5px; color: var(--ink2); }
+.cx .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 99px; margin-left: 6px; border: 1px solid var(--line2); color: var(--muted); }
+.cx .tag.ok { color: var(--allow); border-color: var(--allow); }
+.cx .keybox { margin-top: 12px; display: grid; gap: 8px; }
+.cx .keybox code { font-size: 13px; word-break: break-all; user-select: all; }
+.cx #cx-out { margin-top: 10px; }
+.cx .verdict { font-weight: 700; text-transform: uppercase; }
+.cx .verdict.allow { color: var(--allow); } .cx .verdict.hold { color: var(--hold); } .cx .verdict.block { color: var(--block); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="cx">
+<div class="page-head">
+  <span class="eyebrow">Connect an agent</span>
+  <h1>Any agent asks SafePay before it pays.</h1>
+  <p>Agents now pay through their own checkout: Meta's Muse checks out with PayPal, Shop Pay and Stripe Link; others use ACP or the PayPal Agent Toolkit. SafePay does not need to hold the money to protect it. Connect <b>SafePay Check</b> as a remote MCP server: before any payment the agent asks, SafePay judges it with the same guardrail as every payment here (policy, payee history, a live web check of the merchant, an intent check against the task), chains the verdict and returns a <b>signed attestation</b> the merchant can verify. <b>No tool in this connector moves money.</b></p>
+</div>
+
+<section class="section card">
+  <h2>Endpoint</h2>
+  <p class="endpoint">https://safepay.agentposhq.com/mcp</p>
+  <p class="note">MCP over streamable HTTP (stateless, JSON responses). Auth: <code>Authorization: Bearer spk_…</code>, an agent key. The key names your account: you see only your own policy and checks, and the policy you set in the <a href="/console">console</a> for this session is the one your agent is judged under.</p>
+  <div class="keybox">
+    <button class="primary" id="cx-key" type="button">Create a connector key for this session</button>
+    <div id="cx-keyout" hidden>
+      <p class="note">Your key, shown once (SafePay keeps only its hash). Agent id <code id="cx-agent"></code>.</p>
+      <code id="cx-keyval"></code>
+      <div class="btns" style="margin-top:8px"><button class="ghost" id="cx-copy" type="button">Copy key</button><button class="ghost" id="cx-test" type="button">Run a test check</button></div>
+      <div id="cx-out"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <h2>Tools</h2>
+  <div class="tools">
+    <div class="tool"><b>safepay_check_payment</b><span class="tag">records a check, moves no money</span><p>Before checkout: merchant, amount, task. Answers allow, hold or block with reasons, a check id and a signed precheck attestation valid for 15 minutes.</p></div>
+    <div class="tool"><b>safepay_verify</b><span class="tag ok">read only</span><p>Verifies a seal id, a seal receipt or a precheck attestation against the published Ed25519 key.</p></div>
+    <div class="tool"><b>safepay_policy</b><span class="tag ok">read only</span><p>The rules this key is judged under, in plain words, with their fingerprint.</p></div>
+    <div class="tool"><b>safepay_recent_checks</b><span class="tag ok">read only</span><p>This account's latest checks: verdict, merchant, amount, when.</p></div>
+  </div>
+</section>
+
+<section class="section card">
+  <h2>Meta Muse</h2>
+  <p>Muse can build a connector to a hosted MCP server from a message. Send it this, then enter the key when Muse asks for it through its credential prompt (never paste a key into the chat):</p>
+  <pre>Connect to the SafePay Check MCP server at https://safepay.agentposhq.com/mcp
+(streamable HTTP, auth: Authorization: Bearer header). Test every tool, then save
+it as a skill. From now on, before any purchase or payment, call
+safepay_check_payment with the merchant, the total and my request, and follow its
+what_to_do: allow = continue to checkout, hold = show me the reasons and ask,
+block = do not pay.</pre>
+  <p class="note">Muse Code (terminal agent): add a streamable HTTP server named <code>safepay</code> with this URL and the <code>Authorization</code> header to the <code>mcpServers</code> block of <code>~/.config/muse/settings.json</code>, following the field names in the Muse Code documentation.</p>
+  <p class="note">SafePay Check is not a listed Muse connector yet; listing goes through Meta's review on the Muse Connector Platform. Muse availability depends on your region.</p>
+</section>
+
+<section class="section card">
+  <h2>Claude, Cursor and any MCP client</h2>
+  <pre>claude mcp add --transport http safepay https://safepay.agentposhq.com/mcp \
+  --header "Authorization: Bearer spk_your_key"</pre>
+  <p class="note">Or by hand, the same JSON-RPC any MCP client sends:</p>
+  <pre>curl -s https://safepay.agentposhq.com/mcp -H "Content-Type: application/json" \
+  -H "Authorization: Bearer spk_your_key" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"safepay_check_payment",
+       "arguments":{"merchant_name":"Notion","amount":48,"merchant_url":"https://www.notion.so",
+                    "task":"Pay our monthly software invoices"}}}'</pre>
+</section>
+
+<section class="section two">
+  <div class="card">
+    <h2>What a check proves</h2>
+    <p>That this payment was judged before it was made, under your rules, and what the verdict was. The attestation is signed with SafePay's published key (<a href="/.well-known/safepay-seal-keys.json">/.well-known/safepay-seal-keys.json</a>), names the payee by domain and a hash of its address, and points at the link in the hash chain where the check is recorded.</p>
+  </div>
+  <div class="card">
+    <h2>What it does not do</h2>
+    <p>It does not pay, refund or move money, and it does not see card or bank credentials. The agent's own checkout moves the money. A verdict is advice the agent is told to follow; for payments SafePay releases itself, use the full API and the seal. Data handling: <a href="/privacy">privacy</a> · <a href="/terms">terms</a> · <a href="/security">security</a>.</p>
+  </div>
+</section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='connect.js') }}?v={{ version }}" defer></script>{% endblock %}

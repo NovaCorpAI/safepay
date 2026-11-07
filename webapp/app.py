@@ -462,6 +462,65 @@ def pricing_page():
     return _page("pricing")
 
 
+@app.get("/connect")
+def connect_page():
+    return _page("connect")
+
+
+@app.get("/security")
+def security_page():
+    import json as _json
+    from pathlib import Path as _P
+    try:
+        bench = _json.loads((_P(__file__).resolve().parent.parent / "benchmark" / "attacks" / "results.json")
+                            .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        bench = None
+    cfg = _ctx()
+    return render_template("security.html", page="security", cfg=cfg, version=VERSION, bench=bench)
+
+
+@app.get("/privacy")
+def privacy_page():
+    return _page("privacy")
+
+
+@app.get("/terms")
+def terms_page():
+    return _page("terms")
+
+
+_MCP_CORS = {"Access-Control-Allow-Origin": "*",
+             "Access-Control-Allow-Headers": "Authorization, Content-Type, Mcp-Session-Id, Mcp-Protocol-Version",
+             "Access-Control-Allow-Methods": "POST, OPTIONS",
+             "Access-Control-Expose-Headers": "Mcp-Session-Id"}
+
+
+@app.route("/mcp", methods=["POST", "GET", "DELETE", "OPTIONS"])
+def mcp_http():
+    """SafePay Check as a remote MCP server (streamable HTTP, stateless, JSON
+    responses). Any agent that speaks MCP calls it before it pays; no tool
+    moves money. See safepay/connector.py."""
+    from safepay import connector
+    if request.method == "OPTIONS":
+        return "", 204, _MCP_CORS
+    if request.method != "POST":
+        return ("", 405, dict(_MCP_CORS, Allow="POST"))
+    if _rate_limited():
+        return jsonify(connector._err(None, -32000, "rate limited, try again shortly")), 429, _MCP_CORS
+    body = request.get_json(silent=True)
+    if body is None:
+        return jsonify(connector._err(None, -32700, "parse error")), 400, _MCP_CORS
+    key = _agent_key() or None
+    if isinstance(body, list):
+        out = [r for r in (connector.handle(m, _agent, key) for m in body[:20]) if r is not None]
+        return (jsonify(out), 200, _MCP_CORS) if out else ("", 202, _MCP_CORS)
+    resp = connector.handle(body, _agent, key)
+    if resp is None:
+        return "", 202, _MCP_CORS
+    return jsonify(resp), 200, _MCP_CORS
+
+
 def _seal_lookup(seal_id: str):
     """(normalized id, public view or None, error or None)."""
     sid = sealmod.normalize(seal_id)

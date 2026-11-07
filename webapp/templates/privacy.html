@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Privacy{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Privacy</span>
+  <h1>What SafePay keeps, and why.</h1>
+  <p>SafePay is operated by NovaCorp Labs (Santiago, Chile). This page covers the hosted service at safepay.agentposhq.com, including the SafePay Check connector at <code>/mcp</code>. Last updated: November 7, 2026.</p>
+</div>
+
+<section class="section card">
+  <h2>What we receive</h2>
+  <p>For each payment an agent asks SafePay to check or make: the merchant name and URL, the amount and currency, the payee identifier (for example a billing email or PayPal account), the category, an invoice or order reference if given, the stated purpose, and the task the agent was given. We also receive the agent key that identifies the account. We never receive card numbers, bank credentials or PayPal passwords.</p>
+</section>
+
+<section class="section card">
+  <h2>What we do with it</h2>
+  <ul>
+    <li>Judge the payment: check it against the account's policy and payment history, look up the merchant on the public web, and ask a language model whether the payment serves the task.</li>
+    <li>Record the decision in a tamper-evident audit log (a hash chain) so the account, the payee and auditors can later prove what was decided and why.</li>
+    <li>Issue signed receipts and attestations that name the payee by domain and by a hash of its address, not the address itself.</li>
+  </ul>
+  <p>We do not sell this data, show ads, or use it to train models.</p>
+</section>
+
+<section class="section card">
+  <h2>Who processes it for us</h2>
+  <ul>
+    <li><b>Tavily</b>: the merchant name or domain, for the live web check.</li>
+    <li><b>Nebius AI Studio (NVIDIA Nemotron)</b>: the payment details and the task, for the intent check.</li>
+    <li><b>PayPal</b>: only for payments SafePay itself releases (Payouts, mandates). The connector never sends anything to PayPal.</li>
+    <li><b>Supabase</b>: storage of the audit log, ledger and settings. <b>Vercel</b> and <b>Render</b>: hosting.</li>
+    <li><b>Telegram</b>: held payments, only if the account operator turns on Telegram approvals.</li>
+  </ul>
+</section>
+
+<section class="section card">
+  <h2>Keeping and deleting</h2>
+  <p>Agent keys are shown once and stored only as a hash; you can revoke a key at any time. The audit log is append-only by design: removing one record would break the verification of every record after it, so records are kept for as long as the service runs. Do not put personal data in task descriptions that the decision does not need. For businesses that use SafePay through Impulsa, the public log keeps only a hash of the business, never names, document numbers or amounts.</p>
+  <p>You can ask what we hold about you, and ask us to correct it, at <b>security@novacorplabs.com</b>. We follow Chile's personal data law (Ley 19.628, and Ley 21.719 when it takes effect).</p>
+</section>
+{% endblock %}

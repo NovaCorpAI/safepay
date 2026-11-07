@@ -35,6 +35,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 VERSION = "safepay-receipt-1"
+PRECHECK = "safepay-precheck-1"   # a verdict given BEFORE a payment; no money moved
+VERSIONS = (VERSION, PRECHECK)
 KEYS_PATH = "/.well-known/safepay-seal-keys.json"
 _ZERO_DECIMAL = {"JPY", "KRW", "CLP", "VND", "HUF", "TWD", "ISK", "UGX", "XAF", "XOF"}
 
@@ -146,8 +148,19 @@ def _prune(o: Any) -> Any:
     return o
 
 
-def _message(h: str) -> bytes:
-    return f"{VERSION}\n{h}".encode()
+def _message(h: str, version: str = VERSION) -> bytes:
+    return f"{version}\n{h}".encode()
+
+
+def sign_envelope(body: dict[str, Any]) -> dict[str, Any] | None:
+    """{body, hash, signature} for any body whose `v` is one of VERSIONS,
+    signed over `v` LF hash, exactly like a seal receipt."""
+    k = _key()
+    if k is None or body.get("v") not in VERSIONS:
+        return None
+    b = _prune(body)
+    h = hashlib.sha256(canonical(b)).hexdigest()
+    return {"body": b, "hash": h, "signature": base64.b64encode(k.sign(_message(h, b["v"]))).decode()}
 
 
 def issue(found: dict[str, Any], seal_id: str) -> dict[str, Any] | None:
@@ -167,7 +180,7 @@ def verify(receipt: dict[str, Any], signer: str | None = None) -> tuple[bool, st
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
     try:
         b, h, sig = receipt["body"], receipt["hash"], receipt["signature"]
-        if b.get("v") != VERSION:
+        if b.get("v") not in VERSIONS:
             return False, "RECEIPT_MALFORMED"
         key = (b.get("issuer") or {}).get("signer")
     except (KeyError, TypeError, AttributeError):
@@ -177,7 +190,7 @@ def verify(receipt: dict[str, Any], signer: str | None = None) -> tuple[bool, st
     if signer and signer != key:
         return False, "RECEIPT_SIGNATURE_INVALID"
     try:
-        Ed25519PublicKey.from_public_bytes(_b64u_dec(key)).verify(base64.b64decode(sig), _message(h))
+        Ed25519PublicKey.from_public_bytes(_b64u_dec(key)).verify(base64.b64decode(sig), _message(h, b["v"]))
     except (InvalidSignature, ValueError, TypeError):
         return False, "RECEIPT_SIGNATURE_INVALID"
     return True, "OK"

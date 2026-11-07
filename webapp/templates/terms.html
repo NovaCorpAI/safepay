@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}SafePay · Terms{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">Terms</span>
+  <h1>Terms of use.</h1>
+  <p>These terms cover the hosted SafePay service at safepay.agentposhq.com, including the SafePay Check connector at <code>/mcp</code>, operated by NovaCorp Labs (Santiago, Chile). The open-source code is covered by its MIT license. Last updated: November 7, 2026.</p>
+</div>
+
+<section class="section card">
+  <h2>What the service is</h2>
+  <p>SafePay judges payments that software agents want to make and records each decision. The SafePay Check connector only checks and verifies: it does not pay, refund or move money, and it does not hold funds. Payments SafePay releases itself run on the PayPal sandbox in this hosted demo; no real money moves through it.</p>
+</section>
+
+<section class="section card">
+  <h2>Verdicts are advice</h2>
+  <p>An allow, hold or block verdict is our assessment from the information given and the checks described on the <a href="/security">security page</a>. It is not a guarantee that a merchant is honest, that goods will be delivered, or that a payment is free of fraud. You and your agent decide whether to pay. A payment made without a SafePay check is outside what SafePay can judge.</p>
+</section>
+
+<section class="section card">
+  <h2>Your responsibilities</h2>
+  <ul>
+    <li>Keep your agent keys secret and revoke a key you think was exposed.</li>
+    <li>Send only the data a decision needs, and only data you are allowed to share.</li>
+    <li>Do not use the service to test attacks on third parties, to overload it, or to get around its limits.</li>
+  </ul>
+</section>
+
+<section class="section card">
+  <h2>Availability and liability</h2>
+  <p>The hosted service is offered as is, during its launch period, without an uptime commitment unless a written agreement says otherwise. To the extent the law allows, NovaCorp Labs is not liable for losses from a payment you or your agent made, including after an allow verdict. We may change these terms; the date above shows the current version. Questions: <b>security@novacorplabs.com</b>.</p>
+</section>
+{% endblock %}

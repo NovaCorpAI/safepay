@@ -1,0 +1,276 @@
+"""SafePay Check: a remote MCP connector any agent calls before it pays.
+
+Agents increasingly pay through their own checkout (Meta's Muse checks out
+with PayPal, Shop Pay or Stripe Link; ChatGPT with ACP). SafePay does not need
+to hold the money to protect it: the agent asks first, SafePay judges the
+payment with the same guardrail as every other one, chains the verdict, and
+answers with a signed pre-payment attestation the merchant (or anyone) can
+verify offline. No tool here moves money, which is also what agent platforms
+require today (Meta's Muse Connector Platform does not approve money-movement
+tools, section 4.6 of its guidelines; it does accept read and check tools).
+
+Transport: MCP streamable HTTP, stateless, JSON responses (POST /mcp). A
+plain Flask route serves it, so it runs on the same serverless deployment as
+the console. Auth: `Authorization: Bearer spk_...`, an agent key; the key
+names the account, so each caller sees only its own policy and checks.
+
+Tools
+    safepay_check_payment   judge a payment before checkout; signed verdict
+    safepay_verify          verify a seal id, a seal receipt or a precheck
+    safepay_policy          the rules this key is judged under, in plain words
+    safepay_recent_checks   this key's latest checks
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import time
+from typing import Any
+
+from . import receipt, seal
+from .models import PaymentIntent
+from .policy_draft import describe_policy
+
+PROTOCOL = "2025-06-18"
+SUPPORTED = ("2025-06-18", "2025-03-26", "2024-11-05")
+VALID_FOR = 15 * 60          # a precheck stands for 15 minutes
+SERVER = {"name": "safepay", "title": "SafePay Check", "version": "0.7.0"}
+
+_NO_MONEY = {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
+_READ = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
+
+TOOLS: list[dict[str, Any]] = [
+    {
+        "name": "safepay_check_payment",
+        "title": "Check a payment before paying",
+        "description": (
+            "Call this BEFORE paying anyone (checkout, invoice, transfer). SafePay judges the payment "
+            "against the user's policy, the payee's history, a live web check of the merchant and an "
+            "intent check against the task, and answers allow, hold or block with the reasons and a "
+            "signed attestation. allow: proceed to checkout. hold: show the reasons and ask the user. "
+            "block: do not pay. This tool never moves money; it only records the check."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "merchant_name": {"type": "string", "description": "Who is being paid, as shown at checkout"},
+                "amount": {"type": "number", "exclusiveMinimum": 0, "description": "Total to pay"},
+                "currency": {"type": "string", "default": "USD", "description": "ISO 4217 code"},
+                "merchant_url": {"type": "string", "description": "The store or checkout URL"},
+                "payee": {"type": "string", "description": "The payee account if known (email or PayPal id)"},
+                "task": {"type": "string", "description": "What the user asked the agent to do, in their words"},
+                "purpose": {"type": "string", "description": "What this payment is for"},
+                "category": {"type": "string", "description": "e.g. software, travel, groceries"},
+                "invoice_ref": {"type": "string", "description": "Invoice or order number, if any"},
+            },
+            "required": ["merchant_name", "amount", "task"],
+        },
+        "annotations": dict(_NO_MONEY, title="Check a payment before paying"),
+    },
+    {
+        "name": "safepay_verify",
+        "title": "Verify a SafePay seal or attestation",
+        "description": ("Verify a SafePay seal id (SP-XXXXXXXXXX) or a signed receipt or precheck "
+                        "attestation (JSON). Returns whether it is genuine, intact and what it states."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "seal": {"type": "string", "description": "A seal id such as SP-3F9A0C21BE"},
+                "attestation": {"type": "object", "description": "A {body, hash, signature} SafePay document"},
+            },
+        },
+        "annotations": dict(_READ, title="Verify a SafePay seal or attestation"),
+    },
+    {
+        "name": "safepay_policy",
+        "title": "Show the payment rules",
+        "description": "The payment rules this account is judged under, in plain words, with their fingerprint.",
+        "inputSchema": {"type": "object", "properties": {}},
+        "annotations": dict(_READ, title="Show the payment rules"),
+    },
+    {
+        "name": "safepay_recent_checks",
+        "title": "Recent checks",
+        "description": "This account's latest payment checks: verdict, merchant, amount and when.",
+        "inputSchema": {"type": "object", "properties": {
+            "limit": {"type": "integer", "minimum": 1, "maximum": 20, "default": 10}}},
+        "annotations": dict(_READ, title="Recent checks"),
+    },
+]
+
+
+class ToolError(ValueError):
+    """A tool call the caller can fix (reported as isError, not a protocol error)."""
+
+
+def _host(v: Any) -> str:
+    return receipt._host(v)
+
+
+def _iso(ts: float) -> str:
+    return receipt._iso(ts) or ""
+
+
+def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, Any]:
+    try:
+        amount = float(args.get("amount"))
+    except (TypeError, ValueError):
+        raise ToolError("amount must be a number")
+    if amount <= 0:
+        raise ToolError("amount must be positive")
+    merchant = str(args.get("merchant_name") or "").strip()[:200]
+    task = str(args.get("task") or "").strip()[:1000]
+    if not merchant or not task:
+        raise ToolError("merchant_name and task are required")
+    url = str(args.get("merchant_url") or "").strip()[:500] or None
+    payee = str(args.get("payee") or "").strip()[:200] or (f"checkout@{_host(url)}" if url and _host(url) else merchant)
+    intent = PaymentIntent(
+        recipient=payee, amount=round(amount, 2), currency=str(args.get("currency") or "USD").upper()[:3],
+        purpose=str(args.get("purpose") or "")[:500], category=str(args.get("category") or "uncategorized")[:60],
+        merchant_name=merchant, merchant_url=url, agent_id=account, task_goal=task,
+        invoice_ref=(str(args.get("invoice_ref"))[:80] if args.get("invoice_ref") else None))
+    policy = agent.policy_for(account)
+    decision = agent.guardrail.evaluate(intent, policy=policy)
+    decision.event = "precheck"
+    decision.execution = {"method": "precheck", "client": "mcp", "moved_money": False}
+    record = agent.audit_log.append(decision)
+    p = record.get("payload") or {}
+    now = time.time()
+    check_id = "SC-" + hashlib.sha256(f"{p.get('seq')}|{record.get('sha256')}".encode()).hexdigest()[:10].upper()
+    payee_l = payee.strip().lower()
+    j = receipt.public_jwk()
+    att = receipt.sign_envelope({
+        "v": receipt.PRECHECK, "check": check_id, "at": _iso(now), "validUntil": _iso(now + VALID_FOR),
+        "issuer": {"name": "SafePay", "url": "https://safepay.agentposhq.com",
+                   "signer": (j or {}).get("x"), "kid": (j or {}).get("kid")},
+        "chain": {"seq": p.get("seq"), "hash": record.get("sha256"), "prev": p.get("prev")},
+        "decision": {"verdict": decision.verdict.value, "risk": round(decision.risk, 3),
+                     "policyHash": p.get("policy_hash")},
+        "terms": {"amountMinor": receipt.minor(intent.amount, intent.currency), "currency": intent.currency,
+                  "payeeDomain": _host(payee_l) or None, "payeeSha256": hashlib.sha256(payee_l.encode()).hexdigest(),
+                  "merchantDomain": _host(url) or None},
+        "movedMoney": False,
+    }) if j else None
+    todo = {"allow": "Safe to proceed to checkout for this merchant and amount.",
+            "hold": "Do not pay yet: show the user the reasons below and ask them to decide.",
+            "block": "Do not pay. Tell the user why."}[decision.verdict.value]
+    return {
+        "verdict": decision.verdict.value, "what_to_do": todo, "check_id": check_id,
+        "risk": round(decision.risk, 3), "reasons": list(decision.reasons),
+        "checks": [{"name": c.name, "passed": c.passed, "detail": c.detail} for c in decision.checks],
+        "moved_money": False, "valid_until": _iso(now + VALID_FOR), "chain_seq": p.get("seq"),
+        "attestation": att, "keys": "https://safepay.agentposhq.com" + receipt.KEYS_PATH,
+    }
+
+
+def verify(agent: Any, args: dict[str, Any]) -> dict[str, Any]:
+    att = args.get("attestation")
+    if isinstance(att, str):
+        try:
+            att = json.loads(att)
+        except ValueError:
+            raise ToolError("attestation must be the JSON SafePay returned")
+    if isinstance(att, dict):
+        j = receipt.public_jwk()
+        ok, code = receipt.verify(att, signer=(j or {}).get("x"))
+        b = att.get("body") or {}
+        out = {"genuine": ok, "code": code, "kind": "precheck" if b.get("v") == receipt.PRECHECK else "receipt",
+               "states": {k: b.get(k) for k in ("check", "seal", "decision", "terms", "validUntil", "event", "at")
+                          if b.get(k) is not None}}
+        if ok and b.get("validUntil"):
+            out["expired"] = b["validUntil"] < _iso(time.time())
+        return out
+    sid = seal.normalize(str(args.get("seal") or ""))
+    if not sid:
+        raise ToolError("pass a seal id (SP-XXXXXXXXXX) or an attestation")
+    found = seal.find(agent.audit_log, sid)
+    if not found:
+        return {"genuine": False, "code": "RECEIPT_NOT_FOUND", "seal": sid}
+    v = seal.view(found, sid)
+    return {"genuine": bool(v.get("intact")), "seal": sid, "kind": "seal",
+            "states": {k: v.get(k) for k in ("amount", "currency", "merchant", "recipient", "kind",
+                                              "payout_status", "when", "seq", "linked")},
+            "page": f"https://safepay.agentposhq.com/v/{sid}"}
+
+
+def policy(agent: Any, account: str) -> dict[str, Any]:
+    from .attest import policy_hash
+    pol = agent.policy_for(account)
+    return {"rules": describe_policy(pol), "fingerprint": policy_hash(pol)[:16],
+            "tampered": getattr(pol, "_tamper", None)}
+
+
+def recent(agent: Any, account: str, limit: Any = 10) -> dict[str, Any]:
+    try:
+        n = max(1, min(20, int(limit or 10)))
+    except (TypeError, ValueError):
+        n = 10
+    rows = []
+    for r in reversed(list(getattr(agent.audit_log, "records", []) or [])):
+        p = r.get("payload") or {}
+        i = p.get("intent") or {}
+        if p.get("event") != "precheck" or i.get("agent_id") != account:
+            continue
+        rows.append({"seq": p.get("seq"), "verdict": p.get("verdict"), "merchant": i.get("merchant_name"),
+                     "amount": i.get("amount"), "currency": i.get("currency"), "at": _iso(p.get("ts") or 0)})
+        if len(rows) >= n:
+            break
+    return {"checks": rows}
+
+
+# --- MCP over streamable HTTP (stateless, JSON responses) -----------------
+
+def _ok(mid: Any, result: dict[str, Any]) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": mid, "result": result}
+
+
+def _err(mid: Any, code: int, message: str) -> dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
+
+
+def _tool_result(data: dict[str, Any], is_error: bool = False) -> dict[str, Any]:
+    return {"content": [{"type": "text", "text": json.dumps(data, ensure_ascii=False)}],
+            "structuredContent": data, "isError": is_error}
+
+
+def handle(msg: Any, agent: Any, key: str | None) -> dict[str, Any] | None:
+    """One JSON-RPC message in, one response out (None for notifications)."""
+    if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or not isinstance(msg.get("method"), str):
+        return _err(msg.get("id") if isinstance(msg, dict) else None, -32600, "invalid request")
+    mid, method, params = msg.get("id"), msg["method"], msg.get("params") or {}
+    if "id" not in msg:                       # notification (e.g. notifications/initialized)
+        return None
+    if method == "initialize":
+        asked = str(params.get("protocolVersion") or "")
+        return _ok(mid, {"protocolVersion": asked if asked in SUPPORTED else PROTOCOL,
+                         "capabilities": {"tools": {"listChanged": False}}, "serverInfo": SERVER,
+                         "instructions": ("Call safepay_check_payment before every payment and follow its "
+                                          "what_to_do. SafePay never moves money.")})
+    if method == "ping":
+        return _ok(mid, {})
+    if method == "tools/list":
+        return _ok(mid, {"tools": TOOLS})
+    if method != "tools/call":
+        return _err(mid, -32601, f"method not found: {method}")
+    name, args = params.get("name"), params.get("arguments") or {}
+    if not key:
+        return _ok(mid, _tool_result({"error": "an agent key is required: Authorization: Bearer spk_... "
+                                               "(get one at https://safepay.agentposhq.com/connect)"}, True))
+    try:
+        account = agent.resolve_agent("", key)
+    except ValueError:
+        return _ok(mid, _tool_result({"error": "invalid agent key"}, True))
+    try:
+        if name == "safepay_check_payment":
+            data = check_payment(agent, account, args)
+        elif name == "safepay_verify":
+            data = verify(agent, args)
+        elif name == "safepay_policy":
+            data = policy(agent, account)
+        elif name == "safepay_recent_checks":
+            data = recent(agent, account, args.get("limit"))
+        else:
+            return _err(mid, -32602, f"unknown tool: {name}")
+    except ToolError as exc:
+        return _ok(mid, _tool_result({"error": str(exc)}, True))
+    return _ok(mid, _tool_result(data))
