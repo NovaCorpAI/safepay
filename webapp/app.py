@@ -506,13 +506,18 @@ def connect_page():
 def security_page():
     import json as _json
     from pathlib import Path as _P
+    root = _P(__file__).resolve().parent.parent / "benchmark"
     try:
-        bench = _json.loads((_P(__file__).resolve().parent.parent / "benchmark" / "attacks" / "results.json")
-                            .read_text(encoding="utf-8"))
+        bench = _json.loads((root / "attacks" / "results.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
         bench = None
+    try:
+        retries = _json.loads((root / "retries" / "results.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        retries = None
     cfg = _ctx()
-    return render_template("security.html", page="security", cfg=cfg, version=VERSION, bench=bench)
+    return render_template("security.html", page="security", cfg=cfg, version=VERSION,
+                           bench=bench, retries=retries)
 
 
 @app.get("/privacy")

@@ -57,6 +57,22 @@
 </section>
 {% endif %}
 
+{% if retries %}
+<section class="section">
+  <h2>A retry is an attack too</h2>
+  <p>The same <code>create_order</code> submitted {{ retries.n }} times at once, against the real PayPal sandbox, through three set-ups of the PayPal Agent Toolkit's Python client ({{ retries.toolkit_version }}). Orders PayPal ended up with, over {{ retries.rounds }} rounds ({{ retries.n * retries.rounds }} submissions per set-up):</p>
+  <div class="stats stats3">
+    {% for mode, m in retries.modes.items() %}
+    <div class="stat {{ 'ok' if m.burst_orders_max == 1 else '' }}">
+      <div class="n">{{ m.burst_orders_total }}/{{ m.submissions_total }}</div>
+      <div class="l">{{ m.label }}: orders created{% if m.burst_orders_min != m.burst_orders_max %} ({{ m.burst_orders_min }} to {{ m.burst_orders_max }} per round){% endif %}; {{ m.burst_posts_total }} POSTs reached PayPal</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="note">The shipped client sends no <code>PayPal-Request-Id</code>, so every duplicate becomes an order. The header alone folds a sequential retry (one order from the retry pair in every round) but PayPal only de-duplicates against a request it has already finished, so simultaneous twins still get through, and how many depends on timing. The gate lets one call per request id reach PayPal and hands that result to the others. Runner, raw results and the per-round table: <code>benchmark/retries/</code> in the repository. Run {{ retries.when }}.</p>
+</section>
+{% endif %}
+
 <section class="section">
   <h2>How the system protects itself and your data</h2>
   <div class="ctl">
@@ -64,7 +80,7 @@
     <div class="card"><h2>Rules signed by the operator</h2><p>The policy is signed in the operator's browser with a non-extractable P-256 key and re-verified on every payment; an edited policy blocks everything until it is signed again.</p></div>
     <div class="card"><h2>Isolation and keys</h2><p>Each agent key names one account; a caller sees only its own policy and checks. Keys are shown once and stored only as a hash. All traffic is HTTPS.</p></div>
     <div class="card"><h2>Least data</h2><p>The connector moves no money and never sees card or bank credentials. Purchase checks for Impulsa keep only a hash of the business in the public chain, no names, document numbers or amounts.</p></div>
-    <div class="card"><h2>One intent, one charge</h2><p>PayPal de-duplicates a request that carries a <code>PayPal-Request-Id</code>. The PayPal Agent Toolkit's Python client (1.1.0 and 1.11.0) sends none, so an agent retrying after a timeout creates a second order or charge. SafePay's gate adds a request id derived from the intent to every money-moving toolkit call, writes it into the chain link, and runs one call per request id at a time, so a simultaneous duplicate gets the first result instead of a second charge (the header alone does not cover that case). Its own PayPal client has always sent one. We sent the fix upstream too: <a href="https://github.com/paypal/agent-toolkit/pull/124" rel="noopener">paypal/agent-toolkit#124</a>, open.</p></div>
+    <div class="card"><h2>One intent, one charge</h2><p>PayPal de-duplicates a request that carries a <code>PayPal-Request-Id</code>. The PayPal Agent Toolkit's Python client (1.1.0 and 1.11.0) sends none, so an agent retrying after a timeout creates a second order or charge. SafePay's gate adds a request id derived from the intent to every money-moving toolkit call, writes it into the chain link, and runs one call per request id at a time, so a simultaneous duplicate gets the first result instead of a second charge. Measured above against the sandbox: 20 simultaneous duplicates make 20 orders as shipped, 2 to 7 with the header alone, 1 through the gate. Its own PayPal client has always sent one. We sent the fix upstream too: <a href="https://github.com/paypal/agent-toolkit/pull/124" rel="noopener">paypal/agent-toolkit#124</a>, open.</p></div>
     <div class="card"><h2>Incidents</h2><p>A security incident involving user data is reported to affected users and platform partners within 48 hours of discovery. Report a vulnerability to security@novacorplabs.com or through GitHub's private reporting.</p></div>
     <div class="card"><h2>Threat model</h2><p>Every attacker we design for, what stops them and what does not yet, is in <a href="https://github.com/NovaCorpAI/safepay/blob/master/SECURITY.md" target="_blank" rel="noopener">SECURITY.md</a>.</p></div>
   </div>

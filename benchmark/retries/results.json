@@ -1,0 +1,388 @@
+{
+  "n": 20,
+  "rounds": 3,
+  "modes": {
+    "toolkit": {
+      "label": "Toolkit as shipped (no PayPal-Request-Id)",
+      "rounds": [
+        {
+          "label": "Toolkit as shipped (no PayPal-Request-Id)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 3,
+            "late": 2,
+            "orders": 20,
+            "ids": [
+              "0BN49266YG385072L",
+              "0WM52746CD047384D",
+              "11C72518075625530",
+              "22V57092DD8790427",
+              "2XW81403NF117001R",
+              "3WE140905T1948033",
+              "4W838448R0587421M",
+              "67D87261W0287271V",
+              "6E026088FT894544U",
+              "6KF54094BK395480L",
+              "6R3100468V581794D",
+              "6T2468343Y454134L",
+              "86C40463BS4045230",
+              "8LT55089E4665682M",
+              "8PR58316F61153003",
+              "8TW84503W53657615",
+              "918373885X789135M",
+              "96H609915V0359940",
+              "9BN931853X264784K",
+              "9BS16959HU460052G"
+            ],
+            "ms_max": 12474,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 12481
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 2,
+            "ids": [
+              "3EK15310LA7663931",
+              "3PW10688PV268042C"
+            ],
+            "ms_max": 1627,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        },
+        {
+          "label": "Toolkit as shipped (no PayPal-Request-Id)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 5,
+            "late": 4,
+            "orders": 20,
+            "ids": [
+              "0FR76756Y0108833H",
+              "0KJ31460X6216162V",
+              "0WV36164JU057205Y",
+              "2MN64511XX106130F",
+              "31L84799NU255953H",
+              "33717761JW560931J",
+              "377145570J460453C",
+              "3NK75734RY628390C",
+              "3Y049979YH239071N",
+              "4EE662709N457712N",
+              "5X100684AG278530Y",
+              "62928710WT259144T",
+              "77R52749310336616",
+              "7AL98966NH061605R",
+              "7B849037913125536",
+              "7G801108U79755052",
+              "7NN922831D797413G",
+              "84438223JH0036828",
+              "8RG48241FT279540C",
+              "8XH30221BP1391431"
+            ],
+            "ms_max": 12601,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 12610
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 2,
+            "late": 2,
+            "orders": 2,
+            "ids": [
+              "0D406541B09946424",
+              "9GJ92839U4874621M"
+            ],
+            "ms_max": 7094,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        },
+        {
+          "label": "Toolkit as shipped (no PayPal-Request-Id)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 5,
+            "late": 4,
+            "orders": 20,
+            "ids": [
+              "0B318970ER300522G",
+              "10K782973A002370W",
+              "117836742K927561G",
+              "1YH01210CC493863L",
+              "2SM96895KX039245R",
+              "31308530AY012250D",
+              "38X35319M54291528",
+              "3UP5240813943840S",
+              "3YG39244LY9972636",
+              "41H6436722411983L",
+              "4XV07693T8541402F",
+              "53S38153RC892114H",
+              "610481959W406490L",
+              "6HU50857MS3929916",
+              "6R218483E4769034D",
+              "7WJ21523B7637032F",
+              "8W710556NJ0283515",
+              "9G378749YY7631026",
+              "9WE84523XM060942W",
+              "9Y760041GD548472J"
+            ],
+            "ms_max": 12646,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 12651
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 3,
+            "late": 1,
+            "orders": 2,
+            "ids": [
+              "2WR13458PM5245237",
+              "9DA42676SL5800021"
+            ],
+            "ms_max": 18102,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        }
+      ],
+      "burst_orders_total": 60,
+      "burst_orders_max": 20,
+      "burst_orders_min": 20,
+      "burst_posts_total": 60,
+      "retry_orders_total": 6,
+      "submissions_total": 60
+    },
+    "header": {
+      "label": "PayPal-Request-Id only (SafePay header patch)",
+      "rounds": [
+        {
+          "label": "PayPal-Request-Id only (SafePay header patch)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 1,
+            "late": 1,
+            "orders": 4,
+            "ids": [
+              "2D4721692H697035D",
+              "3DH83914DB749850D",
+              "3DR60582GF128911K",
+              "62S12942FC294890E"
+            ],
+            "ms_max": 6949,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 6961
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "59V37353D6947142E"
+            ],
+            "ms_max": 1638,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        },
+        {
+          "label": "PayPal-Request-Id only (SafePay header patch)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 3,
+            "late": 3,
+            "orders": 2,
+            "ids": [
+              "7D131317785430848",
+              "8MF89476X2431781E"
+            ],
+            "ms_max": 6838,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 6843
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "48J905558X3952052"
+            ],
+            "ms_max": 1553,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        },
+        {
+          "label": "PayPal-Request-Id only (SafePay header patch)",
+          "burst": {
+            "posts": 20,
+            "errors": 0,
+            "connect_retries": 6,
+            "late": 5,
+            "orders": 7,
+            "ids": [
+              "09079038PJ292783F",
+              "17X21401B2027152C",
+              "2BL308422V988894E",
+              "38853217ET444450N",
+              "4FP62260XR5600135",
+              "82F68707CU413330F",
+              "8DA187568V693852A"
+            ],
+            "ms_max": 12687,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 12695
+          },
+          "retry": {
+            "posts": 2,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "14L23211NK282313P"
+            ],
+            "ms_max": 1214,
+            "submissions": 2,
+            "failed_submissions": 0
+          }
+        }
+      ],
+      "burst_orders_total": 13,
+      "burst_orders_max": 7,
+      "burst_orders_min": 2,
+      "burst_posts_total": 60,
+      "retry_orders_total": 3,
+      "submissions_total": 60
+    },
+    "gate": {
+      "label": "SafePay gate (header + one call per id + replay)",
+      "rounds": [
+        {
+          "label": "SafePay gate (header + one call per id + replay)",
+          "burst": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 1,
+            "late": 1,
+            "orders": 1,
+            "ids": [
+              "5FB2421807808404K"
+            ],
+            "ms_max": 6567,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 6574,
+            "replayed": 19
+          },
+          "retry": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "3DG59757TY4434639"
+            ],
+            "ms_max": 1546,
+            "submissions": 2,
+            "failed_submissions": 0,
+            "replayed": 1
+          }
+        },
+        {
+          "label": "SafePay gate (header + one call per id + replay)",
+          "burst": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "39K89574AB2469811"
+            ],
+            "ms_max": 1547,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 1550,
+            "replayed": 19
+          },
+          "retry": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "3RP23148NP3016024"
+            ],
+            "ms_max": 1514,
+            "submissions": 2,
+            "failed_submissions": 0,
+            "replayed": 1
+          }
+        },
+        {
+          "label": "SafePay gate (header + one call per id + replay)",
+          "burst": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "3C024073KX201451D"
+            ],
+            "ms_max": 1811,
+            "submissions": 20,
+            "failed_submissions": 0,
+            "wall_ms": 1819,
+            "replayed": 19
+          },
+          "retry": {
+            "posts": 1,
+            "errors": 0,
+            "connect_retries": 0,
+            "late": 0,
+            "orders": 1,
+            "ids": [
+              "7W5203986E710392S"
+            ],
+            "ms_max": 1434,
+            "submissions": 2,
+            "failed_submissions": 0,
+            "replayed": 1
+          }
+        }
+      ],
+      "burst_orders_total": 3,
+      "burst_orders_max": 1,
+      "burst_orders_min": 1,
+      "burst_posts_total": 3,
+      "retry_orders_total": 3,
+      "submissions_total": 60
+    }
+  },
+  "when": "2026-11-08 16:08 UTC",
+  "toolkit_version": "1.1.0",
+  "host": "api-m.sandbox.paypal.com"
+}

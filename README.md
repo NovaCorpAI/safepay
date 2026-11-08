@@ -307,11 +307,13 @@ derived from the intent (its `idempotency_key`, else a hash of the method,
 the parameters and the agent), the id is written into the chain link, and a
 retry of the same intent reaches PayPal as the same request. The header alone
 is not enough when the duplicates are simultaneous (PayPal de-duplicates
-against a request it has already finished; Crashpay measured a second charge
-getting through some concurrent double submits), so the gate also runs one
+against a request it has already finished), so the gate also runs one
 toolkit call per request id at a time and hands the twin the first result
 instead of calling PayPal again; a later retry with the same idempotency key
-is answered the same way for an hour, without re-judging it. SafePay's own
+is answered the same way for an hour, without re-judging it. We measured it
+against the sandbox (`benchmark/retries/`, 20 simultaneous duplicates of one
+`create_order`, 3 rounds): the shipped client makes 20 orders every round,
+the header alone still lets 2 to 7 through, the gate makes 1. SafePay's own
 PayPal client (Payouts, Orders, Vault) has always sent it. We also reported
 the gap upstream and sent the fix at the source: [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
 (per-call request id for the Python client, open as of November 8, 2026).
@@ -443,6 +445,7 @@ per-case results are in `benchmark/attacks/results.md`.
 ```bash
 python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for full/strict
 python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
+python benchmark/retries/run_retry_benchmark.py --n 20 --rounds 3 # duplicate submissions, needs sandbox keys
 ```
 
 ## Policy in plain words

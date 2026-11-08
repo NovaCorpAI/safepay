@@ -218,11 +218,14 @@ another entry in this hackathon, measured that against the sandbox. Our gate
 now sends a request id derived from the payment intent on every money-moving
 toolkit call and records it in the chain link, so a retry of the same intent
 is the same request to PayPal; SafePay's own PayPal client always did. The
-header alone does not cover simultaneous duplicates (Crashpay saw a second
-charge slip through some concurrent double submits), so the gate also runs
-one call per request id at a time and replays the first result to the twin
-instead of calling PayPal twice. We
-reported it on the toolkit's issue tracker and sent the fix upstream as
+header alone does not cover simultaneous duplicates (PayPal de-duplicates
+against a request it has already finished), so the gate also runs one call
+per request id at a time and replays the first result to the twin instead of
+calling PayPal twice. We measured it against the sandbox, 20 simultaneous
+duplicates of one create_order over 3 rounds: 20 orders every round with the
+client as shipped, 2 to 7 with the header alone, 1 through the gate
+(benchmark/retries/ in the repo, runner and raw results). We reported the gap
+on the toolkit's issue tracker and sent the fix upstream as
 paypal/agent-toolkit#124 (per-call request id for the Python client, open).
 
 ## Accomplishments that we are proud of
