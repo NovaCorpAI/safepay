@@ -81,7 +81,7 @@ regions where Muse is available.
 - Security page: <https://safepay.agentposhq.com/security>
 - Support contact and security contact: security@novacorplabs.com **[Anael: confirm the mailbox receives mail]**
 - Maintenance developer: **[Anael: name and email]**
-- Brand assets: the seal mark `webapp/static/seal.svg` (the form accepts SVG).
+- Brand assets: the seal mark `webapp/static/seal.svg` (webapp/static/seal-512.svg: the form needs a 512x512 viewBox).
 - Muse developer terms: accepted at submission.
 
 ## 5.3 Data processing questionnaire
@@ -144,5 +144,5 @@ against <https://safepay.agentposhq.com/.well-known/safepay-seal-keys.json>.
 - [ ] security@novacorplabs.com receives mail
 - [ ] Privacy and terms reviewed by a lawyer (Chile, Ley 19.628 and 21.719)
 - [ ] Reviewer key created the day of submission
-- [x] Icon: seal.svg (the form accepts SVG)
+- [x] Icon: seal.svg (webapp/static/seal-512.svg: the form needs a 512x512 viewBox)
 - [ ] Do not describe SafePay as "partnered with" or "endorsed by" Meta (connector terms)

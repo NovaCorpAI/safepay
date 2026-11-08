@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="SafePay seal">
+<g transform="scale(8)">
+  <!-- A notary's wax seal: a scalloped edge, a perforated gold ring, and the
+       check of an approved payment pressed into it. Every payment, sealed. -->
+  <path fill="#2b3a8c" d="M32 2.5l3.4 3.1 4.4-1.3 2.2 4 4.5.4.6 4.5 4.1 2-1.3 4.4 3.2 3.2-2.4 3.9 2.4 3.9-3.2 3.2 1.3 4.4-4.1 2-.6 4.5-4.5.4-2.2 4-4.4-1.3L32 61.5l-3.4-3.1-4.4 1.3-2.2-4-4.5-.4-.6-4.5-4.1-2 1.3-4.4-3.2-3.2 2.4-3.9-2.4-3.9 3.2-3.2-1.3-4.4 4.1-2 .6-4.5 4.5-.4 2.2-4 4.4 1.3z"/>
+  <circle cx="32" cy="32" r="20" fill="none" stroke="#d9b65c" stroke-width="2" stroke-dasharray="1.6 2.6" stroke-linecap="round"/>
+  <path d="M21.5 32.5l7 7 14-15.5" fill="none" stroke="#f3eee4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</g></svg>
