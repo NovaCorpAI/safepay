@@ -9,8 +9,11 @@
   const status = document.getElementById('studio-status');
   const say = (t, cls) => { if (status) { status.textContent = t; status.className = 'status ' + (cls || 'idle'); } };
 
+  // "benchmark case <id> (<kind>, <category>), step i of n, <mode> mode: <note>"
+  const BENCH = /^benchmark case (\S+) \((attack|legit), ([^)]+)\), step (\d+) of (\d+), (\w+) mode/;
   function tables(audit) {
-    const links = [], checks = [];
+    const links = [], checks = [], runs = new Map();
+    let authorized = 0, captured = 0, voided = 0;
     for (const r of audit.records || []) {
       const p = r.payload || {}, i = p.intent || {}, x = (p.execution && typeof p.execution === 'object') ? p.execution : {};
       const ev = p.event || 'decision', v = p.verdict || '', amt = Number(i.amount || 0);
@@ -24,13 +27,35 @@
         stopped: money && (v === 'hold' || v === 'block') ? amt : 0,
         isHold: v === 'hold' ? 1 : 0, isBlock: v === 'block' ? 1 : 0, n: 1,
         sealed: x.seal ? 1 : 0, outside: ev === 'outside' ? 1 : 0,
+        checksRun: (p.checks || []).length,
       });
       for (const c of p.checks || []) {
         checks.push({ seq: p.seq, check: c.name, passed: c.passed ? 1 : 0, failed: c.passed ? 0 : 1,
           severity: c.severity || '', risk: Number(c.risk || 0) });
       }
+      if (ev === 'authorize' && v === 'allow') authorized += amt;
+      if (ev === 'capture' && v === 'allow') captured += amt;
+      if (ev === 'void') voided += amt;
+      // One row per benchmark case per run (the console's live benchmark):
+      // a case is caught when any of its steps was held or blocked.
+      const m = ev === 'benchmark' ? BENCH.exec((p.reasons || [])[0] || '') : null;
+      if (m) {
+        const key = String(i.agent_id || m[1]);
+        const row = runs.get(key) || { seq: p.seq, when: (p.ts || 0) * 1000, case: m[1], kind: m[2], category: m[3],
+          mode: m[6], steps: Number(m[5]), verdicts: [], amount: 0, isAttack: m[2] === 'attack' ? 1 : 0,
+          isLegit: m[2] === 'legit' ? 1 : 0, caught: 0, missed: 0, allowed: 0, flagged: 0, n: 1 };
+        row.verdicts[Number(m[4]) - 1] = v; row.amount += amt;
+        runs.set(key, row);
+      }
     }
-    return { links, checks };
+    const bench = [...runs.values()].map(r => {
+      const flagged = r.verdicts.some(v => v && v !== 'allow') ? 1 : 0;
+      return Object.assign(r, { verdicts: r.verdicts.join(' → '), caught: r.isAttack && flagged ? 1 : 0,
+        missed: r.isAttack && !flagged ? 1 : 0, allowed: r.isLegit && !flagged ? 1 : 0, flagged: r.isLegit && flagged ? 1 : 0 });
+    });
+    const stages = [{ stage: '1 Authorized', amount: authorized, order: 1 }, { stage: '2 Captured', amount: captured, order: 2 },
+                    { stage: '3 Voided', amount: voided, order: 3 }];
+    return { links, checks, bench, stages };
   }
 
   const f = (id, name, format, description, extra) => Object.assign({ id, name, format, description }, extra || {});
@@ -52,6 +77,29 @@
     f('n', 'One', 'integerFormat', 'Always 1; summed to count links.', { hide: true }),
     f('sealed', 'Sealed', 'integerFormat', '1 when the payment carries a public seal (SP-...).', { cardinality: 'low' }),
     f('outside', 'Outside', 'integerFormat', '1 for money that moved without a SafePay decision.', { cardinality: 'low' }),
+    f('checksRun', 'Checks run', 'integerFormat', 'How many checks ran on this link.', { cardinality: 'low' }),
+  ];
+  const benchFields = [
+    f('case', 'Case', 'textFormat', 'The benchmark case id (benchmark/attacks/cases.json).', { cardinality: 'high' }),
+    f('kind', 'Kind', 'textFormat', 'attack (must be stopped) or legit (must pass).', { cardinality: 'low' }),
+    f('category', 'Category', 'textFormat', 'What the case tests: injection, lookalike, drain, velocity, history, legit...', { cardinality: 'low' }),
+    f('mode', 'Mode', 'textFormat', 'rules (policy only), full (plus live web and reasoning) or strict.', { cardinality: 'low' }),
+    f('when', 'When', 'dateFormat', 'When the case was run.', { cardinality: 'high' }),
+    f('steps', 'Steps', 'integerFormat', 'Payments in the case (a drain is several).', { cardinality: 'low' }),
+    f('verdicts', 'Verdicts', 'textFormat', 'The verdict of each step, in order.', { cardinality: 'high' }),
+    f('amount', 'Amount', 'decimalFormat', 'Total amount the case asked for, USD.', { cardinality: 'high' }),
+    f('isAttack', 'Is attack', 'integerFormat', '1 for an attack case.', { hide: true }),
+    f('isLegit', 'Is legit', 'integerFormat', '1 for a legitimate case.', { hide: true }),
+    f('caught', 'Caught', 'integerFormat', '1 when an attack was held or blocked at some step.', { cardinality: 'low' }),
+    f('missed', 'Missed', 'integerFormat', '1 when an attack passed every step.', { cardinality: 'low' }),
+    f('allowed', 'Allowed', 'integerFormat', '1 when a legitimate case passed every step.', { cardinality: 'low' }),
+    f('flagged', 'False alarm', 'integerFormat', '1 when a legitimate case was held or blocked.', { cardinality: 'low' }),
+    f('n', 'One', 'integerFormat', 'Always 1; summed to count cases.', { hide: true }),
+  ];
+  const stageFields = [
+    f('stage', 'Stage', 'textFormat', 'Mandate stage: authorized (held on the card), captured (charged), voided (released).', { cardinality: 'low' }),
+    f('amount', 'Amount', 'decimalFormat', 'USD through that stage.', { cardinality: 'high' }),
+    f('order', 'Order', 'integerFormat', 'Stage order.', { hide: true }),
   ];
   const checkFields = [
     f('seq', 'Link #', 'integerFormat', 'The chain link this check belongs to (links.seq).', { cardinality: 'high', hide: true }),
@@ -70,6 +118,14 @@
     m('blocks', 'Blocks', 'integerFormat', 'Number of blocked links.', { id: 'links.isBlock', aggregation: 'sum' }),
     m('avgRisk', 'Average risk', 'decimalFormat', 'Average of the per-link risk.', { id: 'links.risk', aggregation: 'avg' }),
     m('failedChecks', 'Failed checks', 'integerFormat', 'Number of checks that flagged a payment.', { id: 'checks.failed', aggregation: 'sum' }),
+    m('checksTotal', 'Checks run', 'integerFormat', 'Number of checks SafePay ran.', { id: 'links.checksRun', aggregation: 'sum' }),
+    m('attacksCaught', 'Attacks caught', 'integerFormat', 'Benchmark attacks held or blocked.', { id: 'bench.caught', aggregation: 'sum' }),
+    m('attacksMissed', 'Attacks missed', 'integerFormat', 'Benchmark attacks that passed.', { id: 'bench.missed', aggregation: 'sum' }),
+    m('attacksTotal', 'Attacks', 'integerFormat', 'Benchmark attack cases run.', { id: 'bench.isAttack', aggregation: 'sum' }),
+    m('legitAllowed', 'Legit allowed', 'integerFormat', 'Legitimate benchmark cases that passed.', { id: 'bench.allowed', aggregation: 'sum' }),
+    m('legitFlagged', 'False alarms', 'integerFormat', 'Legitimate benchmark cases held or blocked.', { id: 'bench.flagged', aggregation: 'sum' }),
+    m('casesTotal', 'Cases', 'integerFormat', 'Benchmark cases run.', { id: 'bench.n', aggregation: 'sum' }),
+    m('stageAmount', 'Through stage (USD)', 'decimalFormat', 'USD that reached a mandate stage.', { id: 'stages.amount', aggregation: 'sum' }),
   ];
 
   const text = (t, size) => ({ type: 'text', dataMapping: {}, format: { style: { text: t, typography: { fontSize: size || 20, fontWeight: 'bold' } } } });
@@ -113,6 +169,65 @@
         },
         filter: { page: [] },
       },
+      {
+        id: 'timeline',
+        widgets: {
+          head: text('Day by day: what moved, what was stopped'),
+          k1: { type: 'value', dataMapping: { value: [{ id: 'releasedTotal' }], sparklineX: [{ id: 'links.when::day' }] }, format: { caption: { enabled: true, text: 'Released (USD), by day' } } },
+          k2: { type: 'value', dataMapping: { value: [{ id: 'stoppedTotal' }], sparklineX: [{ id: 'links.when::day' }] }, format: { caption: { enabled: true, text: 'Stopped (USD), by day' } } },
+          k3: { type: 'value', dataMapping: { value: [{ id: 'linkCount' }], sparklineX: [{ id: 'links.when::day' }] }, format: { caption: { enabled: true, text: 'Links written, by day' } } },
+          gauge: { type: 'radial-gauge', dataMapping: { value: [{ id: 'avgRisk' }] }, format: title('Average risk, 0 to 1') },
+          money: { type: 'area-chart-stacked', dataMapping: { categoryKey: [{ id: 'links.when::day' }], valueKey: [{ id: 'releasedTotal' }, { id: 'stoppedTotal' }], tooltipKey: [] }, format: title('Released vs stopped, per day') },
+          verdicts: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'links.when::day' }], valueKey: [{ id: 'holds' }, { id: 'blocks' }], tooltipKey: [] }, format: title('Holds and blocks, per day') },
+          events: { type: 'line-chart', dataMapping: { categoryKey: [{ id: 'links.when::day' }], valueKey: [{ id: 'linkCount' }, { id: 'checksTotal' }], tooltipKey: [] }, format: title('Links and checks, per day') },
+        },
+        widgetLayout: {
+          head: { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 3 },
+          k1: { xTrack: 0, yTrack: 3, xSpan: 6, ySpan: 12 }, k2: { xTrack: 6, yTrack: 3, xSpan: 6, ySpan: 12 },
+          k3: { xTrack: 12, yTrack: 3, xSpan: 6, ySpan: 12 }, gauge: { xTrack: 18, yTrack: 3, xSpan: 6, ySpan: 12 },
+          money: { xTrack: 0, yTrack: 15, xSpan: 12, ySpan: 22 }, verdicts: { xTrack: 12, yTrack: 15, xSpan: 12, ySpan: 22 },
+          events: { xTrack: 0, yTrack: 37, xSpan: 24, ySpan: 20 },
+        },
+        filter: { page: [] },
+      },
+      {
+        id: 'benchmark',
+        widgets: {
+          head: text('The attack benchmark, as the console ran it against this deployment'),
+          k1: kpi('attacksCaught', 'Attacks caught'), k2: kpi('attacksTotal', 'Attacks run'),
+          k3: kpi('legitAllowed', 'Legitimate invoices allowed'), k4: kpi('legitFlagged', 'False alarms'),
+          byCategory: { type: 'bar-chart-stacked', dataMapping: { categoryKey: [{ id: 'bench.category' }], valueKey: [{ id: 'attacksCaught' }, { id: 'attacksMissed' }], tooltipKey: [] }, format: title('Caught vs missed, by attack category') },
+          byMode: { type: 'column-chart-grouped', dataMapping: { categoryKey: [{ id: 'bench.mode' }], valueKey: [{ id: 'attacksCaught' }, { id: 'attacksMissed' }, { id: 'legitAllowed' }], tooltipKey: [] }, format: title('By mode: rules only, full, strict') },
+          share: { type: 'donut-chart', dataMapping: { categoryKey: [{ id: 'bench.category' }], valueKey: [{ id: 'casesTotal' }], tooltipKey: [] }, format: title('Cases by category') },
+          grid: { type: 'grid', dataMapping: { cols: [{ id: 'bench.case' }, { id: 'bench.kind' }, { id: 'bench.category' }, { id: 'bench.mode' }, { id: 'bench.verdicts' }, { id: 'bench.steps', aggregation: 'max' }, { id: 'bench.amount', aggregation: 'sum' }] }, format: title('Every case, every run') },
+        },
+        widgetLayout: {
+          head: { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 3 },
+          k1: { xTrack: 0, yTrack: 3, xSpan: 6, ySpan: 7 }, k2: { xTrack: 6, yTrack: 3, xSpan: 6, ySpan: 7 },
+          k3: { xTrack: 12, yTrack: 3, xSpan: 6, ySpan: 7 }, k4: { xTrack: 18, yTrack: 3, xSpan: 6, ySpan: 7 },
+          byCategory: { xTrack: 0, yTrack: 10, xSpan: 10, ySpan: 24 }, byMode: { xTrack: 10, yTrack: 10, xSpan: 8, ySpan: 24 },
+          share: { xTrack: 18, yTrack: 10, xSpan: 6, ySpan: 24 },
+          grid: { xTrack: 0, yTrack: 34, xSpan: 24, ySpan: 28 },
+        },
+        filter: { page: [] },
+      },
+      {
+        id: 'mandates',
+        widgets: {
+          head: text('Mandates: authorized, captured, voided'),
+          funnel: { type: 'funnel-chart', dataMapping: { categoryKey: [{ id: 'stages.stage' }], valueKey: [{ id: 'stageAmount' }], tooltipKey: [] }, format: title('USD through each stage') },
+          pivot: { type: 'pivot-grid', dataMapping: { rows: [{ id: 'links.agent' }], columns: [{ id: 'links.event' }], values: [{ id: 'links.amount', aggregation: 'sum' }] }, format: title('Amount by agent and link type') },
+          byAgent: { type: 'column-chart-stacked', dataMapping: { categoryKey: [{ id: 'links.agent' }], valueKey: [{ id: 'linkCount' }], tooltipKey: [] }, format: title('Links per agent') },
+          grid: { type: 'grid', dataMapping: { cols: [{ id: 'links.event' }, { id: 'links.seq' }, { id: 'links.when' }, { id: 'links.verdict' }, { id: 'links.agent' }, { id: 'links.merchant' }, { id: 'links.amount', aggregation: 'sum' }] }, format: title('Every link, by type (authorize, capture, void are the mandates)') },
+        },
+        widgetLayout: {
+          head: { xTrack: 0, yTrack: 0, xSpan: 24, ySpan: 3 },
+          funnel: { xTrack: 0, yTrack: 3, xSpan: 8, ySpan: 24 }, pivot: { xTrack: 8, yTrack: 3, xSpan: 10, ySpan: 24 },
+          byAgent: { xTrack: 18, yTrack: 3, xSpan: 6, ySpan: 24 },
+          grid: { xTrack: 0, yTrack: 27, xSpan: 24, ySpan: 26 },
+        },
+        filter: { page: [] },
+      },
       { id: 'blank', widgets: {}, widgetLayout: {}, filter: { page: [] } },
     ],
     selectedPageId: 'overview',
@@ -147,6 +262,8 @@
       sources: [
         { id: 'links', name: 'Chain links', dataShape: 'row', tables: [{ id: 'links', name: 'Chain links', description: 'One row per link of the hash-chained audit log.', fields: linkFields }], getData: async () => ({ data: t.links }) },
         { id: 'checks', name: 'Checks', dataShape: 'row', tables: [{ id: 'checks', name: 'Checks', description: 'One row per check SafePay ran on a link; join seq to links.seq.', fields: checkFields }], getData: async () => ({ data: t.checks }) },
+        { id: 'bench', name: 'Benchmark cases', dataShape: 'row', tables: [{ id: 'bench', name: 'Benchmark cases', description: 'One row per attack-benchmark case per run from the console (17 attacks, 8 legitimate invoices): caught, missed, allowed or false alarm.', fields: benchFields }], getData: async () => ({ data: t.bench }) },
+        { id: 'stages', name: 'Mandate stages', dataShape: 'row', tables: [{ id: 'stages', name: 'Mandate stages', description: 'USD authorized, captured and voided under PayPal mandates (authorize, capture, void links).', fields: stageFields }], getData: async () => ({ data: t.stages }) },
       ],
       relationships: [{ id: 'checks-links', source: { tableId: 'checks', fieldId: 'seq' }, target: { tableId: 'links', fieldId: 'seq' }, type: 'many-to-one' }],
       expressions,
@@ -172,7 +289,8 @@
         promptStarters: PROMPTS,
       })),
     });
-    say(`${t.links.length} links and ${t.checks.length} checks loaded · chain ${audit.ok ? 'verified' : 'BROKEN'}`, audit.ok ? 'ok' : 'bad');
+    window.safepayStudio = api;
+    say(`${t.links.length} links, ${t.checks.length} checks and ${t.bench.length} benchmark cases loaded · chain ${audit.ok ? 'verified' : 'BROKEN'}`, audit.ok ? 'ok' : 'bad');
   }
   // AG Studio in SafePay's own identity: the console's paper, ink, seal blue
   // and verdict colours, its typefaces, read from the page's CSS tokens.
@@ -206,7 +324,9 @@
     }, palette));
   }
 
-  document.querySelectorAll('[data-page]').forEach(b => {
+  // Only the page buttons: <body data-page="studio"> would otherwise catch
+  // the bubbled click and name a page that does not exist.
+  document.querySelectorAll('button[data-page]').forEach(b => {
     b.onclick = () => { if (api) api.setState({ ...api.getState(), selectedPageId: b.dataset.page }); };
   });
   boot();
