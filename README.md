@@ -440,7 +440,11 @@ payee with a plausible invoice: the model checks are not deterministic and that
 case flips between runs (caught by reasoning in an earlier run, missed in the
 three runs behind the table). That is exactly what
 the `hold_unknown_vendors` control is for, and strict mode shows it. Full
-per-case results are in `benchmark/attacks/results.md`.
+per-case results are in `benchmark/attacks/results.md`. The same cases also
+run live from the console ("Run the attack benchmark"): the deployment judges
+them one by one in the mode you pick, every verdict lands in the Ledger as a
+`benchmark` link, nothing is paid, and the running tally is shown next to the
+committed run's numbers.
 
 ```bash
 python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for full/strict

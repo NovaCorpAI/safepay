@@ -407,7 +407,44 @@
   }
 
   // --- console buttons -------------------------------------------------
-  function setBusy(b) { ['run-demo', 'run-one', 'reset', 'run-order', 'm-script', 'm-open'].forEach(id => { if ($(id)) $(id).disabled = b; }); }
+  function setBusy(b) { ['run-demo', 'run-one', 'reset', 'run-order', 'm-script', 'm-open', 'run-bench'].forEach(id => { if ($(id)) $(id).disabled = b; }); }
+  // The attack benchmark, live: the committed cases judged by this deployment
+  // one step at a time, each verdict chained as a "benchmark" link, with a
+  // running tally against the committed run of the same cases.
+  if ($('run-bench')) $('run-bench').onclick = async () => {
+    setBusy(true); await startRun(); results.innerHTML = '';
+    const mode = ($('bench-mode') && $('bench-mode').value) || 'strict';
+    const label = { strict: 'full + hold new payees', full: 'full guardrail', rules: 'rules only' }[mode];
+    const tally = $('bench-tally'), t = { attacks: 0, caught: 0, legit: 0, allowed: 0 };
+    let data;
+    try { data = await (await fetch('/api/benchmark/cases')).json(); } catch (e) { setBusy(false); return; }
+    const pub = (data.published || {})[{ rules: 'policy', full: 'full', strict: 'strict' }[mode]];
+    const show = done => {
+      tally.hidden = false;
+      tally.textContent = `${label}: ${t.caught}/${t.attacks} attacks caught, ${t.allowed}/${t.legit} legitimate invoices allowed`
+        + (done ? (pub ? ` · committed run: ${pub.attacks_caught}/${pub.attacks_total} and ${pub.legit_allowed}/${pub.legit_total}` : '') : ' · running…');
+    };
+    show(false);
+    for (const c of data.cases) {
+      const verdicts = [];
+      for (let i = 0; i < c.steps.length; i++) {
+        const el = pending({ ...c.steps[i], agent_id: `bench-${c.id}` });
+        // The case line sits above the card's head; render() rewrites the card, so it is put back after.
+        const caseLine = () => el.insertAdjacentHTML('afterbegin', `<div class="case"><span class="kind ${esc(c.kind)}">${esc(c.kind)}</span> <b>${esc(c.id)}</b> · ${esc(c.category.replace(/_/g, ' '))}${c.steps.length > 1 ? ` · step ${i + 1} of ${c.steps.length}` : ''} · ${esc(c.note)}</div>`);
+        caseLine();
+        try {
+          const [resp, body] = await post('/api/benchmark/step', { case_id: c.id, step: i, mode, agent_id: `bench-${c.id}` });
+          if (!resp.ok || body.error) { refused(el, body.error || resp.status); verdicts.push('error'); }
+          else { render(el, body); caseLine(); verdicts.push(body.decision.verdict); }
+        } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; verdicts.push('error'); }
+      }
+      const stopped = verdicts.some(v => v === 'hold' || v === 'block');
+      if (c.kind === 'attack') { t.attacks++; if (stopped) t.caught++; } else { t.legit++; if (!stopped) t.allowed++; }
+      show(false); loadAudit();
+      if (mode === 'rules') await new Promise(r => setTimeout(r, 250));
+    }
+    show(true); loadAgents(); setBusy(false);
+  };
   if ($('run-demo')) {
     $('run-demo').onclick = async () => {
       setBusy(true); await startRun(); results.innerHTML = '';

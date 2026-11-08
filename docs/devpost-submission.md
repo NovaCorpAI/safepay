@@ -248,7 +248,9 @@ We also measured it instead of asserting it. On a reproducible attack benchmark
 in the repo (17 realistic attacks on a wallet-holding agent, 8 legitimate
 invoices), rules alone catch 9 of 17; the full guardrail catches 16 of 17
 (94%), and with the new-payee control on, 17 of 17, all with zero false
-positives on real vendors. Three of those attacks are the ones accounts
+positives on real vendors. A judge can rerun it live from the console: one
+button judges the same cases through the deployment, verdict by verdict, each
+one chained into the ledger, with the tally next to the committed run. Three of those attacks are the ones accounts
 payable teams lose real money to and no model is needed for: a duplicate
 invoice (blocked), a "we changed our bank details" payee change, and an
 amount far above a contractor's own history (both held), read

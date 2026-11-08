@@ -109,6 +109,15 @@
   <button class="ghost" id="run-order">Create the order through the gate</button>
   <button class="ghost" id="reset" title="Start a fresh session: new spend budget and agent ids for the demo. The audit chain is never deleted.">New session</button>
 </div>
+<div class="actions bench" id="bench-actions">
+  <button class="ghost" id="run-bench" title="The 17 attacks and 8 legitimate invoices of benchmark/attacks/, judged live by this deployment, one by one. Nothing is paid; every verdict lands in the Ledger as a benchmark link.">Run the attack benchmark</button>
+  <select id="bench-mode" aria-label="benchmark mode">
+    <option value="strict">full guardrail + hold new payees (about 2 min)</option>
+    <option value="full">full guardrail (about 2 min)</option>
+    <option value="rules">rules only, no model, no web (seconds)</option>
+  </select>
+  <span class="muted" id="bench-tally" hidden></span>
+</div>
 
 <div id="results"></div>
 

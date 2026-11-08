@@ -891,6 +891,87 @@ def _mandate_agent(data: dict) -> str:
     return _agent.resolve_agent(str(data.get("agent_id") or "agent-demo"), _agent_key())
 
 
+_BENCH = json.loads((ROOT / "benchmark" / "attacks" / "cases.json").read_text("utf-8"))
+_BENCH_MODES = {"rules": "policy", "full": "full", "strict": "strict"}
+
+
+def _bench_published() -> dict:
+    """The committed run of the same cases, so the live run can be compared."""
+    try:
+        runs = json.loads((ROOT / "benchmark" / "attacks" / "results.json").read_text("utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {mode: {"attacks_caught": r["attacks_caught"], "attacks_total": r["attacks_total"],
+                   "legit_allowed": r["legit_total"] - r["legit_false_positives"],
+                   "legit_total": r["legit_total"]}
+            for mode, r in runs.items()}
+
+
+@app.get("/api/benchmark/cases")
+def benchmark_cases():
+    """The attack benchmark's cases, flattened for the console to run live."""
+    cases = [{"id": c["id"], "kind": c["kind"], "category": c["category"], "note": c.get("note", ""),
+              "steps": c.get("sequence") or [c["intent"]]} for c in _BENCH["cases"]]
+    return jsonify({"task_goal": _BENCH["task_goal"], "policy": _BENCH["policy"], "cases": cases,
+                    "published": _bench_published()})
+
+
+@app.post("/api/benchmark/step")
+def benchmark_step():
+    """Judge one step of one benchmark case, live, and chain the judgment.
+
+    The same cases and the same policy as `benchmark/attacks/`, run through
+    this deployment's guardrail: rules only (offline, free), the full
+    guardrail (live web check and model), or full plus the new-payee hold.
+    Each case runs under its own agent id, so the caps start fresh per case
+    as they do in the committed run. Nothing is paid: the verdict is recorded
+    as a `benchmark` link, with the case named in its reasons.
+    """
+    from safepay import attest
+    from safepay.guardrail import Guardrail
+    from safepay.search import WebSearch
+
+    data = request.get_json(force=True) or {}
+    mode = str(data.get("mode") or "strict")
+    if mode not in _BENCH_MODES:
+        return jsonify({"error": f"mode must be one of {sorted(_BENCH_MODES)}"}), 400
+    if mode != "rules" and _rate_limited():  # paid checks only; the rules run costs nothing
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    case = next((c for c in _BENCH["cases"] if c["id"] == data.get("case_id")), None)
+    if case is None:
+        return jsonify({"error": "unknown case"}), 404
+    steps = case.get("sequence") or [case["intent"]]
+    try:
+        i = int(data.get("step", 0))
+        raw = steps[i]
+    except (TypeError, ValueError, IndexError):
+        return jsonify({"error": "unknown step"}), 404
+    try:
+        agent_id = _agent.resolve_agent(str(data.get("agent_id") or f"bench-{case['id']}"), _agent_key())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    intent = PaymentIntent(**dict(raw, task_goal=_BENCH["task_goal"], agent_id=agent_id))
+    policy = PolicyConfig(**_BENCH["policy"])
+    if mode == "strict":
+        policy = PolicyConfig(**dict(policy.to_dict(), hold_unknown_vendors=True))
+    if mode == "rules":
+        guard = Guardrail(policy, WebSearch(None), None, ledger=_agent.guardrail.ledger)
+    else:
+        guard = _agent.guardrail
+    decision = guard.evaluate(intent, policy=policy)
+    guard.commit_spend(decision)
+    decision.event = "benchmark"
+    decision.reasons.insert(0, f"benchmark case {case['id']} ({case['kind']}, {case['category']}), "
+                               f"step {i + 1} of {len(steps)}, {mode} mode: {case.get('note', '')}")
+    record = _agent.audit_log.append(decision)
+    return jsonify({
+        "decision": decision.to_dict(), "audit": record, "stamp": attest.stamp(decision),
+        "paypal_mode": _agent.paypal.mode, "approval_id": None,
+        "case": {"id": case["id"], "kind": case["kind"], "category": case["category"],
+                 "step": i + 1, "steps": len(steps), "mode": mode},
+    })
+
+
 @app.post("/api/mandates")
 def mandate_open():
     """Open a mandate: the ceiling is judged like any payment, then

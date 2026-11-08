@@ -224,6 +224,13 @@ button:disabled { opacity: .5; cursor: default; transform: none; }
 .rules li:last-child { border-bottom: 0; }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; }
 #results { margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+.actions.bench { margin-top: 10px; }
+.actions.bench select { width: auto; max-width: 100%; font-size: 13px; padding: 7px 10px; }
+.actions.bench #bench-tally { font-size: 13px; }
+.result .case { font-size: 12.5px; color: var(--muted); padding: 9px 16px 0; }
+.result .case .kind { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 3px; }
+.result .case .kind.attack { color: var(--block); background: var(--block-bg); }
+.result .case .kind.legit { color: var(--allow); background: var(--allow-bg); }
 .result { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--panel);
   animation: rise .35s ease; }
 .result .head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 16px; }
