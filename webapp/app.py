@@ -960,6 +960,11 @@ def benchmark_step():
         guard = _agent.guardrail
     decision = guard.evaluate(intent, policy=policy)
     guard.commit_spend(decision)
+    if mode == "rules":
+        # Say why the web and model checks did not run: by choice, not for lack of keys.
+        for c in decision.checks:
+            if "key configured" in (c.detail or ""):
+                c.detail = c.detail.split(" (")[0] + " (rules-only mode)"
     decision.event = "benchmark"
     decision.reasons.insert(0, f"benchmark case {case['id']} ({case['kind']}, {case['category']}), "
                                f"step {i + 1} of {len(steps)}, {mode} mode: {case.get('note', '')}")

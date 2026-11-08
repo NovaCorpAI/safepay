@@ -364,10 +364,12 @@ link expands into a full-width detail row with its checks and the hash that ties
 it to the link before; verdict chips, search and clicks on three AG Charts drive
 one external filter that the pinned totals row and the CSV export follow;
 a pinned Act column approves or rejects held payments and freezes agents from the
-row; /studio is an AG Studio report over the whole chain (links and checks, measures
-for released and stopped money) with an AG Studio assistant run by NVIDIA Nemotron
-through a key-holding proxy; the /proof page is a second grid of PayPal ids re-checked live; Community
-edition only); Best Use of Render (a live instance
+row; /studio is an AG Studio report over the whole chain, five finished pages
+(overview, checks, a day-by-day timeline with sparklines and a gauge, the attack
+benchmark as run live by the console, and mandates as a funnel and a pivot) over
+four derived tables, with an AG Studio assistant run by NVIDIA Nemotron
+through a key-holding proxy; the /proof page is a second grid of PayPal ids re-checked live; AG Grid
+Community for the grids, AG Studio on a trial licence); Best Use of Render (a live instance
 of the web console runs on Render at https://safepay-ygzp.onrender.com, deployed
 from the included render.yaml blueprint with gunicorn).
 
@@ -378,6 +380,11 @@ from the included render.yaml blueprint with gunicorn).
 4. `docs/img/gallery-impact.png`: the fraud an agent with a wallet walks into (FBI IC3, AFP), next to the live chain figures.
 5. `docs/img/gallery-ledger.png`: the AG Grid ledger, a blocked Impulsa purchase opened to its checks and hashes, the Act column, totals and the AG Charts.
 6. `docs/img/gallery-studio.png`: AG Studio over the whole chain; the Nemotron 3 Ultra analyst answers "how much did SafePay stop" with the real totals.
+6b. `docs/img/gallery-studio-timeline.png`: AG Studio, Timeline page: released vs stopped per day, holds and blocks per day, value tiles with day sparklines, a gauge of average risk.
+6c. `docs/img/gallery-studio-benchmark.png`: AG Studio, Benchmark page: every benchmark case the console ran against this deployment, caught vs missed by category and by mode.
+6d. `docs/img/gallery-studio-mandates.png`: AG Studio, Mandates page: a funnel of USD authorized, captured and voided, amount by agent and link type.
+6e. `docs/img/gallery-console-benchmark.png`: the console's "Run the attack benchmark" button, full mode, judged live by the deployment, each verdict a benchmark link in the chain.
+6f. `docs/img/gallery-retries.png`: the duplicate-submission benchmark against the real sandbox: 60/60 orders as shipped, 13/60 with the header alone, 3/60 through the gate.
 7. `docs/img/gallery-mandate-card.png`: a mandate authorized with a Vault payment token, captured, the rest released.
 8. `docs/img/gallery-mandate-overdraw.png`: a capture over what is left, blocked before PayPal is called.
 9. `docs/img/gallery-store-merchant-check.png`: buying from an AgentPOS store, and the store verifying the seal before it delivers.

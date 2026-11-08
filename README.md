@@ -77,16 +77,27 @@ operator's desk: a pinned Act column approves or rejects a held payment, or
 freezes and resumes an agent, from its row.
 
 **Ask the chain (AG Studio).** `/studio` turns the whole audit chain into an
-AG Studio report: a links table and a checks table (joined on the link), measures
-for money released and stopped, holds, blocks, average risk and failed checks,
-and two finished pages (what SafePay let through and stopped; which checks catch
-what) plus a blank one. Its assistant is NVIDIA Nemotron 3 Ultra on Nebius, wired
+AG Studio report: a links table and a checks table (joined on the link), a
+benchmark-cases table and a mandate-stages table derived from the same records,
+measures for money released and stopped, holds, blocks, average risk and failed
+checks, and five finished pages plus a blank one: Overview (what SafePay let
+through and stopped), Checks (which checks catch what), Timeline (released vs
+stopped per day as a stacked area, holds and blocks per day, value tiles with
+day sparklines, a gauge of average risk), Benchmark (every attack-benchmark
+case the console ran against this deployment: caught, missed, allowed, false
+alarms, by category and by mode, with each case's step verdicts) and Mandates
+(a funnel of USD authorized, captured and voided, a pivot of amount by agent and
+link type). Its assistant is NVIDIA Nemotron 3 Ultra on Nebius, wired
 through AG Studio's own Direct LLM Runner and OpenAI-Responses adapter to a
 server proxy that holds the key, pins the model and keeps its own daily cap.
 One focused analyst agent with five Studio tools (view schema, view page, run a
 query, add and position a widget) answers "how much did SafePay stop, by verdict
 and agent, and which checks caused it?" in about six turns, from the data; it has
 no tool that pays, approves or changes a decision.
+
+![AG Studio, Timeline page: released vs stopped per day, holds and blocks per day, links and checks per day, a gauge of average risk](docs/img/gallery-studio-timeline.png)
+![AG Studio, Benchmark page: the attack benchmark as the console ran it against this deployment, caught vs missed by category and by mode](docs/img/gallery-studio-benchmark.png)
+![AG Studio, Mandates page: a funnel of USD authorized, captured and voided, and a pivot of amount by agent and link type](docs/img/gallery-studio-mandates.png)
 
 **Proof.** `/proof` lists every PayPal sandbox object the chain says SafePay
 created (payout batches, orders, authorizations, captures) in an AG Grid, and
@@ -373,6 +384,8 @@ PayPal client (Payouts, Orders, Vault) has always sent it. We also reported
 the gap upstream and sent the fix at the source: [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
 (per-call request id for the Python client, open as of November 8, 2026).
 
+![The duplicate-submission benchmark on /security: 60/60 orders as shipped, 13/60 with the header alone, 3/60 through the gate](docs/img/gallery-retries.png)
+
 ### Use it as an MCP server (any agent)
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude
@@ -499,7 +512,11 @@ per-case results are in `benchmark/attacks/results.md`. The same cases also
 run live from the console ("Run the attack benchmark"): the deployment judges
 them one by one in the mode you pick, every verdict lands in the Ledger as a
 `benchmark` link, nothing is paid, and the running tally is shown next to the
-committed run's numbers.
+committed run's numbers. Live runs vary with the model and the web: the run
+in the screenshot below caught 17/17 and held one legitimate invoice (7/8),
+where the committed run reads 16/17 and 8/8; both are in the chain.
+
+![The console running the attack benchmark in full mode against the deployment, each verdict with its web sources and model verdict](docs/img/gallery-console-benchmark.png)
 
 ```bash
 python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for full/strict
