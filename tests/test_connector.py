@@ -109,3 +109,30 @@ def test_pages(client):
                        ("/terms", "Verdicts are advice")):
         r = client.get(path)
         assert r.status_code == 200 and word in r.get_data(as_text=True), path
+
+
+def test_connector_account_cannot_be_taken_over(client, monkeypatch):
+    import webapp.app as appmod
+    monkeypatch.setattr(appmod, "_RL_MAX", 0)
+    acct = "connector:own123"
+    k1 = client.post(f"/api/agents/{acct}/key", json={}).get_json()["key"]
+    # a stranger cannot replace the key (the agent id is visible in the public log)
+    r = client.post(f"/api/agents/{acct}/key", json={})
+    assert r.status_code == 409 and "key" not in r.get_json()
+    # nor loosen, reset or tamper with its unpinned policy
+    loose = {"per_tx_limit": 100000, "daily_limit": 1000000}
+    assert client.post("/api/policy/apply", json={"run": "own123", "policy": loose}).status_code == 403
+    assert client.post("/api/policy/reset", json={"run": "own123"}).status_code == 403
+    assert client.post("/api/policy/tamper", json={"run": "own123"}).status_code in (403, 404)
+    assert call(client, k1, "safepay_check_payment", {"merchant_name": "Notion", "amount": 900,
+                                                      "task": "Pay our software"})["structuredContent"]["verdict"] == "block"
+    # the owner, holding the key, can change the rules and rotate the key
+    h = {"Authorization": f"Bearer {k1}"}
+    assert client.post("/api/policy/apply", json={"run": "own123", "policy": {"per_tx_limit": 1000, "daily_limit": 2000}},
+                       headers=h).status_code == 200
+    r = client.post(f"/api/agents/{acct}/key", json={}, headers=h)
+    assert r.status_code == 200 and r.get_json()["key"] != k1
+    # sessions without a connector key keep the open demo console
+    assert client.post("/api/policy/apply", json={"run": "demo42", "policy": loose}).status_code == 200
+    assert client.post("/api/agents/agent:demo42/key", json={}).status_code == 200
+    assert client.post("/api/agents/agent:demo42/key", json={}).status_code == 200

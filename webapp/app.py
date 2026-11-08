@@ -144,6 +144,41 @@ def _agent_key() -> str:
     return auth[7:].strip() if auth.startswith("Bearer ") else ""
 
 
+def _holds_key(agent_id: str) -> bool:
+    """True when the request carries the key bound to agent_id."""
+    key = _agent_key()
+    if not key:
+        return False
+    try:
+        return _agent.control.agent_for_key(key) == agent_id
+    except Exception:
+        return False
+
+
+def _connector_owned(run: str) -> bool:
+    """A session that has a SafePay Check connector key is someone's account:
+    outside agents (Muse, Claude) are judged under its policy."""
+    if not run:
+        return False
+    try:
+        return bool(_agent.control.has_key(f"connector:{run}"))
+    except Exception:
+        return False
+
+
+def _connector_guard(run: str, pinned_ok: bool = True):
+    """Refuse changes to a connector account's policy from someone who does
+    not hold its key. A policy pinned to the owner's signing key is already
+    protected by the signature check (pinned_ok); an unpinned one is not, so
+    the connector key is required. Returns an error response or None."""
+    if not _connector_owned(run) or _holds_key(f"connector:{run}"):
+        return None
+    if pinned_ok and _agent._pin(run):
+        return None
+    return jsonify({"error": "this session is a SafePay Check connector account: "
+                    "present its key (Authorization: Bearer spk_...) to change its rules"}), 403
+
+
 VERSION = "0.6.0"   # also the cache-buster on /static assets
 
 
@@ -647,6 +682,9 @@ def policy_apply():
     run = str(data.get("run", ""))[:16].strip()
     if not run:
         return jsonify({"error": "run id is required"}), 400
+    denied = _connector_guard(run)
+    if denied:
+        return denied
     try:
         out = _agent.apply_policy(run, data.get("policy") or {}, signature=data.get("signature"))
     except (PolicyDraftError, SignatureError) as exc:
@@ -697,6 +735,8 @@ def policy_tamper():
         return jsonify({"error": "tamper demo is off on this instance"}), 404
     data = request.get_json(silent=True) or {}
     run = str(data.get("run", ""))[:16].strip()
+    if _connector_owned(run):
+        return jsonify({"error": "the tamper demo does not run on a connector account"}), 403
     raw = _agent.control.policy_for(run) if run else None
     if not raw:
         return jsonify({"error": "this session has no stored policy to tamper with"}), 400
@@ -711,6 +751,9 @@ def policy_tamper():
 def policy_reset():
     data = request.get_json(silent=True) or {}
     run = str(data.get("run", ""))[:16].strip()
+    denied = _connector_guard(run)
+    if denied:
+        return denied
     try:
         return jsonify(dict(_agent.clear_policy(run, signature=data.get("signature")), ok=True))
     except SignatureError as exc:
@@ -763,6 +806,15 @@ def issue_key(agent_id: str):
     else; SafePay keeps only its hash. Issuing again replaces the old key."""
     if _rate_limited():
         return jsonify({"error": "rate limited, try again shortly"}), 429
+    if agent_id.startswith("connector:") and not _holds_key(agent_id):
+        try:
+            taken = _agent.control.has_key(agent_id)
+        except Exception:
+            taken = False
+        if taken:
+            return jsonify({"error": "this connector account already has a key; present it "
+                            "(Authorization: Bearer spk_...) to replace it, or start a new "
+                            "session for a new account"}), 409
     data = request.get_json(silent=True) or {}
     try:
         out = _agent.issue_key(agent_id, str(data.get("label", ""))[:80])
