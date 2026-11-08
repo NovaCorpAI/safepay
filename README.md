@@ -602,6 +602,7 @@ responses, agent-key auth) that any agent calls before it pays:
 | --- | --- | --- |
 | `safepay_check_payment` | Judges merchant, amount and task with the same guardrail as every payment (policy, history, live web check, intent); chains a `precheck` link; returns allow, hold or block, the reasons and a signed `safepay-precheck-1` attestation valid 15 minutes | No |
 | `safepay_verify` | Verifies a seal id, a seal receipt or a precheck against the published Ed25519 key | No |
+| `safepay_verify_settlement` | Reads a Stellar transaction from the public ledger and checks it against a precheck: succeeded, approved payee, Circle's USDC, no more than approved, inside the validity window; returns findings and a signed `safepay-settlement-1` result | No |
 | `safepay_policy` | The rules this key is judged under, in plain words | No |
 | `safepay_recent_checks` | This account's latest checks | No |
 
@@ -625,6 +626,32 @@ benchmark case by case. SafePay Check is listed in the official MCP Registry
 as `com.agentposhq.safepay/check` ([`server.json`](server.json)). It was submitted to Meta's Muse Connector
 Platform on November 7, 2026 and is under review; it is not a listed Muse
 connector yet.
+
+## Stablecoins: the same guardrail for PYUSD and USDC
+
+PayPal moves dollars and its own stablecoin, PYUSD; agents increasingly pay in
+stablecoins too (x402, AgentPOS stores settle in USDC on Stellar). SafePay does
+not move stablecoins: it validates them, with the same policy, chain and
+signed evidence as a PayPal payment.
+
+- **Before** (`safepay_check_payment` with `currency` PYUSD or USDC and a
+  `network`): the network must be named, the token must be issued there, the
+  network must be allowed by policy (`allowed_networks`), and the payee must
+  be a valid address for that network (Stellar down to its CRC16 checksum,
+  Solana 32-byte keys, EVM hex). A stablecoin sent to the wrong network or a
+  bad address is gone for good, so that is a BLOCK. Every other rule applies,
+  with amounts counted one to one against the USD limits: a store that was
+  paid at one wallet and now asks for another is held (payee change).
+- **After** (`safepay_verify_settlement`): SafePay reads the transaction from
+  Horizon, classic payments and Soroban token transfers alike (how x402 pays),
+  and checks it against the signed precheck.
+
+Verified in production against a real AgentPOS payment on Stellar mainnet
+(1 USDC, [`35642adc…`](https://stellar.expert/explorer/public/tx/35642adcd8217d24288c41cae3a829c8d03844ab1a4483e74b2a923bdb360cd5)):
+payee, token and amount match; timing is flagged, because that payment was made
+in September, long before this check. An EVM address offered for a Stellar
+payment is blocked before anyone pays. [`scripts/usdc_settlement.py`](scripts/usdc_settlement.py)
+runs both steps against the public endpoint.
 
 ## Mandates: authorize a budget, capture what the task costs
 

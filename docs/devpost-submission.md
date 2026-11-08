@@ -32,6 +32,12 @@ that. SafePay does, and proves it:
   firewalls stop; SafePay also checks the payee on the live web and asks
   whether the payment serves the task, which is what catches injected invoices
   and goal mismatches inside every limit.
+- PayPal and stablecoins under one guardrail: PYUSD and USDC payments are
+  judged with the same rules (plus network and wallet-address checks, since a
+  stablecoin sent to the wrong network is lost), and a settlement on Stellar is
+  checked on the public ledger against SafePay's signed precheck. Verified
+  against a real AgentPOS payment on Stellar mainnet. SafePay validates; it
+  never moves the stablecoins.
 - Evidence anyone can verify without us: a hash-chained log, Ed25519 receipts
   verifiable offline, operator-signed policy, and AP2 Intent, Cart and Payment
   mandates on PayPal authorize and capture.

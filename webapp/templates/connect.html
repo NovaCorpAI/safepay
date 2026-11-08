@@ -45,8 +45,9 @@
 <section class="section">
   <h2>Tools</h2>
   <div class="tools">
-    <div class="tool"><b>safepay_check_payment</b><span class="tag">records a check, moves no money</span><p>Before checkout: merchant, amount, task. Answers allow, hold or block with reasons, a check id and a signed precheck attestation valid for 15 minutes. The log keeps only hashes of the payee and the task.</p></div>
+    <div class="tool"><b>safepay_check_payment</b><span class="tag">records a check, moves no money</span><p>Before checkout: merchant, amount, task; in dollars or in PYUSD or USDC with its network and wallet address. Answers allow, hold or block with reasons, a check id and a signed precheck attestation valid for 15 minutes. The log keeps only hashes of the payee and the task.</p></div>
     <div class="tool"><b>safepay_verify</b><span class="tag ok">read only</span><p>Verifies a seal id, a seal receipt or a precheck attestation against the published Ed25519 key.</p></div>
+    <div class="tool"><b>safepay_verify_settlement</b><span class="tag ok">read only</span><p>For a stablecoin payment: reads the Stellar transaction from the public ledger and checks it against the precheck (succeeded, approved payee, Circle's USDC, no more than approved, while the check was valid). Returns a signed result.</p></div>
     <div class="tool"><b>safepay_policy</b><span class="tag ok">read only</span><p>The rules this key is judged under, in plain words, with their fingerprint.</p></div>
     <div class="tool"><b>safepay_recent_checks</b><span class="tag ok">read only</span><p>This account's latest checks: verdict, merchant, amount, when.</p></div>
   </div>
