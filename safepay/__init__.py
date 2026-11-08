@@ -8,4 +8,4 @@ payments through the PayPal sandbox, and signs an audit record of every
 decision.
 """
 
-__version__ = "0.8.2"
+__version__ = "0.8.3"
