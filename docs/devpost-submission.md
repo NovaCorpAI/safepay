@@ -295,17 +295,19 @@ from the included render.yaml blueprint with gunicorn).
 
 ## Image gallery (upload in this order)
 1. `docs/img/gallery-flow.png` (thumbnail): the Flow, real chain links replayed as pulses through the layers.
-2. `docs/img/gallery-impact.png`: the fraud an agent with a wallet walks into (FBI IC3, AFP), next to the live chain figures.
-3. `docs/img/gallery-ledger.png`: the AG Grid ledger, a blocked Impulsa purchase opened to its checks and hashes, the Act column, totals and the AG Charts.
-4. `docs/img/gallery-studio.png`: AG Studio over the whole chain; the Nemotron 3 Ultra analyst answers "how much did SafePay stop" with the real totals.
-5. `docs/img/gallery-mandate-card.png`: a mandate authorized with a Vault payment token, captured, the rest released.
-6. `docs/img/gallery-mandate-overdraw.png`: a capture over what is left, blocked before PayPal is called.
-7. `docs/img/gallery-store-merchant-check.png`: buying from an AgentPOS store, and the store verifying the seal before it delivers.
-8. `docs/img/gallery-proof.png`: every PayPal object in the chain, re-read live from PayPal's API.
-9. `docs/img/impulsa-safepay-alert.png`: SafePay inside Impulsa (production), a supplier document recorded twice.
-10. `docs/img/impulsa-safepay-price.png`: SafePay inside Impulsa, a unit cost 2.5x its history held.
-11. `docs/img/gallery-seal-receipt.png`: the seal's Ed25519 receipt, verified in the browser against the published key.
-12. `docs/img/gallery-tour.png`: the 3-minute judge tour, running the scenarios on the real console.
+2. `docs/img/gallery-connect.png`: SafePay Check, the remote MCP connector: a key, a live check through /mcp, ALLOW with its checks and a signed attestation, no money moved.
+3. `docs/img/gallery-security.png`: the attack benchmark case by case, including the one case full mode lets through (in red) and strict mode holds.
+4. `docs/img/gallery-impact.png`: the fraud an agent with a wallet walks into (FBI IC3, AFP), next to the live chain figures.
+5. `docs/img/gallery-ledger.png`: the AG Grid ledger, a blocked Impulsa purchase opened to its checks and hashes, the Act column, totals and the AG Charts.
+6. `docs/img/gallery-studio.png`: AG Studio over the whole chain; the Nemotron 3 Ultra analyst answers "how much did SafePay stop" with the real totals.
+7. `docs/img/gallery-mandate-card.png`: a mandate authorized with a Vault payment token, captured, the rest released.
+8. `docs/img/gallery-mandate-overdraw.png`: a capture over what is left, blocked before PayPal is called.
+9. `docs/img/gallery-store-merchant-check.png`: buying from an AgentPOS store, and the store verifying the seal before it delivers.
+10. `docs/img/gallery-proof.png`: every PayPal object in the chain, re-read live from PayPal's API.
+11. `docs/img/impulsa-safepay-alert.png`: SafePay inside Impulsa (production), a supplier document recorded twice.
+12. `docs/img/impulsa-safepay-price.png`: SafePay inside Impulsa, a unit cost 2.5x its history held.
+13. `docs/img/gallery-seal-receipt.png`: the seal's Ed25519 receipt, verified in the browser against the published key.
+14. `docs/img/gallery-tour.png`: the 3-minute judge tour, running the scenarios on the real console.
 
 ## Testing instructions (paste in Devpost's "testing instructions" field)
 Live demo: https://safepay.agentposhq.com . No login, no keys. Every PayPal
