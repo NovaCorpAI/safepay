@@ -323,6 +323,31 @@ already takes early-access sign-ups (stored in the same Supabase project as the
 audit chain, write-only), and we onboard the first teams by hand: their agents'
 real payouts decide what SafePay builds next.
 
+## What is real and what is simulated
+
+Real: every PayPal call (payouts, orders, authorize, capture, void, vault,
+webhooks, reconciliation) goes to PayPal's sandbox API, pinned there in the
+config, so no real money has ever moved; the web check is a live Tavily
+search and the reasoning check is Nemotron on Nebius, cached and budgeted;
+the hash chain, the Ed25519 seals and the operator's P-256 signatures are
+real keys, verifiable offline; the state lives in Supabase; the attack
+benchmark and the duplicate-submission benchmark are real runs committed
+with their raw results, and the console reruns the attack cases live;
+Impulsa is a real product in production with the live counters at
+/api/impact (test accounts excluded, zeros shown as zeros); the AgentPOS
+catalog and quotes come from a real store; paypal/agent-toolkit#124 is a
+real pull request, open and not merged.
+
+Simulated or ours by design: the demo scenarios, the sample invoices and
+the 25 benchmark cases were written by us, with fictional vendors on
+.example addresses and no customer data; the human in the loop is whoever
+clicks Approve; operator actions are open on the public demo so a judge
+needs no setup; stablecoins are validated, never moved; AP2 mandates are
+produced and verified on our PayPal mandates, we are not a participant in
+an AP2 network; the tamper buttons edit your own session's policy and a
+copy of the chain; there are no paying customers yet and the pricing is a
+proposal, the measured figures are costs.
+
 ## Built with
 python, paypal, paypal-payouts, paypal-orders, paypal-vault, paypal-webhooks,
 paypal-agent-toolkit, ap2, model-context-protocol, nvidia-nemotron, nebius,

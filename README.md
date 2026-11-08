@@ -98,6 +98,58 @@ code that calls it.
 
 ---
 
+## What is real and what is not
+
+So nobody has to guess.
+
+**Real.**
+- **PayPal.** Every payout, order, authorization, capture, void, vault token,
+  webhook and reconciliation goes to PayPal's sandbox API: the real API, with
+  test money. The host is pinned to the sandbox in `config.py`; nothing here
+  has ever moved real money. Without PayPal keys the console says "PayPal
+  simulated" and payouts are simulated, and says so on every result.
+- **The checks.** The web check is a live Tavily search; the reasoning check
+  is Nemotron on Nebius. Both are cached for 24 hours and capped by a daily
+  budget that fails closed. Without keys they are skipped, and the result
+  says "skipped".
+- **The evidence.** The HMAC-signed hash chain, the Ed25519 seals and the
+  operator's P-256 signatures (WebCrypto, non-extractable) are real keys;
+  seals and receipts verify offline against the published key.
+- **The state.** Supabase holds the chain, the ledger, approvals, policies
+  and agent keys on the hosted demo; locally it is memory.
+- **The numbers.** The attack benchmark and the duplicate-submission
+  benchmark are real runs, committed with their runners and raw results, and
+  the console reruns the attack cases live. The cost per decision is
+  measured on those runs.
+- **In production.** Impulsa is a real product with real micro-businesses;
+  SafePay's history rules run there on every supplier document. The live
+  counters at `/api/impact` are aggregates with the team's test accounts
+  excluded, and they start at zero: zeros are shown as zeros. The AgentPOS
+  catalog and quotes come from a real store; the USDC settlement check was
+  run against a real payment on Stellar mainnet.
+- **Upstream.** [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
+  is a real pull request. It is open, not merged.
+
+**Not real, by design.**
+- **No money.** Sandbox only, always.
+- **The cases are ours.** The 7 demo scenarios, the sample invoices and the
+  25 benchmark cases were written by us: realistic shapes, fictional vendors
+  on `.example` addresses (the legitimate vendors carry their real domains so
+  the directory check is meaningful). No customer data anywhere in the repo.
+- **The human.** Whoever clicks Approve (or answers in Telegram) is the
+  human in the loop. Operator actions are open on the public demo so a judge
+  needs no setup; `SAFEPAY_OPERATOR_TOKEN` locks them in a real deployment.
+- **Stablecoins are validated, never moved.** SafePay has no wallet.
+- **AP2.** SafePay produces and verifies AP2-shaped mandates on its PayPal
+  mandates. It is not a participant in an AP2 network, and the store does
+  not sign carts yet (the cart says so).
+- **The tamper buttons** edit your own session's stored policy, and a copy
+  of the chain, to show what detection looks like. The stored history is
+  never altered.
+- **Customers and revenue.** None yet. Pricing is a proposal; the measured
+  figures are costs, not income. Impulsa is the first integration, by the
+  same team.
+
 ## The problem
 
 Agents are starting to pay the bills: SaaS renewals, cloud invoices, contractor
