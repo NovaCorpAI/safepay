@@ -2,13 +2,13 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "com.agentposhq.safepay/check",
   "title": "SafePay Check",
-  "description": "Judges a payment before an AI agent makes it and returns a signed attestation. Moves no money.",
+  "description": "Judges a payment (PayPal, PYUSD or USDC) before an AI agent makes it. Signed proof. Moves no money.",
   "repository": {
     "url": "https://github.com/NovaCorpAI/safepay",
     "source": "github"
   },
   "websiteUrl": "https://safepay.agentposhq.com/connect",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "remotes": [
     {
       "type": "streamable-http",

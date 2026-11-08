@@ -38,7 +38,7 @@ from .policy_draft import describe_policy
 PROTOCOL = "2025-06-18"
 SUPPORTED = ("2025-06-18", "2025-03-26", "2024-11-05")
 VALID_FOR = 15 * 60          # a precheck stands for 15 minutes
-SERVER = {"name": "safepay", "title": "SafePay Check", "version": "0.7.0"}
+SERVER = {"name": "safepay", "title": "SafePay Check", "version": "0.8.0"}
 
 _NO_MONEY = {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
 _READ = {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False}
