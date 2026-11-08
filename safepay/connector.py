@@ -87,6 +87,24 @@ TOOLS: list[dict[str, Any]] = [
         "annotations": dict(_READ, title="Verify a SafePay seal or attestation"),
     },
     {
+        "name": "safepay_verify_settlement",
+        "title": "Check a stablecoin settlement against its SafePay check",
+        "description": ("Reads a Stellar transaction from the public ledger (Horizon) and compares it with "
+                        "a SafePay precheck attestation: whether it succeeded, paid the approved payee, in "
+                        "Circle's USDC, no more than the approved amount, while the check was valid. "
+                        "Returns the findings and a signed result. Reads the ledger only."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "attestation": {"type": "object", "description": "The precheck attestation safepay_check_payment returned"},
+                "tx_hash": {"type": "string", "description": "The 64-character Stellar transaction hash"},
+                "network": {"type": "string", "enum": ["stellar:pubnet", "stellar:testnet"], "default": "stellar:pubnet"},
+            },
+            "required": ["attestation", "tx_hash"],
+        },
+        "annotations": dict(_READ, title="Check a stablecoin settlement", openWorldHint=True),
+    },
+    {
         "name": "safepay_policy",
         "title": "Show the payment rules",
         "description": "Returns the payment rules this account is judged under, in plain words, with their fingerprint.",
@@ -177,7 +195,8 @@ def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, A
                      "policyHash": p.get("policy_hash")},
         "terms": {"amountMinor": receipt.minor(intent.amount, intent.currency), "currency": intent.currency,
                   "payeeDomain": _host(payee_l) or None, "payeeSha256": hashlib.sha256(payee_l.encode()).hexdigest(),
-                  "merchantDomain": _host(url) or None},
+                  "merchantDomain": _host(url) or None,
+                  **({"network": intent.network} if intent.network else {})},
         "movedMoney": False,
     }) if j else None
     todo = {"allow": "No rule or check objected to this merchant and amount.",
@@ -190,6 +209,25 @@ def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, A
         "moved_money": False, "valid_until": _iso(now + VALID_FOR), "chain_seq": p.get("seq"),
         "attestation": att, "keys": "https://safepay.agentposhq.com" + receipt.KEYS_PATH,
     }
+
+
+def verify_settlement(args: dict[str, Any]) -> dict[str, Any]:
+    from safepay import settlement
+    att = args.get("attestation")
+    if isinstance(att, str):
+        try:
+            att = json.loads(att)
+        except ValueError:
+            raise ToolError("attestation must be the JSON SafePay returned")
+    if not isinstance(att, dict):
+        raise ToolError("attestation is required")
+    try:
+        return settlement.verify_settlement(att, str(args.get("tx_hash") or "").strip().lower(),
+                                            str(args.get("network") or "stellar:pubnet"))
+    except settlement.SettlementError as exc:
+        raise ToolError(str(exc))
+    except Exception as exc:
+        raise ToolError(f"could not read the ledger: {exc}")
 
 
 def verify(agent: Any, args: dict[str, Any]) -> dict[str, Any]:
@@ -294,6 +332,8 @@ def handle(msg: Any, agent: Any, key: str | None) -> dict[str, Any] | None:
             data = check_payment(agent, account, args)
         elif name == "safepay_verify":
             data = verify(agent, args)
+        elif name == "safepay_verify_settlement":
+            data = verify_settlement(args)
         elif name == "safepay_policy":
             data = policy(agent, account)
         elif name == "safepay_recent_checks":

@@ -36,7 +36,8 @@ from typing import Any
 
 VERSION = "safepay-receipt-1"
 PRECHECK = "safepay-precheck-1"   # a verdict given BEFORE a payment; no money moved
-VERSIONS = (VERSION, PRECHECK)
+SETTLEMENT = "safepay-settlement-1"   # a settled on-chain payment checked against its precheck
+VERSIONS = (VERSION, PRECHECK, SETTLEMENT)
 KEYS_PATH = "/.well-known/safepay-seal-keys.json"
 _ZERO_DECIMAL = {"JPY", "KRW", "CLP", "VND", "HUF", "TWD", "ISK", "UGX", "XAF", "XOF"}
 

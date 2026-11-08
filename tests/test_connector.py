@@ -48,7 +48,7 @@ def test_handshake_and_tools_are_public(client):
     assert r["protocolVersion"] == "2025-06-18" and r["serverInfo"]["name"] == "safepay"
     assert client.post("/mcp", json={"jsonrpc": "2.0", "method": "notifications/initialized"}).status_code == 202
     tools = rpc(client, "tools/list").get_json()["result"]["tools"]
-    assert [t["name"] for t in tools] == ["safepay_check_payment", "safepay_verify", "safepay_policy",
+    assert [t["name"] for t in tools] == ["safepay_check_payment", "safepay_verify", "safepay_verify_settlement", "safepay_policy",
                                           "safepay_recent_checks"]
     assert all(not t["annotations"]["destructiveHint"] for t in tools)
     assert client.get("/mcp").status_code == 405
