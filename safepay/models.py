@@ -50,6 +50,10 @@ class PaymentIntent:
     # the same invoice to the same vendor are the duplicate-invoice fraud
     # (or an agent retry loop), and are blocked.
     invoice_ref: str | None = None
+    # For a stablecoin payment (currency PYUSD or USDC): the network it moves
+    # on (stellar, ethereum, solana, ...). The recipient is then a wallet
+    # address on that network. See stablecoin.py.
+    network: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -156,6 +160,9 @@ class PolicyConfig:
     recipient_allowlist: list[str] = field(default_factory=list)  # empty = any
     recipient_blocklist: list[str] = field(default_factory=list)
     allowed_currencies: list[str] = field(default_factory=lambda: ["USD"])
+    # Stablecoin networks this agent may pay on (empty = any network the token
+    # is issued on). Only consulted for stablecoin currencies.
+    allowed_networks: list[str] = field(default_factory=list)
     # When true, a Tavily/Nemotron concern downgrades ALLOW to HOLD instead of
     # letting it through. On by default: SafePay is conservative on purpose.
     hold_on_soft_risk: bool = True
@@ -190,7 +197,12 @@ class PolicyConfig:
     history_amount_factor: float = 2.0
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        # Left out while unset, so the fingerprint of every policy written
+        # before stablecoin rules existed (and the signatures over it) holds.
+        if not d.get("allowed_networks"):
+            d.pop("allowed_networks", None)
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "PolicyConfig":

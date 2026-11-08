@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from . import attest, mandate, opsig, payables, seal
+from . import attest, mandate, opsig, payables, seal, stablecoin
 from .approvals import APPROVED, REJECTED, ApprovalQueue
 from .auditlog import AuditLog
 from .config import Config
@@ -89,6 +89,26 @@ class SafePayAgent:
                         "(SAFEPAY_EXECUTE off)",
             }
             self.guardrail.commit_spend(decision)
+            return
+        if stablecoin.is_stablecoin(intent.currency):
+            # A stablecoin payment never goes to PayPal Payouts. It runs on the
+            # stablecoin rail when one is configured; otherwise SafePay has
+            # judged it and the agent's own wallet moves it.
+            rail = getattr(self, "stablecoin_rail", None)
+            if rail is None:
+                decision.executed = False
+                decision.execution = {"mode": "judged", "rail": f"{intent.currency} on {intent.network}",
+                                      "note": "approved by SafePay; the agent's own wallet sends it"}
+                self.guardrail.commit_spend(decision)
+                return
+            seal_id = seal.new_seal_id(intent.idempotency_key)
+            try:
+                decision.execution = dict(rail.send(intent, memo=seal_id), seal=seal_id)
+                decision.executed = True
+                self.guardrail.commit_spend(decision)
+            except Exception as exc:
+                decision.executed = False
+                decision.execution = {"error": str(exc), "rail": f"{intent.currency} on {intent.network}"}
             return
         # The seal: an id in the note PayPal shows the payee, written into
         # this payment's chain link, verifiable at /v/<id> (see seal.py).

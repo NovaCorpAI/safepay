@@ -166,6 +166,11 @@ def describe_policy(p: PolicyConfig) -> list[str]:
     if p.recipient_blocklist:
         out.append("Never pay: " + ", ".join(p.recipient_blocklist) + ".")
     out.append("Currencies: " + ", ".join(p.allowed_currencies) + ".")
+    from safepay.stablecoin import STABLECOINS
+    coins = [c for c in p.allowed_currencies if c.upper() in STABLECOINS]
+    if coins:
+        nets = ", ".join(p.allowed_networks) if p.allowed_networks else "any network the token is issued on"
+        out.append(f"Stablecoins ({', '.join(coins)}) only on {nets}, to a valid address for that network.")
     if p.vendors:
         out.append(f"Approved vendor directory: {len(p.vendors)} vendors; a lookalike "
                    f"domain or an amount over {p.vendor_amount_tolerance:g}x the expected "

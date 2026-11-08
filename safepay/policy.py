@@ -195,6 +195,13 @@ def check_policy(
             f"{policy.allowed_currencies}"
         )
 
+    # Stablecoins: network named, token issued there, network allowed, and a
+    # well-formed address for it (a bad one loses the money for good).
+    from safepay import stablecoin
+    sc_fail, sc_ev = stablecoin.check(intent, policy)
+    failures += sc_fail
+    evidence += sc_ev
+
     # Category rules.
     cat = (intent.category or "uncategorized").lower()
     blocked = [c.lower() for c in policy.blocked_categories]

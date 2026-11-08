@@ -58,9 +58,10 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {
                 "merchant_name": {"type": "string", "description": "Who is being paid, as shown at checkout"},
                 "amount": {"type": "number", "exclusiveMinimum": 0, "description": "Total to pay"},
-                "currency": {"type": "string", "default": "USD", "description": "ISO 4217 code"},
+                "currency": {"type": "string", "default": "USD", "description": "ISO 4217 code, or a dollar stablecoin: PYUSD or USDC"},
+                "network": {"type": "string", "description": "For PYUSD or USDC: the network (stellar, ethereum, solana, arbitrum, base, polygon); payee is then the wallet address"},
                 "merchant_url": {"type": "string", "description": "The store or checkout URL"},
-                "payee": {"type": "string", "description": "The payee account if known (email or PayPal id)"},
+                "payee": {"type": "string", "description": "The payee account if known (email, PayPal id, or wallet address for a stablecoin)"},
                 "task": {"type": "string", "description": "What the user asked the agent to do, in their words"},
                 "purpose": {"type": "string", "description": "What this payment is for"},
                 "category": {"type": "string", "description": "e.g. software, travel, groceries"},
@@ -152,10 +153,11 @@ def check_payment(agent: Any, account: str, args: dict[str, Any]) -> dict[str, A
     url = str(args.get("merchant_url") or "").strip()[:500] or None
     payee = str(args.get("payee") or "").strip()[:200] or (f"checkout@{_host(url)}" if url and _host(url) else merchant)
     intent = PaymentIntent(
-        recipient=payee, amount=round(amount, 2), currency=str(args.get("currency") or "USD").upper()[:3],
+        recipient=payee, amount=round(amount, 2), currency=str(args.get("currency") or "USD").upper()[:8],
         purpose=str(args.get("purpose") or "")[:500], category=str(args.get("category") or "uncategorized")[:60],
         merchant_name=merchant, merchant_url=url, agent_id=account, task_goal=task,
-        invoice_ref=(str(args.get("invoice_ref"))[:80] if args.get("invoice_ref") else None))
+        invoice_ref=(str(args.get("invoice_ref"))[:80] if args.get("invoice_ref") else None),
+        network=(str(args.get("network")).strip().lower()[:20] if args.get("network") else None))
     policy = agent.policy_for(account)
     decision = agent.guardrail.evaluate(intent, policy=policy)
     decision.event = "precheck"
