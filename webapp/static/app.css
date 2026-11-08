@@ -43,7 +43,7 @@ p { margin: 0; }
 /* --- top bar --------------------------------------------------------- */
 .topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; backdrop-filter: blur(10px);
   background: rgba(243,238,228,.9); border-bottom: 3px double var(--line2); }
-.topbar .wrap { display: flex; align-items: center; gap: 22px; height: 66px; }
+.topbar .wrap { max-width: 1440px; display: flex; align-items: center; gap: 22px; height: 66px; }
 .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; color: var(--fg); }
 .brand .mark { width: 36px; height: 36px; flex: 0 0 auto; }
 .brand .word { font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
