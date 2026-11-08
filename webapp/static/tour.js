@@ -17,6 +17,8 @@
       x: "A mandate authorizes a ceiling on a vaulted card (Orders v2 AUTHORIZE). Each capture is checked against what remains; closing it voids the rest. PayPal webhooks settle every link." },
     { path: "/console", sel: "#store-card", t: "Buying from an agent-ready store",
       x: "The agent reads a real AgentPOS catalog, gets a quote, pays inside a mandate, and the store verifies the seal before it ships." },
+    { path: "/connect", sel: "#cx-key", up: ".card", t: "Any agent asks before it pays", act: "Create a key", click: "#cx-key", wait: "#cx-keyout:not([hidden])",
+      x: "SafePay Check is a remote MCP server: Muse, Claude or any agent sends the merchant, the amount and the task before its own checkout and gets a verdict with a signed attestation. It moves no money. Same rules for PayPal and for PYUSD or USDC, where a wrong network or a bad wallet address is a block. Press \"Run a test check\" to see a live one." },
     { path: "/ledger", sel: "#audit-grid", t: "Every decision, chained", act: "Verify the chain", click: "#verify-chain",
       x: "Allowed, held and blocked alike: each link is hashed, HMAC-signed and points at the one before. Edit any row in the database and this check names the link that broke." },
     { path: "seal", sel: "#receipt", t: "A receipt anyone can check, without us",

@@ -126,6 +126,20 @@ point of sale for agents), paying the store's own quote through a PayPal
 mandate, and the store verifies the payment's seal with SafePay before it
 delivers; and its purchase-check rules run inside Impulsa, our SaaS in
 production for micro-businesses in Chile, before a supplier document is saved.
+SafePay does not need to hold the money to protect it: SafePay Check is a
+remote MCP server (streamable HTTP at /mcp, agent-key auth) that any agent,
+Meta's Muse, Claude, Cursor, calls before its own checkout; it returns allow,
+hold or block, the reasons and an Ed25519 precheck attestation valid 15
+minutes, moves no money and keeps only hashes of the payee and the task. It
+is listed in the official MCP Registry (com.agentposhq.safepay/check) and was
+submitted to Meta's Muse Connector Platform on November 7, 2026. The same
+guardrail judges stablecoin payments (PYUSD, USDC): the network must be named,
+the token issued on it, the network allowed by policy and the payee a valid
+address for that network (a stablecoin sent to the wrong one is lost for
+good); after the payment, safepay_verify_settlement reads the transaction on
+the public Stellar ledger and checks it against the signed precheck (payee,
+Circle's USDC, amount, timing), verified against a real AgentPOS payment on
+Stellar mainnet. SafePay validates stablecoins; it never moves them.
 The policy itself is signed in the operator's browser (WebCrypto, ECDSA
 P-256, a non-extractable key), pinned to the session, and re-verified on
 every payment, so a leaked operator token or an edit in the database cannot
@@ -170,8 +184,11 @@ through an OpenAI compatible endpoint. Merchant evidence comes from Tavily. The
 audit layer canonicalizes each decision to sorted key JSON and signs it with
 HMAC SHA256. There is a command line runner, a Flask web console a judge can
 click through (with the audit chain shown as a live, verifiable AG Grid table),
-a toolkit gate demo that creates real sandbox orders, an MCP server that exposes
-the guardrail to any agent, and a deterministic offline test suite.
+a toolkit gate demo that creates real sandbox orders, a local MCP server that exposes
+the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
+over streamable HTTP, tested with the official MCP Python SDK) that any agent
+calls before it pays, a read-only settlement check that reads Stellar's
+Horizon API, and a deterministic offline test suite (260 tests).
 
 ## Challenges we ran into
 The merchant check was the hard part. A naive keyword search flags every large
@@ -274,11 +291,13 @@ are launch prices built on measured cost; the first teams, onboarded by
 hand, will shape them. Pricing is on the site: /pricing.
 
 ## What is next for SafePay
-SafePay already runs as an MCP server, so any MCP agent (Claude Desktop, Cursor,
-an agent framework) can install it as a spending gate with no code. Next: anchor
-the audit chain head to a public ledger so the record of every agent payment
-decision is independently verifiable, and ship the same gate for the PayPal MCP
-server and the Agent Toolkit's other framework adapters. The hosted console
+SafePay Check is in the official MCP Registry and under review for Meta's Muse
+connector directory, so the next step is the first outside agents asking
+before they pay, and what their checks teach the policy. Then: anchor the
+audit chain head to a public ledger so the record of every agent payment
+decision is independently verifiable, PYUSD settlement checks on Ethereum and
+Solana next to the Stellar one, and the same gate for the Agent Toolkit's other
+framework adapters. The hosted console
 already takes early-access sign-ups (stored in the same Supabase project as the
 audit chain, write-only), and we onboard the first teams by hand: their agents'
 real payouts decide what SafePay builds next.
@@ -288,7 +307,7 @@ python, paypal, paypal-payouts, paypal-orders, paypal-vault, paypal-webhooks,
 paypal-agent-toolkit, ap2, model-context-protocol, nvidia-nemotron, nebius,
 tavily, telegram-bot-api, flask, gunicorn, ag-grid, ag-studio, ag-charts,
 supabase, postgres, vercel, render, webcrypto, ed25519, ecdsa-p256, hmac,
-sha-256, pypi
+sha-256, pypi, mcp-registry, stellar, horizon, pyusd, usdc, x402
 
 ## Category / tracks targeted
 Best Use of Agentic Commerce; Best Use of PayPal + AI; Most Impactful.
@@ -335,6 +354,11 @@ Claude (`claude mcp add --transport http ...`), Cursor or any MCP client.
 Listed in the official MCP Registry as com.agentposhq.safepay/check:
 https://registry.modelcontextprotocol.io/v0.1/servers?search=com.agentposhq.safepay
 Every attack case, verdict by verdict: https://safepay.agentposhq.com/security
+Stablecoins through the same endpoint: `python scripts/usdc_settlement.py
+check --key spk_... --payee <Stellar G... address> --amount 1` judges a USDC
+payment (a 0x address on Stellar is blocked before anyone pays), and `verify
+--tx <hash>` checks a settled Stellar transaction against that precheck. The
+session policy must list USDC under Currencies (console, Draft the policy).
 
 1. Console: type a policy in plain words, e.g. "Up to $500 per payment and
    $1,000 a day. Ask me before anything over $300. No gambling or crypto."

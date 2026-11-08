@@ -12,7 +12,7 @@ Setup before recording:
   audit record (optional B-roll).
 - Record a few extra seconds of still frame at the start and end for clean cuts.
 
-Total budget: 2:55. Keep each beat tight; the demo carries the video.
+Total budget: 2:58. Keep each beat tight; the demo carries the video.
 
 ---
 
@@ -127,15 +127,30 @@ wallet-holding agent, including a duplicate invoice and a 'we changed our bank
 details' email. Rules alone catch nine; the full guardrail catches sixteen,
 strict mode all seventeen, with zero false positives on real vendors. The benchmark is in the repo; run it yourself."
 
-## 2:38 - 2:55 | Close
+## 2:38 - 2:50 | Any agent, any rail
+
+On screen: /connect. Press "Create a connector key", then "Run a test check":
+ALLOW with the three checks and "Signed attestation returned". Cut to a
+terminal: `scripts/usdc_settlement.py check` with a 0x address on Stellar,
+BLOCK, "not a valid stellar address".
+
+Narration:
+"And SafePay does not need to hold the money to protect it. SafePay Check is a
+remote MCP server: Muse, Claude or any agent asks before its own checkout and
+gets a signed verdict. It is in the official MCP Registry and under review
+for Meta's Muse directory. Same rules for PayPal and for stablecoins: a USDC
+payment to the wrong network is blocked before anyone pays, and after it
+settles, SafePay checks the Stellar ledger against what it approved."
+
+## 2:50 - 2:58 | Close
 
 On screen: SafePay title card, repo URL, "pip install safepay", NovaCorp Labs.
 
 Narration:
 "SafePay: policy in plain words, a live web check of every payee, reasoning
-about every payment, one-tap approvals, a kill switch, and a signed record of
-it all. pip install safepay, or plug it into any agent as an MCP server.
-Thanks for watching."
+about every payment, one-tap approvals, and a signed record of it all, for
+PayPal and for stablecoins. pip install safepay, or connect any agent at
+safepay.agentposhq.com/connect. Thanks for watching."
 
 ---
 
@@ -148,6 +163,8 @@ Thanks for watching."
 - [ ] One approval taken (Telegram if configured, else the console panel).
 - [ ] Freeze agent, then a BLOCK with "agent frozen".
 - [ ] Benchmark table on screen for 5 seconds.
+- [ ] /connect: key created and a live check ALLOW with "Signed attestation returned".
+- [ ] Terminal: a USDC check with a 0x address on Stellar, BLOCK.
 - [ ] At least one card's PayPal batch id and "signed" stamp visible.
 - [ ] Optional: terminal B-roll of a signed audit record.
 - [ ] End card with the public repo URL.
@@ -181,6 +198,15 @@ alguien altera o borra una decision pasada, se rompen todos los hashes
 siguientes. Miren: manipulo una fila y toda la cadena falla la verificacion al
 instante."
 
+Conector: "Y SafePay no necesita tener el dinero para protegerlo. SafePay
+Check es un servidor MCP remoto: Muse, Claude o cualquier agente pregunta
+antes de su propio checkout y recibe un veredicto firmado. Esta en el registro
+oficial de MCP y en revision para el directorio de Muse de Meta. Las mismas
+reglas para PayPal y para stablecoins: un pago en USDC a la red equivocada se
+bloquea antes de que alguien pague, y despues de liquidarse, SafePay revisa el
+registro de Stellar contra lo que aprobo."
+
 Cierre: "SafePay es el guardrail que el comercio agentico necesita: politica,
-web en vivo y razonamiento, con un registro firmado de cada decision. El codigo
-y el demo estan en los enlaces. Gracias por ver."
+web en vivo y razonamiento, con un registro firmado de cada decision, para
+PayPal y para stablecoins. El codigo y el demo estan en los enlaces. Gracias
+por ver."

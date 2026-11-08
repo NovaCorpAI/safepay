@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "safepay"
-version = "0.6.0"
-description = "The payables firewall for AI agents: policy in plain words, live-web merchant check and intent reasoning before any PayPal payment moves, human approvals (console, MCP, Telegram), a kill switch per agent, and a hash-chained audit log."
+version = "0.8.0"
+description = "The payables firewall for AI agents: policy in plain words, live-web merchant check and intent reasoning before any PayPal or stablecoin (PYUSD, USDC) payment moves, a remote MCP connector any agent asks before it pays, human approvals (console, MCP, Telegram), a kill switch per agent, signed receipts and a hash-chained audit log."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
