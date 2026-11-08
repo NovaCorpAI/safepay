@@ -124,7 +124,10 @@ So nobody has to guess.
 - **In production.** Impulsa is a real product with real micro-businesses;
   SafePay's history rules run there on every supplier document. The live
   counters at `/api/impact` are aggregates with the team's test accounts
-  excluded, and they start at zero: zeros are shown as zeros. The AgentPOS
+  excluded, and they start at zero: zeros are shown as zeros. Businesses the
+  team owns (AgentPOS, the foundation) that record their real supplier
+  purchases are counted apart and named as ours: real use, not traction.
+  The AgentPOS
   catalog and quotes come from a real store; the USDC settlement check was
   run against a real payment on Stellar mainnet.
 - **Upstream.** [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
@@ -836,7 +839,11 @@ an error that did not get saved, with its amount) or **Registrar igual**
 SafePay (`POST /api/check/purchase/outcome`), shows each owner a "Protegido
 por SafePay" panel with their own tally, and the public aggregates are live at
 [`/api/impact`](https://safepay.agentposhq.com/api/impact) and on the home
-page, with the operator's own test accounts excluded. A backtest over the
+page, with the operator's own test accounts excluded
+(`SAFEPAY_IMPACT_EXCLUDE`) and the businesses the team itself owns tallied
+apart under their names (`SAFEPAY_IMPACT_TEAM`, set to
+`python -m safepay.impact <impulsa business id>` plus a label), so a
+reader can tell our own use from external businesses. A backtest over the
 purchases Impulsa held before SafePay (20 supply purchases, one business)
 raised no alerts: no false alarms on clean data, from a sample too small to
 say more, which is why the live outcomes are the measure.

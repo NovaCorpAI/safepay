@@ -334,7 +334,9 @@ real keys, verifiable offline; the state lives in Supabase; the attack
 benchmark and the duplicate-submission benchmark are real runs committed
 with their raw results, and the console reruns the attack cases live;
 Impulsa is a real product in production with the live counters at
-/api/impact (test accounts excluded, zeros shown as zeros); the AgentPOS
+/api/impact (test accounts excluded, zeros shown as zeros, and the
+businesses our own team owns tallied apart under their names, so our own
+use is never presented as external traction); the AgentPOS
 catalog and quotes come from a real store; paypal/agent-toolkit#124 is a
 real pull request, open and not merged.
 

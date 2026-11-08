@@ -10,7 +10,11 @@ alerts raised by rule, and what the owner did with each alert:
 "corrected / (corrected + recorded_anyway)" is the alerts' measured
 precision; the amount of corrected documents is money not double-counted or
 not overpaid. Public figures are aggregates over businesses, with the
-operator's own test accounts excluded (SAFEPAY_IMPACT_EXCLUDE).
+operator's own test accounts excluded (SAFEPAY_IMPACT_EXCLUDE) and the
+team's own real businesses counted apart from external ones
+(SAFEPAY_IMPACT_TEAM, "hash:label,hash:label"): a business we own that
+records its real supplier purchases is real use, not traction, and the
+page says which is which.
 
 The historical backtest (`data/impulsa_backtest.json`) is the same rules run
 over the purchases Impulsa already had, computed in the database and stored
@@ -91,19 +95,51 @@ def excluded() -> set[str]:
     return {x.strip() for x in raw.split(",") if x.strip()}
 
 
+def team() -> dict[str, str]:
+    """The team's own real businesses, business hash -> public label."""
+    out: dict[str, str] = {}
+    for part in os.environ.get("SAFEPAY_IMPACT_TEAM", "").split(","):
+        h, _, label = part.strip().partition(":")
+        if h:
+            out[h] = label.strip() or "our own"
+    return out
+
+
+def business_hash(app_business_id: str) -> str:
+    """The hash SafePay keeps for a business, from the id the app has.
+    Impulsa sends sha256(emprendedora_id) as `business`; SafePay keeps the
+    first 12 hex of the sha256 of that. So: a team business is named in
+    SAFEPAY_IMPACT_TEAM by business_hash(its Impulsa id), never by the id."""
+    import hashlib
+    sent = hashlib.sha256(str(app_business_id).encode()).hexdigest()
+    return hashlib.sha256(sent.encode()).hexdigest()[:12]
+
+
+def _side() -> dict[str, Any]:
+    return {"businesses": 0, "checks": 0, "alerts": 0, "corrected": 0, "labels": []}
+
+
 def totals(control: Any, source: str = "impulsa") -> dict[str, Any]:
-    """Aggregates over real businesses (test accounts excluded)."""
+    """Aggregates over real businesses (test accounts excluded), with the
+    team's own businesses and external ones also tallied apart."""
     idx = control.setting(f"impact:index:{source}")
     idx = [b for b in (idx if isinstance(idx, list) else []) if b not in excluded()]
+    ours = team()
     t = {"businesses": 0, "checks": 0, "alerts": 0, "corrected": 0, "recorded_anyway": 0,
-         "avoided": {}, "rules": {}, "since": None}
+         "avoided": {}, "rules": {}, "since": None, "team": _side(), "external": _side()}
     for b in idx:
         row = _load(control, source, b)
         if not row["checks"]:
             continue
         t["businesses"] += 1
+        side = t["team"] if b in ours else t["external"]
+        side["businesses"] += 1
+        if b in ours:
+            side["labels"].append(ours[b])
         for k in ("checks", "alerts", "corrected", "recorded_anyway"):
             t[k] += int(row.get(k) or 0)
+            if k in side:
+                side[k] += int(row.get(k) or 0)
         if row.get("avoided"):
             cur = row.get("currency") or "?"
             t["avoided"][cur] = round(t["avoided"].get(cur, 0) + float(row["avoided"]), 2)
@@ -119,3 +155,9 @@ def backtest() -> dict[str, Any] | None:
         return json.loads(_BACKTEST.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
+
+
+if __name__ == "__main__":  # python -m safepay.impact <impulsa business id>
+    import sys
+    for arg in sys.argv[1:]:
+        print(business_hash(arg))

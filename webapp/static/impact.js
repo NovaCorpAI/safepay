@@ -7,11 +7,15 @@
   const put = (k, v) => { const el = box.querySelector(`[data-k="${k}"]`); if (el) el.textContent = v; };
   const money = (o) => Object.entries(o || {}).map(([c, v]) => `${c} ${Math.round(v).toLocaleString('en-US')}`).join(' + ');
   fetch('/api/impact').then((r) => r.json()).then((d) => {
-    const l = d.live || {}, b = d.backtest;
+    const l = d.live || {}, b = d.backtest, team = l.team || {}, ext = l.external || {};
     ['businesses', 'checks', 'alerts', 'corrected'].forEach((k) => put(k, String(l[k] || 0)));
     const parts = [];
     if (l.checks) {
       parts.push(`Since ${new Date(l.since * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.`);
+      const who = [];
+      if (team.businesses) who.push(`${team.businesses} ${team.businesses === 1 ? 'is' : 'are'} our own (${(team.labels || []).join(', ')}: real supplier purchases, counted as use, not as traction; ${team.checks} checks)`);
+      who.push(`${ext.businesses || 0} external ${ext.businesses === 1 ? 'business' : 'businesses'}${ext.checks ? ` (${ext.checks} checks)` : ''}`);
+      parts.push(`Of the ${l.businesses} ${l.businesses === 1 ? 'business' : 'businesses'}, ${who.join('; ')}.`);
       if (l.precision != null) parts.push(`Alert precision so far: ${Math.round(l.precision * 100)}% (corrected out of answered).`);
       const m = money(l.avoided);
       if (m) parts.push(`${m} not double-recorded or overpaid.`);

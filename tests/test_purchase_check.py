@@ -98,7 +98,28 @@ def test_outcomes_tally_and_public_totals(agent, monkeypatch):
     assert s["precision"] == 0.5 and s["avoided"] == 26000 and s["rules"]["duplicate_document"] == 1
     t = c.get("/api/impact").get_json()["live"]
     assert t["businesses"] == 1 and t["avoided"] == {"CLP": 26000} and t["precision"] == 0.5
+    # Nobody named as ours: the one business counts as external.
+    assert t["external"] == {"businesses": 1, "checks": 3, "alerts": 2, "corrected": 1, "labels": []}
+    assert t["team"]["businesses"] == 0
     assert c.post("/api/check/purchase/outcome", json={"seq": 0, "outcome": "corrected"}).status_code == 401
     assert c.post("/api/check/purchase/outcome", json={"seq": 99999, "outcome": "corrected"}, headers=H).status_code == 404
-    monkeypatch.setenv("SAFEPAY_IMPACT_EXCLUDE", agent.audit_log.records[-1]["payload"]["execution"]["business"])
-    assert c.get("/api/impact").get_json()["live"]["businesses"] == 0
+    business = agent.audit_log.records[-1]["payload"]["execution"]["business"]
+    # Named as our own: still counted, but apart and labelled, never as external.
+    monkeypatch.setenv("SAFEPAY_IMPACT_TEAM", f"{business}:AgentPOS, nope:Other")
+    t = c.get("/api/impact").get_json()["live"]
+    assert t["businesses"] == 1 and t["checks"] == 3
+    assert t["team"] == {"businesses": 1, "checks": 3, "alerts": 2, "corrected": 1, "labels": ["AgentPOS"]}
+    assert t["external"]["businesses"] == 0
+    # A test account is excluded from everything, team or not.
+    monkeypatch.setenv("SAFEPAY_IMPACT_EXCLUDE", business)
+    t = c.get("/api/impact").get_json()["live"]
+    assert t["businesses"] == 0 and t["team"]["businesses"] == 0 and t["external"]["businesses"] == 0
+
+
+def test_business_hash_matches_what_impulsa_sends():
+    from hashlib import sha256
+    from safepay import impact
+    sent = sha256(b"emp-uuid-1").hexdigest()          # what Impulsa puts in `business`
+    d, _ = purchase_check.evaluate(body(business=sent), "impulsa")
+    assert d.execution["business"] == impact.business_hash("emp-uuid-1")
+    assert len(impact.business_hash("x")) == 12
