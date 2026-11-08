@@ -179,7 +179,7 @@ def _connector_guard(run: str, pinned_ok: bool = True):
                     "present its key (Authorization: Bearer spk_...) to change its rules"}), 403
 
 
-VERSION = "0.6.0"   # also the cache-buster on /static assets
+VERSION = "0.8.0"   # also the cache-buster on /static assets
 
 
 def _ctx() -> dict:

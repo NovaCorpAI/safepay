@@ -48,7 +48,7 @@ p { margin: 0; }
 .brand .mark { width: 36px; height: 36px; flex: 0 0 auto; }
 .brand .word { font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
 .brand .fix { color: var(--seal); font-style: italic; font-weight: 500; }
-.brand .tagline { display: block; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+.brand .tagline { display: block; white-space: nowrap; font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
   color: var(--muted); margin-top: 3px; font-weight: 500; }
 .nav { display: flex; gap: 4px; margin-left: 6px; }
 .nav a { color: var(--ink2); text-decoration: none; font-size: 14px; font-weight: 500; padding: 8px 12px;
@@ -61,9 +61,17 @@ p { margin: 0; }
 .chip.on { color: var(--allow); border-color: rgba(34,197,94,.4); background: var(--allow-bg); }
 .chip.off { color: var(--muted); }
 .chip.session { font-family: var(--mono); font-size: 11.5px; }
+.brand { flex: 0 0 auto; }
+.nav a { white-space: nowrap; }
+/* Nine pages do not fit beside the brand below this width: the nav takes its
+   own row (scrolling sideways if it must) instead of squeezing the brand. */
+@media (max-width: 1280px) {
+  .topbar .wrap { height: auto; flex-wrap: wrap; padding-block: 10px; row-gap: 4px; }
+  .nav { order: 3; width: 100%; margin-left: -12px; overflow-x: auto; scrollbar-width: none; }
+}
 @media (max-width: 760px) {
-  .topbar .wrap { height: auto; flex-wrap: wrap; padding-block: 10px; gap: 8px; }
-  .nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; }
+  .topbar .wrap { gap: 8px; }
+  .nav { margin-left: 0; }
   .nav a { padding: 7px 10px; }
 }
 
