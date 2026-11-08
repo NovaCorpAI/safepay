@@ -26,7 +26,7 @@ that. SafePay does, and proves it:
 - Any agent can ask before it pays: SafePay Check is a remote MCP server
   (/mcp) that judges a payment before the agent's own checkout and returns a
   signed attestation, moving no money, within the rules of Meta's Muse
-  Connector Platform.
+  Connector Platform (submitted for review on November 7, 2026).
 - Evidence nobody else gives: a hash-chained log, Ed25519 receipts verifiable
   offline, operator-signed policy, and AP2 Intent, Cart and Payment mandates on
   PayPal authorize and capture.

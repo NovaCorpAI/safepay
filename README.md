@@ -621,8 +621,9 @@ claude mcp add --transport http safepay https://safepay.agentposhq.com/mcp \
 [`/connect`](https://safepay.agentposhq.com/connect) creates a key for your
 console session (your session's policy applies) and runs a live check;
 [`/security`](https://safepay.agentposhq.com/security) shows the attack
-benchmark case by case. SafePay Check is not a listed Muse connector yet:
-listing goes through Meta's review.
+benchmark case by case. SafePay Check was submitted to Meta's Muse Connector
+Platform on November 7, 2026 and is under review; it is not a listed Muse
+connector yet.
 
 ## Mandates: authorize a budget, capture what the task costs
 
