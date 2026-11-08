@@ -293,6 +293,21 @@ session policy and the agent's key, and is chained as an **order** link. The
 light `paypal-agent-toolkit` 1.1.0 release is a core dependency (later
 releases pin whole agent frameworks); `pip install safepay` brings it.
 
+**The gate also makes the toolkit idempotent.** PayPal de-duplicates a POST
+that carries a `PayPal-Request-Id` header: the same id again returns the
+original order instead of creating a second one. The toolkit's Python client
+does not send that header (we checked the 1.1.0 and 1.11.0 wheels,
+`shared/paypal_client.py`: the `request_id` its `Context` accepts is never
+read), so an agent that retries `create_order`, `capture_order`,
+`create_subscription` or `send_invoice` after a timeout creates a second
+order, charge, subscription or invoice. Crashpay, another entry in this
+hackathon, measured that double charge against the sandbox. Through
+`GuardedToolkit` every money-moving toolkit call goes out with a request id
+derived from the intent (its `idempotency_key`, else a hash of the method,
+the parameters and the agent), the id is written into the chain link, and a
+retry of the same intent reaches PayPal as the same request. SafePay's own
+PayPal client (Payouts, Orders, Vault) has always sent it.
+
 ### Use it as an MCP server (any agent)
 
 SafePay also runs as a Model Context Protocol server, so any MCP client (Claude

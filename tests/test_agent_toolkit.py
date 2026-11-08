@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import pytest
 
-from safepay.agent_toolkit import GuardedToolkit, order_params_from_intent
+import json
+
+import requests
+
+from safepay.agent_toolkit import (IDEMPOTENCY_HEADER, GuardedToolkit, make_idempotent,
+                                   order_params_from_intent)
 from safepay.config import Config
 from safepay.models import PaymentIntent, PolicyConfig
 
@@ -41,6 +46,80 @@ def _intent(amount, **kw):
                 task_goal="pay approved invoices")
     base.update(kw)
     return PaymentIntent(**base)
+
+
+class FakeClient:
+    """The shape of the toolkit's PayPalClient (1.1.0): base_url, a token, post()."""
+    base_url = "https://api-m.sandbox.paypal.com"
+
+    def get_access_token(self):
+        return "tok"
+
+    def post(self, uri, payload):           # the toolkit's own post: no request id
+        return {"id": "ORDER-NO-ID"}
+
+
+class FakeAPIWithClient:
+    """A toolkit PayPalAPI whose tools call its client's post(), as the real one does."""
+
+    def __init__(self):
+        self._paypal_client = FakeClient()
+
+    def run(self, method, params):
+        return json.dumps(self._paypal_client.post("/v2/checkout/orders", params))
+
+
+def _capture_posts(monkeypatch):
+    seen = []
+
+    class Resp:
+        status_code = 201
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"id": "ORDER-" + str(len(seen)), "status": "CREATED"}
+
+    def fake_post(url, headers=None, json=None, timeout=None):
+        seen.append({"url": url, "headers": headers, "json": json})
+        return Resp()
+    monkeypatch.setattr(requests, "post", fake_post)
+    return seen
+
+
+def test_every_money_call_carries_a_paypal_request_id(monkeypatch):
+    """The toolkit's client sends no PayPal-Request-Id (1.1.0 and 1.11.0); the
+    gate adds one, stable for the same intent so a retry cannot double-charge."""
+    seen = _capture_posts(monkeypatch)
+    gate, _ = _gate(PolicyConfig(per_tx_limit=500, daily_limit=10000))
+    gate._api = make_idempotent(FakeAPIWithClient())
+    first = gate.create_order(_intent(48, idempotency_key="inv-2026-11-0042"))
+    retry = gate.create_order(_intent(48, idempotency_key="inv-2026-11-0042"))
+    other = gate.create_order(_intent(48, idempotency_key="inv-2026-11-0043"))
+    ids = [p["headers"][IDEMPOTENCY_HEADER] for p in seen]
+    assert len(ids) == 3 and ids[0] == ids[1] != ids[2]
+    assert ids[0] == "inv-2026-11-0042:create_order"
+    assert first["decision"]["execution"]["request_id"] == ids[0]
+    assert seen[0]["url"] == "https://api-m.sandbox.paypal.com/v2/checkout/orders"
+    assert seen[0]["headers"]["Authorization"] == "Bearer tok"
+    # without a key the id is still deterministic: same method, params and agent
+    seen.clear()
+    gate.create_order(_intent(10, purpose="seat"))
+    gate.create_order(_intent(10, purpose="seat"))
+    gate.create_order(_intent(11, purpose="seat"))
+    ids = [p["headers"][IDEMPOTENCY_HEADER] for p in seen]
+    assert ids[0] == ids[1] != ids[2] and ids[0].startswith("sp-")
+
+
+def test_read_only_calls_are_untouched(monkeypatch):
+    seen = _capture_posts(monkeypatch)
+    gate, _ = _gate()
+    api = make_idempotent(FakeAPIWithClient())
+    gate._api = api
+    out = gate.run("get_order_details", {"order_id": "X"})
+    assert out["gated"] is False and seen == []          # the toolkit's own post ran
+    assert make_idempotent(api) is api                   # wrapping twice is a no-op
 
 
 def test_allow_forwards_to_toolkit():

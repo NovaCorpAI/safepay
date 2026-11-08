@@ -25,6 +25,9 @@ newer releases pin heavy agent-framework dependencies).
 
 from __future__ import annotations
 
+import contextvars
+import hashlib
+import json
 from typing import Any
 
 from . import attest
@@ -49,6 +52,64 @@ except Exception as exc:  # pragma: no cover - exercised only without the packag
 class ToolkitUnavailable(RuntimeError):
     """Raised when a toolkit-backed call is attempted but the package or the
     PayPal credentials are missing."""
+
+
+# Idempotency. PayPal de-duplicates a POST that carries a `PayPal-Request-Id`
+# header: the same id again returns the original resource instead of creating
+# a second one. The toolkit's Python client (checked in the 1.1.0 and 1.11.0
+# wheels, `shared/paypal_client.py`) never sends that header, and the
+# `request_id` its `Context` accepts is never read, so an agent that retries
+# `create_order`, `capture_order`, `create_subscription` or `send_invoice`
+# after a timeout creates a second order, charge, subscription or invoice.
+# SafePay's gate closes that: every money-moving toolkit call goes out with a
+# request id derived from the payment intent (its idempotency key, else a
+# hash of the method, the parameters and the agent), so a retry of the same
+# intent reaches PayPal as the same request. The id is also written into the
+# chain link, so an auditor can match the order to the decision that made it.
+_REQUEST_ID: contextvars.ContextVar[str | None] = contextvars.ContextVar("safepay_request_id", default=None)
+IDEMPOTENCY_HEADER = "PayPal-Request-Id"
+
+
+def request_id_for(method: str, params: dict[str, Any], intent: PaymentIntent) -> str:
+    """A stable PayPal-Request-Id for one logical toolkit call."""
+    if intent.idempotency_key:
+        return f"{intent.idempotency_key}:{method}"[:100]
+    raw = json.dumps([method, params, intent.agent_id], sort_keys=True, default=str)
+    return "sp-" + hashlib.sha256(raw.encode()).hexdigest()[:40]
+
+
+def make_idempotent(api: Any) -> Any:
+    """Wrap the toolkit's HTTP client so every POST made while a request id
+    is set carries it. Works for the 1.1.0 client (headers built inline) and
+    the 1.11.0 one (`build_headers`), and leaves any other client alone."""
+    client = getattr(api, "_paypal_client", None)
+    if client is None or getattr(client, "_safepay_idempotent", False):
+        return api
+    original_post = client.post
+
+    def post(uri: str, payload: Any):
+        rid = _REQUEST_ID.get()
+        if not rid:
+            return original_post(uri, payload)
+        import requests
+        if hasattr(client, "build_headers"):
+            headers = dict(client.build_headers())
+        else:
+            headers = {"Authorization": f"Bearer {client.get_access_token()}",
+                       "Content-Type": "application/json"}
+        headers[IDEMPOTENCY_HEADER] = rid
+        resp = requests.post(f"{client.base_url}{uri}", headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        if resp.status_code == 204:
+            return {}
+        try:
+            return resp.json()
+        except ValueError:
+            return {}
+
+    client.post = post
+    client._safepay_idempotent = True
+    return api
 
 
 # Tool methods that move money or create a standing financial obligation. These
@@ -148,11 +209,11 @@ class GuardedToolkit:
                     "PAYPAL_CLIENT_ID / PAYPAL_SECRET are not set, so the "
                     "Agent Toolkit cannot reach the sandbox"
                 )
-            self._api = PayPalAPI(
+            self._api = make_idempotent(PayPalAPI(
                 client_id=self.config.paypal_client_id,
                 secret=self.config.paypal_secret,
                 context=Context(sandbox=True),
-            )
+            ))
         return self._api
 
     # -- the gate ----------------------------------------------------------
@@ -184,20 +245,25 @@ class GuardedToolkit:
 
         decision = self.guardrail.evaluate(intent, policy=policy)
         executed_result: Any = None
+        request_id = request_id_for(method, params, intent)
 
         if decision.verdict == Verdict.ALLOW:
+            token = _REQUEST_ID.set(request_id)
             try:
                 executed_result = self.api.run(method, params)
                 decision.executed = True
-                decision.execution = {"method": method, "result": executed_result}
+                decision.execution = {"method": method, "result": executed_result,
+                                      "request_id": request_id}
                 # Charge the daily ledger once, when the obligation is created;
                 # a later capture of the same order must not be charged again.
                 if method in COMMIT_METHODS:
                     self.guardrail.commit_spend(decision)
             except Exception as exc:  # the toolkit call itself failed
                 decision.executed = False
-                decision.execution = {"method": method, "error": str(exc)}
+                decision.execution = {"method": method, "error": str(exc), "request_id": request_id}
                 decision.reasons.append(f"toolkit error: {exc}")
+            finally:
+                _REQUEST_ID.reset(token)
 
         decision.event = "order"
         record = (self.audit_log.append(decision) if self.audit_log is not None

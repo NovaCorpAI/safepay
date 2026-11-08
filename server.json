@@ -8,7 +8,7 @@
     "source": "github"
   },
   "websiteUrl": "https://safepay.agentposhq.com/connect",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "remotes": [
     {
       "type": "streamable-http",
@@ -20,6 +20,15 @@
           "isRequired": true,
           "isSecret": true
         }
+      ]
+    }
+  ],
+  "icons": [
+    {
+      "src": "https://safepay.agentposhq.com/static/seal-512.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": [
+        "any"
       ]
     }
   ]

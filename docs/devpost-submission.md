@@ -209,6 +209,16 @@ model's output is data that is validated field by field, the model never
 applies anything (a person does), and text that instructs the reviewer is
 refused before any model reads it.
 
+A retry is an attack too. PayPal de-duplicates a request that carries a
+PayPal-Request-Id header; the PayPal Agent Toolkit's Python client does not
+send one (we read the 1.1.0 and 1.11.0 wheels: the request_id its Context
+accepts is never used), so an agent that retries create_order or
+capture_order after a timeout creates a second order or charge. Crashpay,
+another entry in this hackathon, measured that against the sandbox. Our gate
+now sends a request id derived from the payment intent on every money-moving
+toolkit call and records it in the chain link, so a retry of the same intent
+is the same request to PayPal; SafePay's own PayPal client always did.
+
 ## Accomplishments that we are proud of
 Real sandbox activity, not mocks: allowed payments produce actual PayPal payout
 batches, and the Agent Toolkit gate creates actual sandbox orders, while blocked
