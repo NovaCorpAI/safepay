@@ -217,7 +217,9 @@ capture_order after a timeout creates a second order or charge. Crashpay,
 another entry in this hackathon, measured that against the sandbox. Our gate
 now sends a request id derived from the payment intent on every money-moving
 toolkit call and records it in the chain link, so a retry of the same intent
-is the same request to PayPal; SafePay's own PayPal client always did.
+is the same request to PayPal; SafePay's own PayPal client always did. We
+reported it on the toolkit's issue tracker and sent the fix upstream as
+paypal/agent-toolkit#124 (per-call request id for the Python client, open).
 
 ## Accomplishments that we are proud of
 Real sandbox activity, not mocks: allowed payments produce actual PayPal payout

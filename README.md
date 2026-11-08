@@ -306,7 +306,9 @@ hackathon, measured that double charge against the sandbox. Through
 derived from the intent (its `idempotency_key`, else a hash of the method,
 the parameters and the agent), the id is written into the chain link, and a
 retry of the same intent reaches PayPal as the same request. SafePay's own
-PayPal client (Payouts, Orders, Vault) has always sent it.
+PayPal client (Payouts, Orders, Vault) has always sent it. We also reported
+the gap upstream and sent the fix at the source: [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
+(per-call request id for the Python client, open as of November 8, 2026).
 
 ### Use it as an MCP server (any agent)
 
