@@ -321,6 +321,8 @@ across the real pages (it can run the scenarios and the chain check for you).
 Connect your own agent: https://safepay.agentposhq.com/connect creates a key
 and runs a live check through the MCP endpoint; the same endpoint works from
 Claude (`claude mcp add --transport http ...`), Cursor or any MCP client.
+Listed in the official MCP Registry as com.agentposhq.safepay/check:
+https://registry.modelcontextprotocol.io/v0.1/servers?search=com.agentposhq.safepay
 Every attack case, verdict by verdict: https://safepay.agentposhq.com/security
 
 1. Console: type a policy in plain words, e.g. "Up to $500 per payment and

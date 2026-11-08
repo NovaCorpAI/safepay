@@ -29,6 +29,7 @@
 <section class="section card">
   <h2>Endpoint</h2>
   <p class="endpoint">https://safepay.agentposhq.com/mcp</p>
+  <p class="note">Listed in the official MCP Registry as <code>com.agentposhq.safepay/check</code>.</p>
   <p class="note">MCP over streamable HTTP (stateless, JSON responses). Auth: <code>Authorization: Bearer spk_…</code>, an agent key. The key names your account: you see only your own policy and checks, and the policy you set in the <a href="/console">console</a> for this session is the one your agent is judged under. Once the key exists the session is an account: only a change signed with your console's operator key, or a request carrying the connector key, can alter its rules, and nobody can issue a replacement key without presenting the current one.</p>
   <div class="keybox">
     <button class="primary" id="cx-key" type="button">Create a connector key for this session</button>
