@@ -606,6 +606,15 @@ def merchant_verify():
     return jsonify(out)
 
 
+@app.get("/.well-known/mcp-registry-auth")
+def mcp_registry_auth():
+    """Proof for the official MCP Registry that this domain owns the
+    com.agentposhq.safepay namespace (public key only)."""
+    path = os.path.join(app.static_folder, "mcp-registry-auth")
+    with open(path, encoding="utf-8") as f:
+        return f.read(), 200, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.get("/.well-known/safepay-seal-keys.json")
 def seal_keys():
     """The public half of the key that signs seal receipts. Pin it once;
