@@ -14,13 +14,13 @@
       parts.push(`Since ${new Date(l.since * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.`);
       const who = [];
       if (team.businesses) who.push(`${team.businesses} ${team.businesses === 1 ? 'is' : 'are'} our own (${(team.labels || []).join(', ')}: real supplier purchases, counted as use, not as traction; ${team.checks} checks)`);
-      who.push(`${ext.businesses || 0} external ${ext.businesses === 1 ? 'business' : 'businesses'}${ext.checks ? ` (${ext.checks} checks)` : ''}`);
+      who.push(ext.businesses ? `${ext.businesses} external ${ext.businesses === 1 ? 'business' : 'businesses'} (${ext.checks} checks)` : 'no external business has recorded a purchase yet');
       parts.push(`Of the ${l.businesses} ${l.businesses === 1 ? 'business' : 'businesses'}, ${who.join('; ')}.`);
       if (l.precision != null) parts.push(`Alert precision so far: ${Math.round(l.precision * 100)}% (corrected out of answered).`);
       const m = money(l.avoided);
       if (m) parts.push(`${m} not double-recorded or overpaid.`);
     } else {
-      parts.push('Live since November 5, 2026. So far only our own test accounts have recorded a supplier purchase, and those are never counted, so the counters still read zero.');
+      parts.push('Live since November 5, 2026. So far only our own test accounts have recorded a supplier purchase, and those are never counted, so the counters still read zero: no external business yet, and our own businesses start recording this week.');
     }
     if (b) parts.push(`Backtest on the ${b.purchases} supply purchases that existed before SafePay (${b.businesses} business): ${b.rules.price_above_history.flagged} alerts, so no false alarms; a small sample, which is why the live outcomes are the measure.`);
     note.textContent = parts.join(' ');
