@@ -305,7 +305,13 @@ hackathon, measured that double charge against the sandbox. Through
 `GuardedToolkit` every money-moving toolkit call goes out with a request id
 derived from the intent (its `idempotency_key`, else a hash of the method,
 the parameters and the agent), the id is written into the chain link, and a
-retry of the same intent reaches PayPal as the same request. SafePay's own
+retry of the same intent reaches PayPal as the same request. The header alone
+is not enough when the duplicates are simultaneous (PayPal de-duplicates
+against a request it has already finished; Crashpay measured a second charge
+getting through some concurrent double submits), so the gate also runs one
+toolkit call per request id at a time and hands the twin the first result
+instead of calling PayPal again; a later retry with the same idempotency key
+is answered the same way for an hour, without re-judging it. SafePay's own
 PayPal client (Payouts, Orders, Vault) has always sent it. We also reported
 the gap upstream and sent the fix at the source: [paypal/agent-toolkit#124](https://github.com/paypal/agent-toolkit/pull/124)
 (per-call request id for the Python client, open as of November 8, 2026).

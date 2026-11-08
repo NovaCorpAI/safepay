@@ -14,9 +14,18 @@ import json
 import requests
 
 from safepay.agent_toolkit import (IDEMPOTENCY_HEADER, GuardedToolkit, make_idempotent,
-                                   order_params_from_intent)
+                                   order_params_from_intent, reset_replays)
 from safepay.config import Config
 from safepay.models import PaymentIntent, PolicyConfig
+
+
+@pytest.fixture(autouse=True)
+def _fresh_replay_memory():
+    # The gate remembers executed request ids process-wide (a retry window);
+    # each test starts with none so deterministic ids do not leak between tests.
+    reset_replays()
+    yield
+    reset_replays()
 
 
 class FakePayPalAPI:
@@ -98,18 +107,22 @@ def test_every_money_call_carries_a_paypal_request_id(monkeypatch):
     retry = gate.create_order(_intent(48, idempotency_key="inv-2026-11-0042"))
     other = gate.create_order(_intent(48, idempotency_key="inv-2026-11-0043"))
     ids = [p["headers"][IDEMPOTENCY_HEADER] for p in seen]
-    assert len(ids) == 3 and ids[0] == ids[1] != ids[2]
-    assert ids[0] == "inv-2026-11-0042:create_order"
+    # the retry never reaches PayPal (replayed in-process); the other intent does
+    assert ids == ["inv-2026-11-0042:create_order", "inv-2026-11-0043:create_order"]
     assert first["decision"]["execution"]["request_id"] == ids[0]
+    assert retry["replayed"] and retry["decision"]["execution"]["request_id"] == ids[0]
     assert seen[0]["url"] == "https://api-m.sandbox.paypal.com/v2/checkout/orders"
     assert seen[0]["headers"]["Authorization"] == "Bearer tok"
     # without a key the id is still deterministic: same method, params and agent
     seen.clear()
-    gate.create_order(_intent(10, purpose="seat"))
-    gate.create_order(_intent(10, purpose="seat"))
-    gate.create_order(_intent(11, purpose="seat"))
-    ids = [p["headers"][IDEMPOTENCY_HEADER] for p in seen]
-    assert ids[0] == ids[1] != ids[2] and ids[0].startswith("sp-")
+    reset_replays()
+    a = gate.create_order(_intent(10, purpose="seat"))
+    b = gate.create_order(_intent(10, purpose="seat"))
+    c = gate.create_order(_intent(11, purpose="seat"))
+    rid = lambda o: o["decision"]["execution"]["request_id"]
+    assert rid(a) == rid(b) != rid(c) and rid(a).startswith("sp-")
+    assert b["replayed"] and not c.get("replayed")
+    assert [p["headers"][IDEMPOTENCY_HEADER] for p in seen] == [rid(a), rid(c)]
 
 
 def test_read_only_calls_are_untouched(monkeypatch):
@@ -142,9 +155,11 @@ def test_block_over_per_tx_never_calls_toolkit():
 
 def test_daily_cap_holds_across_a_burst():
     gate, fake = _gate(PolicyConfig(per_tx_limit=500, daily_limit=1000))
-    gate.create_order(_intent(420))    # allowed, spent 420
-    gate.create_order(_intent(420))    # allowed, spent 840
-    out = gate.create_order(_intent(420))  # 1260 > 1000: blocked
+    # three distinct purchases (distinct keys: identical params would be one
+    # request to PayPal, and the gate replays it rather than paying twice)
+    gate.create_order(_intent(420, idempotency_key="b1"))    # allowed, spent 420
+    gate.create_order(_intent(420, idempotency_key="b2"))    # allowed, spent 840
+    out = gate.create_order(_intent(420, idempotency_key="b3"))  # 1260 > 1000: blocked
     assert out["decision"]["verdict"] == "block"
     assert out["result"] is None
     # Only the two allowed orders reached the toolkit.
@@ -186,3 +201,70 @@ def test_order_params_from_intent_single_line_item():
     item = params["items"][0]
     assert item["name"] == "Notion"
     assert item["item_total"] == 48.0 and item["quantity"] == 1
+
+
+# -- simultaneous duplicates -------------------------------------------------
+# PayPal de-duplicates a PayPal-Request-Id it has already finished; two
+# identical calls in flight at once can both get through (Crashpay measured
+# it). The gate runs one call per request id at a time and replays the first
+# result to the twin, so the toolkit is called exactly once.
+
+import threading
+import time
+
+
+class SlowPayPalAPI(FakePayPalAPI):
+    def run(self, method, params):
+        time.sleep(0.2)                      # long enough for the twin to arrive
+        return super().run(method, params)
+
+
+def test_simultaneous_duplicates_reach_the_toolkit_once():
+    gate, _ = _gate(PolicyConfig(per_tx_limit=500, daily_limit=10000))
+    slow = SlowPayPalAPI()
+    gate._api = slow
+    key = f"inv-twins-{time.time_ns()}"
+    outs = []
+
+    def go():
+        outs.append(gate.create_order(_intent(48, idempotency_key=key)))
+
+    threads = [threading.Thread(target=go) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(slow.calls) == 1
+    assert all(o["decision"]["executed"] for o in outs)
+    assert sorted(o.get("replayed", False) for o in outs) == [False, True]
+    rids = {o["decision"]["execution"]["request_id"] for o in outs}
+    assert rids == {f"{key}:create_order"}
+
+
+def test_a_later_retry_is_replayed_not_re_judged():
+    # The first charge already used the daily room; an honest retry of the same
+    # intent must get the original answer back, not a BLOCK for the daily cap.
+    gate, fake = _gate(PolicyConfig(per_tx_limit=500, daily_limit=60))
+    key = f"inv-retry-{time.time_ns()}"
+    first = gate.create_order(_intent(48, idempotency_key=key))
+    retry = gate.create_order(_intent(48, idempotency_key=key))
+    assert first["decision"]["verdict"] == "allow" and not first.get("replayed")
+    assert retry["replayed"] and retry["decision"]["execution"]["replayed"]
+    assert retry["result"] == first["result"]
+    assert len(fake.calls) == 1
+    # a different intent is judged on its own, and the cap now applies to it
+    other = gate.create_order(_intent(48, idempotency_key=f"{key}-b"))
+    assert other["decision"]["verdict"] != "allow" and len(fake.calls) == 1
+
+
+def test_a_failed_call_is_retried_not_replayed():
+    gate, _ = _gate(PolicyConfig(per_tx_limit=500, daily_limit=10000))
+    gate._api = FailingPayPalAPI()
+    key = f"inv-fail-{time.time_ns()}"
+    first = gate.create_order(_intent(48, idempotency_key=key))
+    assert not first["decision"]["executed"] and not first.get("replayed")
+    ok = FakePayPalAPI()
+    gate._api = ok
+    second = gate.create_order(_intent(48, idempotency_key=key))
+    assert second["decision"]["executed"] and not second.get("replayed")
+    assert len(ok.calls) == 1

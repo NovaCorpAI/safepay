@@ -23,3 +23,16 @@ os.environ["SAFEPAY_RATE_LIMIT"] = "0"
 if os.environ.get("SAFEPAY_LIVE_TESTS") != "1":
     for _k in _DURABLE:
         os.environ[_k] = ""
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _fresh_toolkit_replays():
+    # The toolkit gate remembers executed request ids process-wide (a retry
+    # window); every test starts clean so deterministic ids never leak across.
+    from safepay.agent_toolkit import reset_replays
+    reset_replays()
+    yield
+    reset_replays()

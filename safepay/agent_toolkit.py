@@ -28,6 +28,10 @@ from __future__ import annotations
 import contextvars
 import hashlib
 import json
+import os
+import threading
+import time
+from collections import OrderedDict
 from typing import Any
 
 from . import attest
@@ -110,6 +114,76 @@ def make_idempotent(api: Any) -> Any:
     client.post = post
     client._safepay_idempotent = True
     return api
+
+
+# The header alone is not enough when the duplicates are simultaneous: PayPal
+# de-duplicates against a request it has already finished, and Crashpay
+# (another entry in this hackathon) measured a second charge slipping through
+# some concurrent double submits even with the header. So the gate also runs
+# one toolkit call per request id at a time in this process, and a caller that
+# arrives with an id that already ran gets the first result back instead of a
+# second call to PayPal. Across processes the header is the guard.
+#
+# A remembered outcome expires (SAFEPAY_REPLAY_SECONDS, default one hour): a
+# retry window, not a history. The same purchase made again tomorrow is a new
+# call; the header still lets PayPal apply its own de-duplication window.
+_CLAIMS = threading.Lock()
+_INFLIGHT: dict[str, threading.Lock] = {}
+_DONE: "OrderedDict[str, tuple[float, dict[str, Any]]]" = OrderedDict()
+_DONE_MAX = 2000
+
+
+def replay_seconds() -> int:
+    return max(0, int(os.environ.get("SAFEPAY_REPLAY_SECONDS", "3600")))
+
+
+def reset_replays() -> None:
+    """Forget every in-flight claim and remembered outcome (tests)."""
+    with _CLAIMS:
+        _INFLIGHT.clear()
+        _DONE.clear()
+
+
+def _claim(request_id: str) -> threading.Lock:
+    with _CLAIMS:
+        lock = _INFLIGHT.get(request_id)
+        if lock is None:
+            lock = _INFLIGHT[request_id] = threading.Lock()
+        return lock
+
+
+def _earlier(request_id: str) -> dict[str, Any] | None:
+    with _CLAIMS:
+        hit = _DONE.get(request_id)
+        if hit is None:
+            return None
+        expires, outcome = hit
+        if time.time() >= expires:
+            del _DONE[request_id]
+            return None
+        return outcome
+
+
+# Without an explicit key, a call that just finished still counts as the twin
+# of one arriving right behind it (a double submit); after this, each call is
+# judged on its own.
+_TWIN_SECONDS = 5
+
+
+def _remember(request_id: str, outcome: dict[str, Any], ttl: int) -> None:
+    if ttl <= 0:
+        return
+    with _CLAIMS:
+        _DONE[request_id] = (time.time() + ttl, outcome)
+        while len(_DONE) > _DONE_MAX:
+            _DONE.popitem(last=False)
+
+
+def _replayed(outcome: dict[str, Any]) -> dict[str, Any]:
+    """The first outcome again, marked so the caller knows nothing new moved."""
+    decision = dict(outcome["decision"])
+    decision["execution"] = {**(decision.get("execution") or {}), "replayed": True}
+    return {**outcome, "decision": decision, "replayed": True}
 
 
 # Tool methods that move money or create a standing financial obligation. These
@@ -243,28 +317,53 @@ class GuardedToolkit:
                 f"method '{method}' moves money; a PaymentIntent is required to gate it"
             )
 
+        request_id = request_id_for(method, params, intent)
+        # An explicit idempotency key names one logical payment, so a later
+        # call with the same key is a retry: the same answer, no new evaluation
+        # (the first charge already counts against the caps, so re-judging it
+        # would wrongly block an honest retry). Without a key each call is
+        # judged on its own; only a twin still in flight is treated as a retry.
+        keyed = bool(intent.idempotency_key)
+        earlier = _earlier(request_id) if keyed else None
+        if earlier is not None:
+            return _replayed(earlier)
+
         decision = self.guardrail.evaluate(intent, policy=policy)
         executed_result: Any = None
-        request_id = request_id_for(method, params, intent)
 
         if decision.verdict == Verdict.ALLOW:
-            token = _REQUEST_ID.set(request_id)
-            try:
-                executed_result = self.api.run(method, params)
-                decision.executed = True
-                decision.execution = {"method": method, "result": executed_result,
-                                      "request_id": request_id}
-                # Charge the daily ledger once, when the obligation is created;
-                # a later capture of the same order must not be charged again.
-                if method in COMMIT_METHODS:
-                    self.guardrail.commit_spend(decision)
-            except Exception as exc:  # the toolkit call itself failed
-                decision.executed = False
-                decision.execution = {"method": method, "error": str(exc), "request_id": request_id}
-                decision.reasons.append(f"toolkit error: {exc}")
-            finally:
-                _REQUEST_ID.reset(token)
+            with _claim(request_id):
+                earlier = _earlier(request_id)
+                if earlier is not None:  # a twin finished while we waited
+                    return _replayed(earlier)
+                token = _REQUEST_ID.set(request_id)
+                try:
+                    executed_result = self.api.run(method, params)
+                    decision.executed = True
+                    decision.execution = {"method": method, "result": executed_result,
+                                          "request_id": request_id}
+                    # Charge the daily ledger once, when the obligation is created;
+                    # a later capture of the same order must not be charged again.
+                    if method in COMMIT_METHODS:
+                        self.guardrail.commit_spend(decision)
+                except Exception as exc:  # the toolkit call itself failed
+                    decision.executed = False
+                    decision.execution = {"method": method, "error": str(exc),
+                                          "request_id": request_id}
+                    decision.reasons.append(f"toolkit error: {exc}")
+                finally:
+                    _REQUEST_ID.reset(token)
+                outcome = self._outcome(method, decision, executed_result)
+                if decision.executed:
+                    # A failed call is not remembered: its retry must go out
+                    # again (same header, so PayPal still de-duplicates it).
+                    _remember(request_id, outcome,
+                              replay_seconds() if keyed else min(replay_seconds(), _TWIN_SECONDS))
+                return outcome
 
+        return self._outcome(method, decision, executed_result)
+
+    def _outcome(self, method: str, decision: Decision, executed_result: Any) -> dict[str, Any]:
         decision.event = "order"
         record = (self.audit_log.append(decision) if self.audit_log is not None
                   else attest.audit_record(decision))
