@@ -92,9 +92,13 @@ The verdict is allow, hold, or block. On allow, SafePay releases the payment
 through the PayPal Payouts API (the agent sends money, no buyer redirect, fully
 backend). On hold or block the money never moves. A hold is not a dead end: it
 waits for a person, who approves it (SafePay then pays and charges the ledger)
-or rejects it, in the console, through the MCP tools, or with one tap on a
-Telegram card, and that decision is appended to the chain as its own link
-naming who took it. Every agent the guardrail has seen is listed with a
+or rejects it, in the console, through the MCP tools, with one tap on a
+Telegram card, or with a physical button: `safepay-kit` turns a Raspberry Pi
+with three buttons and three LEDs into a box on the shop counter (amber light
+when a payment is held, green approves, red rejects, black freezes the agent),
+with parts, wiring and setup in docs/kit.md. That decision is appended to the
+chain as its own link naming who took it ("via Telegram by <name>", "via kit
+counter-1"). Every agent the guardrail has seen is listed with a
 Freeze switch, the way a bank freezes a card: a frozen agent's next request is
 refused before any check runs, the kill switch for an incident. And the
 firewall watches what goes around it: a payout PayPal reports that SafePay
@@ -347,7 +351,10 @@ clicks Approve; operator actions are open on the public demo so a judge
 needs no setup; stablecoins are validated, never moved; AP2 mandates are
 produced and verified on our PayPal mandates, we are not a participant in
 an AP2 network; the tamper buttons edit your own session's policy and a
-copy of the chain; there are no paying customers yet and the pricing is a
+copy of the chain; the counter kit's client is tested end to end against
+the real console with a keyboard standing in for the buttons, and its GPIO
+board follows gpiozero and the documented pins but has not been run on a
+Raspberry Pi yet; there are no paying customers yet and the pricing is a
 proposal, the measured figures are costs.
 
 ## Built with

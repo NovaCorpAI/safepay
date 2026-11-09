@@ -150,9 +150,14 @@ So nobody has to guess.
   25 benchmark cases were written by us: realistic shapes, fictional vendors
   on `.example` addresses (the legitimate vendors carry their real domains so
   the directory check is meaningful). No customer data anywhere in the repo.
-- **The human.** Whoever clicks Approve (or answers in Telegram) is the
-  human in the loop. Operator actions are open on the public demo so a judge
-  needs no setup; `SAFEPAY_OPERATOR_TOKEN` locks them in a real deployment.
+- **The human.** Whoever clicks Approve (or answers in Telegram, or presses
+  the kit's button) is the human in the loop. Operator actions are open on
+  the public demo so a judge needs no setup; `SAFEPAY_OPERATOR_TOKEN` locks
+  them in a real deployment.
+- **The kit.** `safepay-kit` is tested end to end against the real console
+  with the keyboard standing in for the buttons. Its GPIO board follows
+  gpiozero and the pins in `docs/kit.md`, but has not been run on a
+  Raspberry Pi yet.
 - **Stablecoins are validated, never moved.** SafePay has no wallet.
 - **AP2.** SafePay produces and verifies AP2-shaped mandates on its PayPal
   mandates. It is not a participant in an AP2 network, and the store does
@@ -614,6 +619,31 @@ same controls are `GET /api/agents`, `POST /api/agents/<id>/pause` and
 `safepay_resume_agent` MCP tools, so a supervising agent or an on-call
 engineer can freeze a misbehaving agent from anywhere. With Supabase
 configured the registry is shared by every instance of the service.
+
+## Build your own kit (a box on the counter)
+
+The owner of a shop is not at a web console or scrolling Telegram; they are
+at the counter. `safepay-kit` turns a Raspberry Pi with three buttons and
+three LEDs into the physical end of the firewall: the amber light blinks when
+the agent's payment is held, **green** approves and pays, **red** rejects,
+**black** freezes the agent (and thaws it on the next press). Every press goes
+through the same `/api/approvals` and `/api/agents` endpoints as everything
+else, so the chain reads "approved by human: via kit counter-1". The box holds
+no PayPal credentials, only the console address and, if set, the operator
+token.
+
+```bash
+pip install "safepay[kit]"                       # gpiozero is the only extra
+safepay-kit --url https://safepay.agentposhq.com --run <session id> --device counter-1
+safepay-kit --url http://localhost:5000 --board keys   # no hardware: a, r, f, q
+```
+
+Parts (about USD 30), wiring, the five setup steps and what each light means
+are in [docs/kit.md](docs/kit.md). The same Pi can host the whole firewall
+(console, MCP proxy and chain) on the shop's network, with PayPal as the only
+thing outside. The client is tested end to end against the real console
+(`tests/test_kit.py`); the GPIO board follows gpiozero and the documented pins
+but has not been exercised on a Pi yet, which is said as plainly in the guide.
 
 ## Settlement (did the money actually move?)
 

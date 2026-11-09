@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "safepay"
-version = "0.8.3"
+version = "0.9.0"
 description = "The payables firewall for AI agents: policy in plain words, live-web merchant check and intent reasoning before any PayPal or stablecoin (PYUSD, USDC) payment moves, a remote MCP connector any agent asks before it pays, human approvals (console, MCP, Telegram), a kill switch per agent, signed receipts and a hash-chained audit log."
 readme = "README.md"
 license = { text = "MIT" }
@@ -36,10 +36,14 @@ dependencies = [
 web = ["gunicorn>=21.2.0"]
 mcp = ["mcp>=1.2.0,<2"]
 tracing = ["langsmith>=0.1.0"]
+# The counter kit on a Raspberry Pi (docs/kit.md). Without it, safepay-kit
+# runs with the keyboard as the buttons.
+kit = ["gpiozero>=2.0"]
 
 [project.scripts]
 safepay = "safepay.cli:main"
 safepay-mcp-proxy = "safepay.mcp_proxy:main"
+safepay-kit = "safepay.kit:main"
 
 [project.urls]
 Homepage = "https://github.com/NovaCorpAI/safepay"
