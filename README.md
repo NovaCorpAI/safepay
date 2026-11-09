@@ -1067,7 +1067,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-383 tests, deterministic and offline, in about five seconds (91% line
+448 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the
