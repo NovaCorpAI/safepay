@@ -1077,7 +1077,8 @@ gpiozero stands in for the Pi), and every PayPal REST call SafePay makes
 (OAuth, Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction
 Search, webhook verification) against a scripted HTTP layer that checks the
 exact request PayPal would receive. Two tests are skipped unless live
-Supabase credentials are present.
+Supabase credentials are present, and the FastMCP wrapper test unless the
+`mcp` extra is installed.
 
 ## License
 
