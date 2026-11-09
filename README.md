@@ -1067,10 +1067,17 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-Deterministic, offline: policy, aggregation, the daily cap across a burst,
-simulated execution, audit integrity, the vendor directory, injection
-defences, settlement, the plain-words policy parser and validator, the agent
-registry, Telegram approvals (fake transport) and the web and MCP surfaces.
+383 tests, deterministic and offline, in about five seconds (91% line
+coverage of the package and the console at 0.9.0). They cover policy,
+aggregation, the daily cap across a burst, simulated execution, audit
+integrity, the vendor directory, injection defences, settlement, the
+plain-words policy parser and validator, the agent registry, Telegram
+approvals (fake transport), the web and MCP surfaces, the counter kit (a fake
+gpiozero stands in for the Pi), and every PayPal REST call SafePay makes
+(OAuth, Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction
+Search, webhook verification) against a scripted HTTP layer that checks the
+exact request PayPal would receive. Two tests are skipped unless live
+Supabase credentials are present.
 
 ## License
 
