@@ -1,87 +1,107 @@
 1
-00:00:00,000 --> 00:00:06,000
-AI agents already pay invoices. And an agent that can pay can be fooled:
+00:00:00,000 --> 00:00:05,000
+AI agents already pay invoices, and an agent that pays can be fooled:
 
 2
-00:00:06,000 --> 00:00:12,000
-a hidden instruction in an invoice, a real vendor on a look-alike domain, an amount that does not fit its task.
+00:00:05,000 --> 00:00:09,500
+a hidden instruction, a look-alike domain, an amount that does not fit its task.
 
 3
-00:00:12,000 --> 00:00:17,000
-In 2026 an agent sent fifty million tokens when it was asked for four.
+00:00:09,500 --> 00:00:13,500
+SafePay is the firewall every agent asks before it pays with PayPal.
 
 4
-00:00:17,000 --> 00:00:22,000
-SafePay is the firewall every agent asks before it pays with PayPal.
+00:00:14,000 --> 00:00:19,500
+The rules are written once, in plain words. Nemotron turns them into a policy
+and shows me every field.
 
 5
 00:00:22,000 --> 00:00:28,000
-The operator writes the rules once, in plain words. Nemotron turns them into a policy and shows me every field before it applies.
+I apply it signed with a key this browser created and that never leaves it.
+Nobody changes these rules without that key, not even with server access.
 
 6
-00:00:28,000 --> 00:00:35,000
-I apply it signed with a key this browser created and that never leaves it. From now on nobody changes these rules without that key, not even with server access.
+00:00:35,000 --> 00:00:42,000
+A real Notion invoice: policy in order, vendor checked on the live web,
+and the reasoning confirms it serves the task. Paid through the PayPal sandbox.
 
 7
-00:00:35,000 --> 00:00:43,000
-A real Notion invoice. Policy in order, the vendor checked on the live web, and the reasoning confirms it serves the task. Paid through the PayPal sandbox, sealed.
+00:00:43,000 --> 00:00:48,000
+The same invoice to a look-alike domain: the vendor directory blocks it
+without calling the model.
 
 8
-00:00:43,000 --> 00:00:49,000
-The same invoice, but the money goes to a look-alike domain. The vendor directory blocks it without a single model call.
-
-9
-00:00:49,000 --> 00:00:53,000
+00:00:49,000 --> 00:00:52,500
 Nine hundred dollars: over the per-payment cap. Hard block.
 
+9
+00:00:53,000 --> 00:01:01,000
+One hundred and twenty dollars to a casino, inside every limit, and still held:
+the web found complaints and the payment does not serve the task.
+
 10
-00:00:53,000 --> 00:01:03,000
-One hundred and twenty dollars to a casino. Inside every limit, and still held: the web found complaints and the reasoning says it does not serve the task of paying invoices. A spending cap never catches this.
+00:01:01,000 --> 00:01:04,000
+A spending cap never catches this.
 
 11
-00:01:03,000 --> 00:01:09,000
-A legitimate cloud invoice, but over the three hundred I asked to be consulted on. It waits for me.
+00:01:04,500 --> 00:01:09,000
+A legitimate invoice, but over the three hundred I asked to be consulted on.
+It waits for me.
 
 12
-00:01:09,000 --> 00:01:18,000
-It reaches me where I am, one tap and it is paid. And the approval is signed by this browser's key, the same one that signs the rules: a stolen operator token approves nothing.
+00:01:10,000 --> 00:01:16,500
+One tap and it is paid. The approval is signed by this browser's key:
+a stolen operator token approves nothing.
 
 13
-00:01:18,000 --> 00:01:26,000
-The last one is blocked not for its amount, but because it would breach the daily cap across the whole burst. SafePay keeps the day's count, not one isolated payment.
+00:01:18,000 --> 00:01:24,000
+The last one is blocked because it would breach the daily cap across the burst:
+SafePay keeps the day's count.
 
 14
-00:01:35,000 --> 00:01:45,000
-If something smells wrong, one click freezes the agent the way a bank freezes a card: its next payment is refused before any check runs. A PayPal dispute pulls the same switch on its own.
+00:01:35,000 --> 00:01:43,000
+If something smells wrong, one click freezes the agent the way a bank freezes a card.
+A PayPal dispute pulls the same switch on its own.
 
 15
-00:01:45,000 --> 00:01:55,000
-Every decision is a link in a signed hash chain. I tamper with one row and the whole chain fails at once. That is the record an auditor can believe.
+00:01:45,000 --> 00:01:53,000
+Every decision is a link in a signed hash chain.
+I tamper with one row and the whole chain fails at once.
 
 16
-00:01:55,000 --> 00:02:05,000
-We measured SafePay against seventeen real attacks, and the benchmark is in the repo. But a published benchmark can be studied.
+00:01:55,000 --> 00:02:01,000
+We measured SafePay against seventeen real attacks.
+But a published benchmark can be studied,
 
 17
-00:02:05,000 --> 00:02:13,000
-So here is one that cannot: the model is writing six attacks it has never seen, right now, and SafePay judges them live.
+00:02:01,000 --> 00:02:08,000
+so here is one that cannot: the model is writing six attacks it has never seen,
+right now, and SafePay judges them live.
 
 18
-00:02:13,000 --> 00:02:22,000
-Four of six caught. Two got through, and that is shown as it is: we do not curate what the model writes. Every miss comes with the rule that would close it.
+00:02:13,000 --> 00:02:19,000
+Four of six. Two got through, shown as they are.
+Every miss comes with the rule that would close it.
 
 19
-00:02:22,000 --> 00:02:29,000
-One click signs those rules with my key, applies them, and runs the same attacks again.
+00:02:22,000 --> 00:02:28,000
+One click signs those rules with my key, applies them,
+and runs the same attacks again.
 
 20
-00:02:29,000 --> 00:02:36,000
-Six of six. Miss, fix and catch, in front of you. That is proof, not promise.
+00:02:30,000 --> 00:02:35,000
+Six of six. Miss, fix and catch, in front of you.
 
 21
-00:02:40,000 --> 00:02:52,000
-SafePay does not need to hold the money to protect it. SafePay Check is a remote MCP server: any agent asks before its own checkout and gets a signed verdict. It is in the official MCP Registry. The same rules apply to PayPal and to stablecoins like PYUSD and USDC.
+00:02:40,000 --> 00:02:47,000
+SafePay does not need to hold the money to protect it: SafePay Check is a remote MCP server,
+any agent asks before its checkout and gets a signed verdict.
 
 22
+00:02:47,000 --> 00:02:51,000
+The same rules apply to PYUSD and USDC.
+
+23
 00:02:52,000 --> 00:02:58,000
-SafePay: rules in plain words, the vendor checked on the web, reasoning about every payment, signed approvals and a record nobody edits. pip install safepay. Thank you.
+SafePay: rules in plain words, vendor checked, reasoning about every payment,
+signed approvals and a record nobody edits. pip install safepay. Thank you.

@@ -34,11 +34,10 @@ objetivo tras el corte.
 
 **[Portada o la página de inicio, sin tocar nada.]**
 
-"Los agentes de IA ya pagan facturas. Y un agente que puede pagar puede ser
-engañado: una instrucción escondida en una factura, un proveedor real con un
-dominio parecido, un monto que no cuadra con su tarea. En 2026 un agente
-mandó cincuenta millones de tokens cuando le pidieron cuatro. SafePay es el
-firewall que todo agente consulta antes de pagar con PayPal."
+"Los agentes de IA ya pagan facturas, y un agente que paga puede ser
+engañado: una instrucción escondida, un dominio parecido, un monto que no
+cuadra con su tarea. SafePay es el firewall que todo agente consulta antes
+de pagar con PayPal."
 
 ## 0:12 a 0:35 | Reglas en palabras simples
 
@@ -46,15 +45,14 @@ firewall que todo agente consulta antes de pagar con PayPal."
 $2,000 a day. Ask me before anything over $300. No gambling or crypto."
 Pulsa "Draft the policy".]**
 
-"El operador escribe las reglas una sola vez, en palabras simples. Nemotron
-las convierte en política y me muestra cada campo antes de aplicarla."
+"Las reglas se escriben una vez, en palabras simples. Nemotron las convierte
+en política y me muestra cada campo."
 
 **[Aparecen los campos. Señala la casilla de la clave y pulsa "Apply to this
 session". Lee el mensaje verde: "signed by operator key ... pinned".]**
 
-"La aplico firmándola con una clave que creó este navegador y que nunca sale
-de él. Desde ahora nadie cambia estas reglas sin esa clave, ni siquiera
-alguien con acceso al servidor."
+"La aplico firmada con una clave que creó este navegador y nunca sale de él.
+Nadie cambia estas reglas sin esa clave, ni con acceso al servidor."
 
 ## 0:35 a 1:35 | Un agente intenta pagar siete veces
 
@@ -62,48 +60,44 @@ alguien con acceso al servidor."
 veredicto; si tarda, sigue hablando de la anterior.]**
 
 Tarjeta 1, Notion 48 USD, ALLOW:
-"Una factura real de Notion. Política en orden, el proveedor verificado en la
+"Una factura real de Notion: política en orden, proveedor verificado en la
 web en vivo, y el razonamiento confirma que sirve a la tarea. Se paga por el
-sandbox de PayPal y queda sellada."
+sandbox de PayPal."
 
 Tarjeta 2, Notion a notion-payments.example, BLOCK:
-"La misma factura, pero el dinero va a un dominio parecido. El directorio de
-proveedores lo bloquea sin gastar una sola llamada al modelo."
+"La misma factura a un dominio parecido: el directorio de proveedores la
+bloquea sin llamar al modelo."
 
 Tarjeta 3, AWS 900 USD, BLOCK:
 "Novecientos dólares: por encima del tope por pago. Bloqueo duro."
 
 Tarjeta 4, casino 120 USD, HOLD:
-"Ciento veinte dólares a un casino. Está dentro de todos los límites, y aun
-así queda retenido: la web encontró denuncias y el razonamiento dice que no
-sirve a la tarea de pagar facturas. Esto es lo que un tope de gasto nunca
-atrapa."
+"Ciento veinte dólares a un casino, dentro de todos los límites, y aun así
+retenido: la web encontró denuncias y el pago no sirve a la tarea. Esto un
+tope de gasto nunca lo atrapa."
 
 Tarjeta 5, AWS 420 USD, HOLD:
-"Una factura legítima de la nube, pero sobre los trescientos que pedí que me
+"Una factura legítima, pero sobre los trescientos que pedí que me
 consultaran. Espera por mí."
 
 **[Si tienes Telegram: muestra la tarjeta en el teléfono y toca "Approve and
 pay". Si no: pulsa "Approve and pay" en el panel "Pending approvals". Lee la
 línea del resultado: "approved in console (signed by operator key ...)".]**
 
-"Me llega donde estoy, una pulsación y se paga. Y la aprobación va firmada
-por la clave de este navegador, la misma que firma las reglas: un token de
-operador robado no aprueba nada."
+"Una pulsación y se paga. La aprobación va firmada por la clave de este
+navegador: un token de operador robado no aprueba nada."
 
 Tarjetas 6 y 7, Google Cloud HOLD y Azure BLOCK:
-"La última se bloquea no por su monto, sino porque superaría el tope diario
-sumando toda la ráfaga. SafePay lleva la cuenta del día, no de un pago
-aislado."
+"La última se bloquea porque superaría el tope diario sumando toda la
+ráfaga: SafePay lleva la cuenta del día."
 
 ## 1:35 a 1:45 | El interruptor
 
 **[Baja a "Agents in this session", pulsa "Freeze agent". Sube al formulario
 de pago manual y pulsa "Evaluate": BLOCK, "agent frozen".]**
 
-"Y si algo huele mal, un clic congela al agente como un banco congela una
-tarjeta: su siguiente pago se rechaza antes de correr cualquier chequeo. Una
-disputa en PayPal acciona el mismo interruptor sola."
+"Si algo huele mal, un clic congela al agente como un banco congela una
+tarjeta. Una disputa en PayPal acciona el mismo interruptor sola."
 
 ## 1:45 a 1:55 | El registro que no se puede editar
 
@@ -111,8 +105,7 @@ disputa en PayPal acciona el mismo interruptor sola."
 (demo)": la insignia se pone roja y marca la fila.]**
 
 "Cada decisión es un eslabón de una cadena de hashes firmada. Altero una
-fila y toda la cadena falla al instante. Ese es el registro que un auditor
-puede creer."
+fila y toda la cadena falla al instante."
 
 ## 1:55 a 2:40 | El red team (la escena central)
 
@@ -120,17 +113,15 @@ puede creer."
 model" y "judged by the full guardrail". Pulsa. Mientras el modelo escribe,
 sigue narrando; cuando aparecen las tarjetas, lee una o dos.]**
 
-"Medimos SafePay contra diecisiete ataques reales, y el benchmark está en el
-repo. Pero un benchmark publicado se puede estudiar. Así que aquí va uno que
-no: el modelo está escribiendo ahora mismo seis ataques que nunca vio, y
-SafePay los juzga en vivo."
+"Medimos SafePay contra diecisiete ataques reales. Pero un benchmark
+publicado se puede estudiar, así que aquí va uno que no: el modelo está
+escribiendo ahora seis ataques que nunca vio, y SafePay los juzga en vivo."
 
 **[Aparece el tally, por ejemplo "4/6 new attacks caught · 2 got through:
 fixes below". Señala una línea "Got through. Fix: ...".]**
 
-"Cuatro de seis atrapados. Dos pasaron, y eso se muestra tal cual: no
-curamos lo que escribe el modelo. Cada fallo viene con la regla que lo
-cerraría."
+"Cuatro de seis. Dos pasaron, y se muestra tal cual. Cada fallo viene con la
+regla que lo cerraría."
 
 **[Pulsa "Apply the fixes (signed) and rerun". Lee el mensaje verde "Fixes
 applied and chained as link #N, signed by operator key". Espera el segundo
@@ -141,27 +132,25 @@ ataques otra vez."
 
 **[Segundo tally: "6/6 new attacks caught · nothing got through".]**
 
-"Seis de seis. Falla, arreglo y captura, delante de ustedes. Eso es prueba,
-no promesa."
+"Seis de seis. Falla, arreglo y captura, delante de ustedes."
 
 ## 2:40 a 2:52 | Cualquier agente, cualquier riel
 
 **[Pestaña Connect. Pulsa "Create a connector key" y luego "Run a test
 check": ALLOW con "Signed attestation returned".]**
 
-"SafePay no necesita tener el dinero para protegerlo. SafePay Check es un
-servidor MCP remoto: cualquier agente pregunta antes de su propio checkout y
-recibe un veredicto firmado. Está en el registro oficial de MCP. Las mismas
-reglas valen para PayPal y para stablecoins como PYUSD y USDC."
+"SafePay no necesita tener el dinero para protegerlo: SafePay Check es un
+servidor MCP remoto, cualquier agente pregunta antes de su checkout y recibe
+un veredicto firmado. Las mismas reglas valen para PYUSD y USDC."
 
 ## 2:52 a 2:58 | Cierre
 
 **[Portada: SafePay, github.com/NovaCorpAI/safepay, pip install safepay,
 NovaCorp Labs.]**
 
-"SafePay: reglas en palabras simples, el proveedor verificado en la web, el
-razonamiento sobre cada pago, aprobaciones firmadas y un registro que nadie
-edita. pip install safepay. Gracias."
+"SafePay: reglas en palabras simples, proveedor verificado, razonamiento
+sobre cada pago, aprobaciones firmadas y un registro que nadie edita.
+pip install safepay. Gracias."
 
 ---
 
