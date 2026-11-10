@@ -110,7 +110,12 @@ with three buttons and three LEDs into a box on the shop counter (amber light
 when a payment is held, green approves, red rejects, black freezes the agent),
 with parts, wiring and setup in docs/kit.md. That decision is appended to the
 chain as its own link naming who took it ("via Telegram by <name>", "via kit
-counter-1"). Every agent the guardrail has seen is listed with a
+counter-1"). In the console the decision is also signed by the operator's
+device: the same non-extractable WebCrypto key that signs the policy signs the
+exact text the server gives for that button (action, approval id, currency,
+amount, recipient), the link carries the signature, and once a session is
+pinned to that key an unsigned decision or one from another device is
+refused, so a stolen operator token approves nothing. Every agent the guardrail has seen is listed with a
 Freeze switch, the way a bank freezes a card: a frozen agent's next request is
 refused before any check runs, the kill switch for an incident. And the
 firewall watches what goes around it: a payout PayPal reports that SafePay
@@ -223,7 +228,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (480 tests, 98% line
+Horizon API, and a deterministic offline test suite (487 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -370,7 +375,7 @@ real payouts decide what SafePay builds next.
 ## The judging criteria, one line each (paste at the end of "What it does")
 - Technological implementation: Payouts, Orders v2 authorize/capture/void,
   Vault v3, Transaction Search and webhooks against the real sandbox; the
-  Agent Toolkit gated; Nemotron and Tavily live; 480 offline tests, 98%
+  Agent Toolkit gated; Nemotron and Tavily live; 487 offline tests, 98%
   coverage.
 - Design: one console an operator sets up in plain words and a judge works
   end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,

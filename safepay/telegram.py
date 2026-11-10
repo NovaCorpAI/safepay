@@ -117,6 +117,14 @@ class TelegramNotifier:
         try:
             out = agent.approve(approval_id, note) if action == "approve" \
                 else agent.reject(approval_id, note)
+        except PermissionError as exc:
+            # The session is pinned to the operator's device key: Telegram
+            # cannot sign, so the card says where to decide instead.
+            self._call("answerCallbackQuery", {"callback_query_id": cq.get("id"),
+                                               "text": str(exc)[:180]})
+            self._edit(msg, f"{msg.get('text', '')}\n\n(refused: {exc}. Decide it in the console "
+                            f"with the pinned key.)")
+            return {"ok": True, "approval_id": approval_id, "error": str(exc)}
         except ValueError as exc:
             self._call("answerCallbackQuery", {"callback_query_id": cq.get("id"),
                                                "text": str(exc)[:180]})

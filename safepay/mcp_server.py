@@ -155,7 +155,7 @@ def resolve_approval(approval_id: str, approve: bool, note: str = "") -> dict[st
     """Approve (execute and charge the ledger) or reject a held payment."""
     try:
         out = _agent.approve(approval_id, note) if approve else _agent.reject(approval_id, note)
-    except ValueError as exc:
+    except (ValueError, PermissionError) as exc:
         return {"error": str(exc)}
     dec = out["decision"]
     return {

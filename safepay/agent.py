@@ -680,13 +680,46 @@ class SafePayAgent:
                              "(Authorization: Bearer spk_...)")
         return claimed_agent_id
 
-    def approve(self, approval_id: str, note: str = "") -> dict[str, Any]:
-        """A human releases a held payment: execute it, charge the ledger, and
-        append the approval to the audit chain as its own link."""
+    def approval_message(self, approval_id: str, action: str) -> str:
+        """The text the operator's device signs to approve or reject this
+        held payment (see opsig.approval_message)."""
         held = self.approvals.get(approval_id)
         if held is None or held.status != "pending":
             raise ValueError(f"no pending approval '{approval_id}'")
-        why = "approved by human" + (f": {note}" if note else "")
+        return opsig.approval_message(action, approval_id, held.decision.intent.to_dict())
+
+    def _approval_signer(self, action: str, approval_id: str, held: Any,
+                         signature: dict[str, Any] | None) -> dict[str, Any] | None:
+        """The verified signer of a human decision, or None when it came
+        unsigned. The signature is checked over the action, the approval id
+        and the payment itself, so it cannot be replayed. A session pinned to
+        an operator key (a signed policy) refuses an unsigned decision or one
+        signed by another key: a stolen operator token approves nothing."""
+        intent = held.decision.intent.to_dict()
+        signer = opsig.seal_approval(action, approval_id, intent, signature) if signature else None
+        pin = self._pin(run_of(str(intent.get("agent_id") or "")))
+        if pin:
+            kid = pin.get("kid")
+            if signer is None:
+                raise PermissionError(f"this session is pinned to operator key {kid}: "
+                                      f"an unsigned {action} is refused; sign it with that key")
+            if signer["kid"] != kid:
+                raise PermissionError(f"{action} signed by key {signer['kid']}, "
+                                      f"not the pinned operator key {kid}")
+        return signer
+
+    def approve(self, approval_id: str, note: str = "",
+                signature: dict[str, Any] | None = None) -> dict[str, Any]:
+        """A human releases a held payment: execute it, charge the ledger, and
+        append the approval to the audit chain as its own link. With a device
+        signature ({jwk, sig} over approval_message) the link carries the
+        signer; a pinned session accepts nothing else."""
+        held = self.approvals.get(approval_id)
+        if held is None or held.status != "pending":
+            raise ValueError(f"no pending approval '{approval_id}'")
+        signer = self._approval_signer("approve", approval_id, held, signature)
+        why = "approved by human" + (f": {note}" if note else "") + \
+            (f" (signed by operator key {signer['kid']})" if signer else "")
         decision = Decision(
             verdict=Verdict.ALLOW, intent=held.decision.intent,
             checks=list(held.decision.checks),
@@ -697,17 +730,22 @@ class SafePayAgent:
             event="approval",
         )
         self._release(decision)
+        if signer:
+            decision.execution = dict(decision.execution or {}, signer=signer)
         record = self.audit_log.append(decision)
         self.approvals.resolve(approval_id, APPROVED, note, decision.execution)
         return self._result(decision, record, approval_id)
 
-    def reject(self, approval_id: str, note: str = "") -> dict[str, Any]:
+    def reject(self, approval_id: str, note: str = "",
+               signature: dict[str, Any] | None = None) -> dict[str, Any]:
         """A human refuses a held payment: nothing moves; the refusal is
-        appended to the audit chain."""
+        appended to the audit chain (signed by the device when it came so)."""
         held = self.approvals.get(approval_id)
         if held is None or held.status != "pending":
             raise ValueError(f"no pending approval '{approval_id}'")
-        why = "rejected by human" + (f": {note}" if note else "")
+        signer = self._approval_signer("reject", approval_id, held, signature)
+        why = "rejected by human" + (f": {note}" if note else "") + \
+            (f" (signed by operator key {signer['kid']})" if signer else "")
         decision = Decision(
             verdict=Verdict.BLOCK, intent=held.decision.intent,
             checks=list(held.decision.checks),
@@ -716,6 +754,7 @@ class SafePayAgent:
             # Its own event, so the person's decision (and its reasons) are
             # written into the link: policy learning reads them back.
             event="approval",
+            execution={"signer": signer} if signer else None,
         )
         record = self.audit_log.append(decision)
         self.approvals.resolve(approval_id, REJECTED, note)

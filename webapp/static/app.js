@@ -382,10 +382,15 @@
     const sec = $('approvals'), cnt = $('apr-count');
     sec.hidden = !data.count;
     cnt.className = 'status ' + (data.count ? 'bad' : 'idle');
-    cnt.textContent = data.count ? data.count + ' waiting for a human' : '';
+    const pinned = (data.pending.find(a => a.pinned) || {}).pinned;
+    const k = data.count ? await opKey().catch(() => null) : null;
+    cnt.textContent = data.count
+      ? data.count + ' waiting for a human' + (k ? ` · each decision is signed by this browser's key ${k.kid}` : '')
+        + (pinned ? ` · session pinned to ${pinned}${k && k.kid === pinned ? ' (this browser)' : ': only that device can decide'}` : '')
+      : '';
     list.innerHTML = data.pending.map(a => {
       const i = a.decision.intent; const why = (a.decision.reasons || []).join(' · ');
-      return `<div class="apr" data-id="${esc(a.id)}">
+      return `<div class="apr" data-id="${esc(a.id)}" data-sign-approve="${esc((a.sign || {}).approve || '')}" data-sign-reject="${esc((a.sign || {}).reject || '')}">
         <span class="badge" style="color:var(--hold);background:var(--hold-bg)">HOLD</span>
         <span class="amt">USD ${Number(i.amount).toFixed(2)}</span><span class="to">to ${esc(i.recipient)}</span>
         <span class="act"><button class="approve" data-act="approve">Approve and pay</button><button class="reject" data-act="reject">Reject</button></span>
@@ -396,9 +401,17 @@
         const row = b.closest('.apr'); const id = row.dataset.id; const act = b.dataset.act;
         row.querySelectorAll('button').forEach(x => x.disabled = true);
         try {
+          // The decision is signed by this browser's operator key over the
+          // exact text the server gave for this button (action, approval id,
+          // currency, amount, recipient), so it cannot be replayed elsewhere.
+          let signature = null;
+          const msg = row.dataset[act === 'approve' ? 'signApprove' : 'signReject'];
+          const key = msg ? await opKey().catch(() => null) : null;
+          if (key) signature = { jwk: key.jwk, sig: b64u(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key.key, enc(msg))) };
           const resp = await opFetch(`/api/approvals/${id}/${act}`, { method: 'POST', headers: jsonHeaders(),
-            body: JSON.stringify({ note: act === 'approve' ? 'approved in console' : 'rejected in console' }) });
+            body: JSON.stringify({ note: act === 'approve' ? 'approved in console' : 'rejected in console', signature }) });
           const r = await resp.json();
+          if (r.error) { row.querySelector('.why').textContent = 'refused: ' + r.error; row.querySelectorAll('button').forEach(x => x.disabled = false); return; }
           if (r.decision && results) render(pending(r.decision.intent), r);
         } catch (e) {}
         loadApprovals(); loadAudit();

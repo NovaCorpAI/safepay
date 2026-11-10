@@ -57,7 +57,7 @@ The five judging criteria, one line each, with where the evidence is:
 
 | Criterion | Where to look |
 | --- | --- |
-| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 480 offline tests at 98% coverage ([Tests](#tests)) |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 487 offline tests at 98% coverage ([Tests](#tests)) |
 | Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
 | Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
 | Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
@@ -649,6 +649,21 @@ per-recipient caps reflect real spend; rejecting moves nothing. Both outcomes
 are appended to the audit chain as their own link, so "who approved this agent
 payment, and when" is provable.
 
+**A stolen operator token approves nothing.** In the console, every Approve
+and Reject is signed by the same WebCrypto key that signs the policy: a
+non-extractable P-256 key the browser made and keeps, which no script can
+read. The browser signs the exact text the server gives for that button
+(`safepay-approval:v1:<action>:<approval id>:<currency>:<amount>:<recipient>`),
+so a signature cannot be replayed for another payment, another amount or the
+other action. The chain link carries the signer, the signed text and the
+signature, verifiable offline with the public key alone. Once a session is
+pinned to an operator key (its first signed policy), an unsigned decision,
+or one signed by another device, is refused with 403 wherever it comes from
+(console, API, MCP tool, kit); a Telegram tap on a pinned session is refused
+too and the card says to decide in the console. Unpinned sessions keep
+working as before, which is what the public demo wants.
+`tests/test_signed_approvals.py` holds the refusals and the replays.
+
 Telegram setup, once: create a bot with @BotFather, message it, then
 `python -m safepay.telegram --chat-id` to read your chat id, set
 `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET`
@@ -1145,7 +1160,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-480 tests, deterministic and offline, in about five seconds (98% line
+487 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the

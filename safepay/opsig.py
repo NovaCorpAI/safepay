@@ -108,6 +108,33 @@ def seal_policy(run: str, policy_hash: str, signature: dict[str, Any]) -> dict[s
             "msg": message(run, policy_hash)}
 
 
+APPROVAL_PREFIX = "safepay-approval:v1"
+
+
+def approval_message(action: str, approval_id: str, intent: dict[str, Any]) -> str:
+    """What the operator's device signs to approve or reject one held
+    payment: the action, the approval id and the payment itself (currency,
+    amount, recipient), so a signature cannot be replayed for another
+    payment, another amount or the other action."""
+    amount = float(intent.get("amount") or 0)
+    return (f"{APPROVAL_PREFIX}:{action}:{approval_id}:{intent.get('currency') or 'USD'}:"
+            f"{amount:.2f}:{intent.get('recipient') or ''}")
+
+
+def seal_approval(action: str, approval_id: str, intent: dict[str, Any],
+                  signature: dict[str, Any]) -> dict[str, Any]:
+    """Verify a {jwk, sig} the browser sent over approval_message(); return
+    what is written into the approval's chain link."""
+    if not isinstance(signature, dict):
+        raise SignatureError("the signature must be {jwk, sig}")
+    jwk, sig = signature.get("jwk"), str(signature.get("sig") or "")
+    pub = public_jwk(jwk or {})
+    msg = approval_message(action, approval_id, intent)
+    if not verify_bytes(pub, msg.encode(), sig):
+        raise SignatureError(f"the operator signature does not verify for this {action}")
+    return {"alg": ALG, "kid": key_id(pub), "jwk": pub, "sig": sig, "msg": msg}
+
+
 def check_stored(stored: dict[str, Any] | None, run: str, policy_hash: str,
                  pinned_kid: str) -> str | None:
     """Why a stored policy fails against the pinned key, or None if it holds."""

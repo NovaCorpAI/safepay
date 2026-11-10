@@ -52,6 +52,8 @@ from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
+from safepay import opsig  # noqa: E402
+from safepay.control import run_of  # noqa: E402
 from safepay.opsig import SignatureError  # noqa: E402
 from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
 from safepay import seal as sealmod  # noqa: E402
@@ -179,7 +181,7 @@ def _connector_guard(run: str, pinned_ok: bool = True):
                     "present its key (Authorization: Bearer spk_...) to change its rules"}), 403
 
 
-VERSION = "0.8.1"   # also the cache-buster on /static assets
+VERSION = "0.9.1"   # also the cache-buster on /static assets
 
 
 def _ctx() -> dict:
@@ -1136,6 +1138,13 @@ def approvals():
     if run:
         pending = [a for a in pending
                    if str(a["decision"]["intent"].get("agent_id", "")).endswith(":" + run)]
+    for a in pending:
+        # What the operator's device signs for each button, so the browser
+        # signs exactly the text the server will verify.
+        intent = a["decision"]["intent"]
+        a["sign"] = {act: opsig.approval_message(act, a["id"], intent) for act in ("approve", "reject")}
+        pin = _agent._pin(run_of(str(intent.get("agent_id") or ""))) or {}
+        a["pinned"] = pin.get("kid")
     return jsonify({"count": len(pending), "pending": pending})
 
 
@@ -1148,7 +1157,9 @@ def _resolve(approval_id: str, action: str):
     note = str(data.get("note", ""))[:200]
     try:
         fn = _agent.approve if action == "approve" else _agent.reject
-        return jsonify(fn(approval_id, note))
+        return jsonify(fn(approval_id, note, signature=data.get("signature")))
+    except (SignatureError, PermissionError) as exc:
+        return jsonify({"error": str(exc)}), 403
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 404
 
