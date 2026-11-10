@@ -1,5 +1,11 @@
 # SafePay, demo video script (under 3 minutes)
 
+> The video is recorded live in Spanish with English subtitles: the
+> real-time Spanish script, beat by beat with the on-screen action, is in
+> `video-guion-es.md`, and the English subtitle track in
+> `video-subtitles-en.srt` (adjust the timecodes after the edit and burn
+> them in). This file keeps the English narration and the shot list.
+
 Target: Devpost / YouTube, PayPal AI Hackathon. English narration (judges are
 English speaking). Spanish voice with English subtitles also works; a Spanish
 version of the narration is at the bottom.

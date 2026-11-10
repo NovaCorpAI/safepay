@@ -1,0 +1,189 @@
+# SafePay, guion de demo en tiempo real (voz en español, subtítulos en inglés)
+
+Se graba de corrido sobre la consola real, narrando mientras pasa. Las
+esperas (cada tarjeta tarda 5 a 10 segundos con la web y el modelo en vivo;
+el red team, cerca de un minuto por ronda) se llenan con la narración y lo
+que sobre se corta en edición. Por eso cada frase es completa por sí sola:
+se puede cortar entre frases sin que se note. Meta: menos de 3:00 tras el
+corte. Los subtítulos en inglés van en `video-subtitles-en.srt`; súbelos a
+YouTube como pista y, mejor, quémalos en el video: los jueces no siempre
+activan los subtítulos.
+
+Antes de grabar (10 minutos):
+
+1. Abre https://safepay.agentposhq.com/console en una ventana limpia a
+   1920x1080, zoom 110% para que se lea. Pulsa "nueva sesión" para que el
+   ledger de la sesión empiece vacío.
+2. Deja marcada "Sign it with my operator key". Así la sesión queda fijada
+   a tu clave y las aprobaciones salen con "signed by operator key".
+3. Ten Telegram abierto en el teléfono (o en pantalla) para la tarjeta de
+   aprobación. Si no, la aprobación se hace en el panel de la consola y vale
+   igual.
+4. Corre una vez "Red team: new attacks" (modelo, full) para confirmar que
+   el modelo escribe bien hoy. Luego "nueva sesión" otra vez para grabar
+   limpio.
+5. Graba con OBS o Win+G, micrófono probado, notificaciones de Windows en
+   silencio.
+
+Formato: **[acción en pantalla]** y luego la narración. Los tiempos son el
+objetivo tras el corte.
+
+---
+
+## 0:00 a 0:12 | El problema
+
+**[Portada o la página de inicio, sin tocar nada.]**
+
+"Los agentes de IA ya pagan facturas. Y un agente que puede pagar puede ser
+engañado: una instrucción escondida en una factura, un proveedor real con un
+dominio parecido, un monto que no cuadra con su tarea. En 2026 un agente
+mandó cincuenta millones de tokens cuando le pidieron cuatro. SafePay es el
+firewall que todo agente consulta antes de pagar con PayPal."
+
+## 0:12 a 0:35 | Reglas en palabras simples
+
+**[Consola. En el cuadro de política escribe: "Up to $500 per payment and
+$2,000 a day. Ask me before anything over $300. No gambling or crypto."
+Pulsa "Draft the policy".]**
+
+"El operador escribe las reglas una sola vez, en palabras simples. Nemotron
+las convierte en política y me muestra cada campo antes de aplicarla."
+
+**[Aparecen los campos. Señala la casilla de la clave y pulsa "Apply to this
+session". Lee el mensaje verde: "signed by operator key ... pinned".]**
+
+"La aplico firmándola con una clave que creó este navegador y que nunca sale
+de él. Desde ahora nadie cambia estas reglas sin esa clave, ni siquiera
+alguien con acceso al servidor."
+
+## 0:35 a 1:35 | Un agente intenta pagar siete veces
+
+**[Pulsa "Run demo scenarios". Narra cada tarjeta cuando aparece su
+veredicto; si tarda, sigue hablando de la anterior.]**
+
+Tarjeta 1, Notion 48 USD, ALLOW:
+"Una factura real de Notion. Política en orden, el proveedor verificado en la
+web en vivo, y el razonamiento confirma que sirve a la tarea. Se paga por el
+sandbox de PayPal y queda sellada."
+
+Tarjeta 2, Notion a notion-payments.example, BLOCK:
+"La misma factura, pero el dinero va a un dominio parecido. El directorio de
+proveedores lo bloquea sin gastar una sola llamada al modelo."
+
+Tarjeta 3, AWS 900 USD, BLOCK:
+"Novecientos dólares: por encima del tope por pago. Bloqueo duro."
+
+Tarjeta 4, casino 120 USD, HOLD:
+"Ciento veinte dólares a un casino. Está dentro de todos los límites, y aun
+así queda retenido: la web encontró denuncias y el razonamiento dice que no
+sirve a la tarea de pagar facturas. Esto es lo que un tope de gasto nunca
+atrapa."
+
+Tarjeta 5, AWS 420 USD, HOLD:
+"Una factura legítima de la nube, pero sobre los trescientos que pedí que me
+consultaran. Espera por mí."
+
+**[Si tienes Telegram: muestra la tarjeta en el teléfono y toca "Approve and
+pay". Si no: pulsa "Approve and pay" en el panel "Pending approvals". Lee la
+línea del resultado: "approved in console (signed by operator key ...)".]**
+
+"Me llega donde estoy, una pulsación y se paga. Y la aprobación va firmada
+por la clave de este navegador, la misma que firma las reglas: un token de
+operador robado no aprueba nada."
+
+Tarjetas 6 y 7, Google Cloud HOLD y Azure BLOCK:
+"La última se bloquea no por su monto, sino porque superaría el tope diario
+sumando toda la ráfaga. SafePay lleva la cuenta del día, no de un pago
+aislado."
+
+## 1:35 a 1:45 | El interruptor
+
+**[Baja a "Agents in this session", pulsa "Freeze agent". Sube al formulario
+de pago manual y pulsa "Evaluate": BLOCK, "agent frozen".]**
+
+"Y si algo huele mal, un clic congela al agente como un banco congela una
+tarjeta: su siguiente pago se rechaza antes de correr cualquier chequeo. Una
+disputa en PayPal acciona el mismo interruptor sola."
+
+## 1:45 a 1:55 | El registro que no se puede editar
+
+**[Pestaña Ledger. Señala la insignia verde "chain verified". Pulsa "Tamper
+(demo)": la insignia se pone roja y marca la fila.]**
+
+"Cada decisión es un eslabón de una cadena de hashes firmada. Altero una
+fila y toda la cadena falla al instante. Ese es el registro que un auditor
+puede creer."
+
+## 1:55 a 2:40 | El red team (la escena central)
+
+**[Vuelve a la consola. En "Red team: new attacks" deja "written by the
+model" y "judged by the full guardrail". Pulsa. Mientras el modelo escribe,
+sigue narrando; cuando aparecen las tarjetas, lee una o dos.]**
+
+"Medimos SafePay contra diecisiete ataques reales, y el benchmark está en el
+repo. Pero un benchmark publicado se puede estudiar. Así que aquí va uno que
+no: el modelo está escribiendo ahora mismo seis ataques que nunca vio, y
+SafePay los juzga en vivo."
+
+**[Aparece el tally, por ejemplo "4/6 new attacks caught · 2 got through:
+fixes below". Señala una línea "Got through. Fix: ...".]**
+
+"Cuatro de seis atrapados. Dos pasaron, y eso se muestra tal cual: no
+curamos lo que escribe el modelo. Cada fallo viene con la regla que lo
+cerraría."
+
+**[Pulsa "Apply the fixes (signed) and rerun". Lee el mensaje verde "Fixes
+applied and chained as link #N, signed by operator key". Espera el segundo
+tally.]**
+
+"Un clic firma esas reglas con mi clave, las aplica y corre los mismos
+ataques otra vez."
+
+**[Segundo tally: "6/6 new attacks caught · nothing got through".]**
+
+"Seis de seis. Falla, arreglo y captura, delante de ustedes. Eso es prueba,
+no promesa."
+
+## 2:40 a 2:52 | Cualquier agente, cualquier riel
+
+**[Pestaña Connect. Pulsa "Create a connector key" y luego "Run a test
+check": ALLOW con "Signed attestation returned".]**
+
+"SafePay no necesita tener el dinero para protegerlo. SafePay Check es un
+servidor MCP remoto: cualquier agente pregunta antes de su propio checkout y
+recibe un veredicto firmado. Está en el registro oficial de MCP. Las mismas
+reglas valen para PayPal y para stablecoins como PYUSD y USDC."
+
+## 2:52 a 2:58 | Cierre
+
+**[Portada: SafePay, github.com/NovaCorpAI/safepay, pip install safepay,
+NovaCorp Labs.]**
+
+"SafePay: reglas en palabras simples, el proveedor verificado en la web, el
+razonamiento sobre cada pago, aprobaciones firmadas y un registro que nadie
+edita. pip install safepay. Gracias."
+
+---
+
+## Lista de tomas
+
+- [ ] Chips del encabezado en verde (PayPal sandbox, Nemotron, Tavily, Telegram).
+- [ ] Política escrita en vivo, drafteada y aplicada con "pinned".
+- [ ] Las siete tarjetas, con lectura clara del HOLD del casino.
+- [ ] Una aprobación con "signed by operator key" legible.
+- [ ] Freeze y el BLOCK "agent frozen".
+- [ ] Ledger: insignia verde, luego roja.
+- [ ] Red team: primer tally con al menos un fallo y su arreglo, mensaje "Fixes applied ... signed", segundo tally.
+- [ ] Connect: clave creada y check ALLOW con atestación firmada.
+- [ ] Opcional, solo si llega la Raspberry: 10 segundos del kit aprobando un HOLD con el botón verde.
+- [ ] Menos de 3:00 tras el corte. Subtítulos en inglés quemados.
+
+## Si algo se tuerce durante la grabación
+
+- Una tarjeta tarda más de 15 segundos: sigue narrando la anterior; se
+  corta después.
+- El red team atrapa 6/6 en la primera ronda: dilo tal cual ("hoy atrapó los
+  seis") y salta la parte de los arreglos; igual vale.
+- El modelo devuelve menos de seis casos: el tally muestra el número real;
+  nómbralo.
+- Telegram no llega: aprueba en el panel de la consola, la frase es la misma.

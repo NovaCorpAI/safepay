@@ -1,0 +1,87 @@
+1
+00:00:00,000 --> 00:00:06,000
+AI agents already pay invoices. And an agent that can pay can be fooled:
+
+2
+00:00:06,000 --> 00:00:12,000
+a hidden instruction in an invoice, a real vendor on a look-alike domain, an amount that does not fit its task.
+
+3
+00:00:12,000 --> 00:00:17,000
+In 2026 an agent sent fifty million tokens when it was asked for four.
+
+4
+00:00:17,000 --> 00:00:22,000
+SafePay is the firewall every agent asks before it pays with PayPal.
+
+5
+00:00:22,000 --> 00:00:28,000
+The operator writes the rules once, in plain words. Nemotron turns them into a policy and shows me every field before it applies.
+
+6
+00:00:28,000 --> 00:00:35,000
+I apply it signed with a key this browser created and that never leaves it. From now on nobody changes these rules without that key, not even with server access.
+
+7
+00:00:35,000 --> 00:00:43,000
+A real Notion invoice. Policy in order, the vendor checked on the live web, and the reasoning confirms it serves the task. Paid through the PayPal sandbox, sealed.
+
+8
+00:00:43,000 --> 00:00:49,000
+The same invoice, but the money goes to a look-alike domain. The vendor directory blocks it without a single model call.
+
+9
+00:00:49,000 --> 00:00:53,000
+Nine hundred dollars: over the per-payment cap. Hard block.
+
+10
+00:00:53,000 --> 00:01:03,000
+One hundred and twenty dollars to a casino. Inside every limit, and still held: the web found complaints and the reasoning says it does not serve the task of paying invoices. A spending cap never catches this.
+
+11
+00:01:03,000 --> 00:01:09,000
+A legitimate cloud invoice, but over the three hundred I asked to be consulted on. It waits for me.
+
+12
+00:01:09,000 --> 00:01:18,000
+It reaches me where I am, one tap and it is paid. And the approval is signed by this browser's key, the same one that signs the rules: a stolen operator token approves nothing.
+
+13
+00:01:18,000 --> 00:01:26,000
+The last one is blocked not for its amount, but because it would breach the daily cap across the whole burst. SafePay keeps the day's count, not one isolated payment.
+
+14
+00:01:35,000 --> 00:01:45,000
+If something smells wrong, one click freezes the agent the way a bank freezes a card: its next payment is refused before any check runs. A PayPal dispute pulls the same switch on its own.
+
+15
+00:01:45,000 --> 00:01:55,000
+Every decision is a link in a signed hash chain. I tamper with one row and the whole chain fails at once. That is the record an auditor can believe.
+
+16
+00:01:55,000 --> 00:02:05,000
+We measured SafePay against seventeen real attacks, and the benchmark is in the repo. But a published benchmark can be studied.
+
+17
+00:02:05,000 --> 00:02:13,000
+So here is one that cannot: the model is writing six attacks it has never seen, right now, and SafePay judges them live.
+
+18
+00:02:13,000 --> 00:02:22,000
+Four of six caught. Two got through, and that is shown as it is: we do not curate what the model writes. Every miss comes with the rule that would close it.
+
+19
+00:02:22,000 --> 00:02:29,000
+One click signs those rules with my key, applies them, and runs the same attacks again.
+
+20
+00:02:29,000 --> 00:02:36,000
+Six of six. Miss, fix and catch, in front of you. That is proof, not promise.
+
+21
+00:02:40,000 --> 00:02:52,000
+SafePay does not need to hold the money to protect it. SafePay Check is a remote MCP server: any agent asks before its own checkout and gets a signed verdict. It is in the official MCP Registry. The same rules apply to PayPal and to stablecoins like PYUSD and USDC.
+
+22
+00:02:52,000 --> 00:02:58,000
+SafePay: rules in plain words, the vendor checked on the web, reasoning about every payment, signed approvals and a record nobody edits. pip install safepay. Thank you.
