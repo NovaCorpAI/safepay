@@ -81,12 +81,12 @@ But a published benchmark can be studied,
 
 18
 00:02:08,000 --> 00:02:15,000
-so here is one that cannot: the model is writing six attacks it has never seen,
+so here is one that cannot: the model is writing attacks it has never seen,
 right now, and SafePay judges them live.
 
 19
 00:02:19,000 --> 00:02:25,000
-Four of six. Two got through, shown as they are.
+Four of five. One got through, shown as it is.
 Every miss comes with the rule that would close it.
 
 20
@@ -96,7 +96,7 @@ and runs the same attacks again.
 
 21
 00:02:35,000 --> 00:02:39,500
-Six of six. Miss, fix and catch, in front of you.
+Five of five. Miss, fix and catch, in front of you.
 
 22
 00:02:40,000 --> 00:02:46,000

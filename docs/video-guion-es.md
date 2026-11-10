@@ -127,12 +127,12 @@ sigue narrando; cuando aparecen las tarjetas, lee una o dos.]**
 
 "Medimos SafePay contra diecisiete ataques reales. Pero un benchmark
 publicado se puede estudiar, así que aquí va uno que no: el modelo está
-escribiendo ahora seis ataques que nunca vio, y SafePay los juzga en vivo."
+escribiendo ahora ataques que nunca vio, y SafePay los juzga en vivo."
 
-**[Aparece el tally, por ejemplo "4/6 new attacks caught · 2 got through:
-fixes below". Señala una línea "Got through. Fix: ...".]**
+**[Aparece el tally; en la toma grabada dice "4/5 new attacks caught · 1 got
+through: fixes below". Señala la línea "Got through. Fix: ...".]**
 
-"Cuatro de seis. Dos pasaron, y se muestra tal cual. Cada fallo viene con la
+"Cuatro de cinco. Uno pasó, y se muestra tal cual. Cada fallo viene con la
 regla que lo cerraría."
 
 **[Pulsa "Apply the fixes (signed) and rerun". Lee el mensaje verde "Fixes
@@ -142,9 +142,10 @@ tally.]**
 "Un clic firma esas reglas con mi clave, las aplica y corre los mismos
 ataques otra vez."
 
-**[Segundo tally: "6/6 new attacks caught · nothing got through".]**
+**[Segundo tally; en la toma grabada: "5/5 new attacks caught · nothing got
+through".]**
 
-"Seis de seis. Falla, arreglo y captura, delante de ustedes."
+"Cinco de cinco. Falla, arreglo y captura, delante de ustedes."
 
 ## 2:40 a 2:46 | Cualquier agente, cualquier riel
 
@@ -193,7 +194,7 @@ pip install safepay. Gracias."
 
 - Una tarjeta tarda más de 15 segundos: sigue narrando la anterior; se
   corta después.
-- El red team atrapa 6/6 en la primera ronda: dilo tal cual ("hoy atrapó los
+- El red team atrapa todo en la primera ronda: dilo tal cual ("hoy atrapó los
   seis") y salta la parte de los arreglos; igual vale.
 - El modelo devuelve menos de seis casos: el tally muestra el número real;
   nómbralo.
