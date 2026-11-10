@@ -202,6 +202,14 @@ def _ctx() -> dict:
     }
 
 
+@app.context_processor
+def _package_version():
+    """The footer shows the installed package version (what `pip install
+    safepay` gives), not the static-asset cache-buster."""
+    from safepay import __version__
+    return {"pkg_version": __version__}
+
+
 def _page(name: str):
     """Render one of the console's pages with the shared status context."""
     cfg = _ctx()
@@ -497,6 +505,13 @@ def proof_check():
 @app.get("/pricing")
 def pricing_page():
     return _page("pricing")
+
+
+@app.get("/real")
+def real_page():
+    """What is real and what is not, by design: the README's disclosure,
+    on the site a judge actually reads."""
+    return _page("real")
 
 
 @app.get("/connect")

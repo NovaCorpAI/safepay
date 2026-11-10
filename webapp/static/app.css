@@ -564,3 +564,9 @@ button.ga:disabled { opacity: .6; cursor: default; }
 }
 .mlegend .ap2 { flex-basis: 100%; color: var(--muted); } .mlegend .ap2 code { font-size: 11.5px; }
 .lead-s { max-width: 80ch; color: var(--ink2); font-size: 15px; line-height: 1.55; margin: 6px 0 0; }
+
+/* /real: the disclosure page */
+.real-grid { margin-top: 18px; }
+ul.real { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 10px; }
+ul.real li { font-size: 14px; line-height: 1.55; color: var(--ink2); padding-left: 14px; border-left: 3px solid var(--line2); }
+ul.real li b { color: var(--fg); }

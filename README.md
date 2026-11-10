@@ -1084,8 +1084,11 @@ reconcile never flags the same money twice.
 
 Open core, priced on decisions (one payment an agent asked SafePay to
 judge). Self-hosting is free and MIT forever. The hosted service: Sandbox
-free (1,000 decisions a month), Team USD 149 a month (10,000 decisions, live
-PayPal, Telegram approvals), Business USD 799 a month (60,000 decisions,
+free (hosted, our keys; the 1,000-decision quota is on the roadmap), Team USD
+149 a month (10,000 decisions, Telegram approvals, the gate in front of
+Payouts and the Agent Toolkit; a live PayPal account is on the roadmap and
+marked "Soon" on the pricing page, as is everything not built yet, and none
+of it is billed until it ships), Business USD 799 a month (60,000 decisions,
 SSO, automated reconciliation, seven-year retention), and volume contracts
 for agent platforms and payment providers, plus onboarding and agent
 payment audits as services. Measured cost: a payment that passes policy

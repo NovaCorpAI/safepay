@@ -18,7 +18,7 @@
     <div class="stat"><div class="n" data-stat="links">…</div><div class="l">links in the audit chain</div></div>
     <div class="stat ok"><div class="n" data-stat="verified">…</div><div class="l">chain verification</div></div>
     <div class="stat warn"><div class="n" data-stat="held">…</div><div class="l">payments held for a person</div></div>
-    <div class="stat bad"><div class="n" data-stat="outside">…</div><div class="l">moved outside the firewall</div></div>
+    <div class="stat bad"><div class="n" data-stat="outside">…</div><div class="l">detected outside the firewall and chained (money that moved without a decision)</div></div>
   </div>
 </section>
 
@@ -33,10 +33,10 @@
 </section>
 
 <section class="section impulsa" id="impulsa-impact">
-  <h2>In production today: Impulsa</h2>
-  <p class="lead-s">Impulsa, a SaaS for micro-businesses in Chile, runs SafePay's history rules on every supplier document before it is saved: a document recorded twice is stopped, a unit cost far above that product's history is held. What each owner does with an alert is measured: <b>corrected</b> (an error that did not get saved) or <b>recorded anyway</b> (an alert that was not needed).</p>
+  <h2>First integration in production: Impulsa</h2>
+  <p class="lead-s">Impulsa, a SaaS for micro-businesses in Chile, runs SafePay's history rules on every supplier document before it is saved: a document recorded twice is stopped, a unit cost far above that product's history is held. What each owner does with an alert is measured: <b>corrected</b> (an error that did not get saved) or <b>recorded anyway</b> (an alert that was not needed). Live since November 5, 2026. <b>The counters below start at zero and are shown as zeros:</b> so far only our own test accounts have recorded a supplier purchase, and those are never counted. A backtest on the supply purchases that existed before SafePay raised no alerts, too small a sample to claim anything, which is why the live outcomes are the measure.</p>
   <div class="stats stats4" id="imp-live">
-    <div class="stat"><div class="n" data-k="businesses">·</div><div class="l">real businesses checked (test accounts excluded; our own businesses named below, apart from external ones)</div></div>
+    <div class="stat"><div class="n" data-k="businesses">·</div><div class="l">real external businesses checked (our own test accounts and the businesses we own are excluded and tallied apart)</div></div>
     <div class="stat"><div class="n" data-k="checks">·</div><div class="l">supplier documents checked before saving</div></div>
     <div class="stat warn"><div class="n" data-k="alerts">·</div><div class="l">alerts raised</div></div>
     <div class="stat ok"><div class="n" data-k="corrected">·</div><div class="l">errors corrected after an alert</div></div>
@@ -49,12 +49,12 @@
   <div class="grid">
     <div class="card">
       <h3>Any agent asks before it pays</h3>
-      <p class="muted" style="font-size:14px"><b>SafePay Check</b> is a remote MCP server: before its own checkout, an agent sends the merchant, the amount and the task, and gets allow, hold or block with the reasons and a signed attestation. It moves no money. Listed in the official MCP Registry as <code>com.agentposhq.safepay/check</code> and submitted to Meta's Muse Connector Platform for review.</p>
+      <p class="muted" style="font-size:14px"><b>SafePay Check</b> is a remote MCP server: before its own checkout, an agent sends the merchant, the amount and the task, and gets allow, hold or block with the reasons and a signed attestation. It moves no money. Listed in the official MCP Registry as <code>com.agentposhq.safepay/check</code>, and submitted to Meta's Muse Connector Platform on November 7, 2026: under review, not a listed connector yet.</p>
       <div class="btns"><a class="btn ghost" style="text-decoration:none;color:var(--fg);border:1px solid var(--line2);padding:9px 14px;border-radius:5px;font-weight:600;font-size:14px" href="/connect">Get a key and try it</a></div>
     </div>
     <div class="card">
       <h3>PayPal and stablecoins, one guardrail</h3>
-      <p class="muted" style="font-size:14px">PYUSD and USDC payments pass the same rules, plus what only stablecoins need: the network named, the token issued there, a valid address for that network (a stablecoin sent to the wrong one is lost for good). After the payment, SafePay reads the transaction on the public Stellar ledger and checks it against its signed precheck: payee, Circle's USDC, amount, timing. Verified against a real AgentPOS payment on Stellar mainnet. SafePay validates; it never moves the stablecoins.</p>
+      <p class="muted" style="font-size:14px">PYUSD and USDC payments pass the same rules, plus what only stablecoins need: the network named, the token issued there, a valid address for that network (a stablecoin sent to the wrong one is lost for good). After the payment, SafePay reads the transaction on the public Stellar ledger and checks it against its signed precheck: payee, Circle's USDC, amount, timing. Verified read-only against a real AgentPOS payment on Stellar mainnet made on September 4, 2026, before this check existed: SafePay validated it after the fact, moved nothing, and holds no wallet. SafePay validates; it never moves the stablecoins.</p>
     </div>
   </div>
 </section>

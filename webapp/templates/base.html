@@ -29,6 +29,7 @@
       <a href="/connect" class="{{ 'active' if page == 'connect' else '' }}">Connect</a>
       <a href="/security" class="{{ 'active' if page == 'security' else '' }}">Security</a>
       <a href="/pricing" class="{{ 'active' if page == 'pricing' else '' }}">Pricing</a>
+      <a href="/real" class="{{ 'active' if page == 'real' else '' }}" title="What is real and what is not, by design">Real</a>
     </nav>
     <div class="right">
       <span class="chip session session-chip" title="Your console session. Agents, the policy and the budget are scoped to it; the audit chain is shared and never reset.">session …</span>
@@ -44,7 +45,7 @@
     <span class="chip {{ 'on' if cfg.toolkitOn else 'off' }}" title="The PayPal Agent Toolkit gate: an order is created only after SafePay allows it">Agent Toolkit gate: {{ 'on' if cfg.toolkitOn else 'off' }}</span>
     <span class="chip {{ 'on' if cfg.store == 'supabase' else 'off' }}" title="Where the audit chain, spend ledger, approvals and agent registry live">state: {{ 'durable (Supabase)' if cfg.store == 'supabase' else 'in memory' }}</span>
     <span class="chip {{ 'on' if cfg.telegramOn else 'off' }}" title="HOLDs are pushed to a Telegram chat with Approve / Reject buttons">Telegram approvals: {{ 'on' if cfg.telegramOn else 'off' }}</span>
-    <span class="chip {{ 'on' if cfg.operatorLocked else 'off' }}" title="Operator actions (apply a policy, freeze an agent, approve a payment, issue a key) need the operator token when SAFEPAY_OPERATOR_TOKEN is set on the host">operator actions: {{ 'token required' if cfg.operatorLocked else 'open (demo)' }}</span>
+    <span class="chip {{ 'on' if cfg.operatorLocked else 'off' }}" title="Operator actions (apply a policy, freeze an agent, approve a payment, issue a key) need the operator token when SAFEPAY_OPERATOR_TOKEN is set on the host">operator actions: {{ 'token required' if cfg.operatorLocked else 'open on this public demo so a judge needs no setup; SAFEPAY_OPERATOR_TOKEN locks them' }}</span>
   </div>
 </div>
 <div class="optok wrap card" id="optok" {% if not cfg.operatorLocked %}hidden{% endif %}>
@@ -62,11 +63,12 @@
     <a href="https://github.com/NovaCorpAI/safepay" target="_blank" rel="noopener">github.com/NovaCorpAI/safepay</a>
     <a href="/?tour=1" data-tour-start>3-minute judge tour</a>
     <a href="/v">Verify a seal</a>
+    <a href="/real">What is real and what is not</a>
     <a href="/privacy">Privacy</a>
     <a href="/terms">Terms</a>
     <a href="https://pypi.org/project/safepay/" target="_blank" rel="noopener">pip install safepay</a>
     <a href="https://safepay-ygzp.onrender.com" target="_blank" rel="noopener">second instance on Render</a>
-    <span class="r">SafePay {{ version }} · <a href="https://novacorplabs.com" target="_blank" rel="noopener">NovaCorp Labs</a> · built for the PayPal AI Hackathon</span>
+    <span class="r">SafePay {{ pkg_version }} · <a href="https://novacorplabs.com" target="_blank" rel="noopener">NovaCorp Labs</a> · built for the PayPal AI Hackathon</span>
   </div>
 </footer>
 {% block scripts %}{% endblock %}

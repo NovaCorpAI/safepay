@@ -5,7 +5,7 @@
   <span class="eyebrow">Pricing</span>
   <h1>Open source to start. Pay when agents move real money.</h1>
   <p>The guardrail, the MCP server and this console are MIT-licensed and free to self-host with your own keys. The hosted service charges for <b>decisions</b>: one payment an agent asked SafePay to judge. A decision is what costs us money (a live-web lookup and two model calls when it is not cached; a policy block costs nothing), so the price follows the cost, and you always know what a month will cost before it ends.</p>
-  <p class="launch"><span class="lp">Launch pricing</span> These are the prices for the first teams, onboarded by hand; they hold for them for the first year. Everything without a <span class="soon-tag">Soon</span> mark works today in the open-source release and in this demo; marked items are on the roadmap and are not billed until they ship.</p>
+  <p class="launch"><span class="lp">Launch pricing</span> These are the prices for the first teams, onboarded by hand; they hold for them for the first year. Everything without a <span class="soon-tag">Soon</span> mark works today in the open-source release and in this demo; marked items are on the roadmap and are not billed until they ship. <b>No customers yet:</b> these are launch prices, a proposal shaped with the first teams we onboard by hand.</p>
 </div>
 
 <div class="plans section">
@@ -25,7 +25,7 @@
   <div class="plan">
     <div class="pname">Sandbox</div>
     <div class="price">USD 0<span>/ month</span></div>
-    <p class="pdesc">Hosted, for building and testing an agent.</p>
+    <p class="pdesc">Hosted, for building and testing an agent. What it adds over the free open-source release today: nothing to deploy and no keys to manage.</p>
     <ul>
       <li>PayPal sandbox only, our web and model keys included</li>
       <li>Policy in plain words, approvals in the console and on Telegram</li>
@@ -37,7 +37,7 @@
     <a class="pbtn ghost" href="#early">Request access</a>
   </div>
   <div class="plan featured">
-    <div class="ribbon">Most teams</div>
+    <div class="ribbon">Recommended tier</div>
     <div class="pname">Team</div>
     <div class="price">USD 149<span>/ month</span></div>
     <p class="pdesc">Agents that pay real vendors.</p>
@@ -99,9 +99,9 @@
       <tr><td>A payment that passes policy (full checks)</td><td class="n">0.0056 to 0.0086</td><td>one search plus two model calls</td></tr>
       <tr><td>A payment blocked by policy</td><td class="n">0</td><td>no model call, no search</td></tr>
       <tr><td>A repeated payment (same payee and task)</td><td class="n">0</td><td>served from the 24-hour check cache</td></tr>
-      <tr><td><b>Blended, measured on 37 decisions</b></td><td class="n"><b>0.0032 to 0.0048</b></td><td>the 7 demo scenarios and the 30 benchmark payments, no cache</td></tr>
+      <tr><td><b>Blended, measured on 37 decisions</b></td><td class="n"><b>0.0032 to 0.0048</b></td><td>the 7 demo scenarios plus 30 payments judged with the full checks during the November 5 benchmark run (the attack cases judged in full mode, sequences counted per step, before any case was cached); token counts from Nebius for each</td></tr>
     </table></div>
-    <p class="note">At full use Team costs us USD 32 to 86 in web and model calls (gross margin 42% in the worst case, every payment new and checked at pay-as-you-go rates; about 70% at the measured mix). For comparison, card fraud screening is sold at about USD 0.05 per screened transaction. Prices are our launch proposal for the hosted service; the first teams are onboarded by hand and shape them. Payment volume is never taxed: you pay for the judgment, not a percentage of the money, and PayPal's own fees stay on your PayPal account.</p>
+    <p class="note">At full use Team costs us USD 32 to 86 in web and model calls (gross margin 42% in the worst case, every payment new and checked at pay-as-you-go rates; about 70% at the measured mix). For comparison, card fraud screening is commonly sold at a few cents per screened transaction (about USD 0.05 is our own estimate from public price lists, not a cited figure). Prices are our launch proposal for the hosted service; the first teams are onboarded by hand and shape them. Payment volume is never taxed: you pay for the judgment, not a percentage of the money, and PayPal's own fees stay on your PayPal account.</p>
   </div>
 </section>
 
