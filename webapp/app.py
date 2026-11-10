@@ -791,6 +791,17 @@ def agents():
         return jsonify({"error": f"could not list agents: {exc}"}), 503
 
 
+@app.url_value_preprocessor
+def _decode_path_ids(endpoint, values):
+    """Vercel's Python runtime hands Flask the raw request path, so an agent
+    id such as `ops:r1` arrives as `ops%3Ar1` and would be treated as a new
+    agent. Decode path values once; a plain id is unchanged."""
+    from urllib.parse import unquote
+    for k, v in (values or {}).items():
+        if isinstance(v, str) and "%" in v:
+            values[k] = unquote(v)
+
+
 def _agent_status(agent_id: str, pause: bool):
     if not _operator_ok():
         return jsonify({"error": "operator token required (X-SafePay-Operator)"}), 401

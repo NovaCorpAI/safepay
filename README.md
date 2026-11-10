@@ -57,7 +57,7 @@ The five judging criteria, one line each, with where the evidence is:
 
 | Criterion | Where to look |
 | --- | --- |
-| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 501 offline tests at 98% coverage ([Tests](#tests)) |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 503 offline tests at 98% coverage ([Tests](#tests)) |
 | Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
 | Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
 | Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
@@ -1181,7 +1181,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-501 tests, deterministic and offline, in about five seconds (98% line
+503 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the

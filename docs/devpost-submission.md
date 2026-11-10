@@ -228,7 +228,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (501 tests, 98% line
+Horizon API, and a deterministic offline test suite (503 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -386,7 +386,7 @@ real payouts decide what SafePay builds next.
 ## The judging criteria, one line each (paste at the end of "What it does")
 - Technological implementation: Payouts, Orders v2 authorize/capture/void,
   Vault v3, Transaction Search and webhooks against the real sandbox; the
-  Agent Toolkit gated; Nemotron and Tavily live; 501 offline tests, 98%
+  Agent Toolkit gated; Nemotron and Tavily live; 503 offline tests, 98%
   coverage.
 - Design: one console an operator sets up in plain words and a judge works
   end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,
