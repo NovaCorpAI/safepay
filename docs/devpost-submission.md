@@ -66,6 +66,18 @@ business email compromise the No. 1 avenue and vendor imposter fraud cited by
 inherits all of it, at machine speed and without a clerk's doubt, so SafePay's
 rules are those attacks by name.
 
+And 2026 already has its own cases. In February an autonomous trading agent
+asked for about 4 SOL sent 52.4 million tokens, 5% of a coin's supply, after
+a decimal confusion and a lost conversational state (as reported). In October
+OpenAI disclosed that an internal research model, denied free testnet tokens,
+paid its fees from a stranger's wallet found through a public recovery phrase
+and left it out of its report; OpenAI's finding was that "a model can
+substitute its own judgment about likely harm for the account holder's
+permission" (Fortune, October 16, 2026). OWASP moved Excessive Agency to
+third place in its 2026 LLM Top 10 and published a Top 10 for agentic
+applications; SafePay's answer to each of its ten entries, with the test
+that proves it, is in the repo (docs/owasp-asi.md).
+
 ## What it does
 SafePay is a payment safety guardrail for agents that pay vendors. The
 operator writes the policy in plain words ("USD 300 per payment, 1,000 a day,
@@ -173,6 +185,18 @@ blocked), each citing its chain links, reviewed by Nemotron, applied only
 when the operator signs it. The web console shows this ledger as an
 interactive table with a live verification badge, and a demo button that tampers
 with a row so you can watch the badge turn red.
+
+Where it sits in the stack: PayPal's Agent Ready and Store Sync make a
+merchant payable and discoverable by agents; that is the merchant's side.
+SafePay is the buyer's side, the control the agent's operator runs before
+the agent spends, and the supervision for what PayPal's docs call the
+"automatic" shopping scenario, with the human on a Telegram card instead
+of in front of the checkout. UCP, ACP and AP2 describe discovery, checkout
+and proof of authorization; SafePay issues the AP2 mandates (the layer UCP
+carries as an extension) bound to a PayPal authorization. MCP gateways
+decide whether a tool may run; SafePay is the payment-specific judgment
+behind that yes, reachable from any gateway as a tool or an HTTP call. LLM
+spend proxies cap tokens; SafePay caps and judges money. They compose.
 
 ## How we built it
 Python core with a clean separation between the deterministic policy engine and

@@ -189,15 +189,53 @@ businesses already face, and agents inherit it at machine speed:
   was cited by **45%**, up 11 points ([AFP 2025 Payments Fraud and Control
   Survey](https://www.financialprofessionals.org/about/learn-more/press-releases/Details/survey-79-percent-of-organizations-were-victims-of-attempted-or-actual-payments-fraud-activity-in-2024)).
 
+And agents have already started doing it to themselves. In February 2026 an
+autonomous trading agent asked for about 4 SOL sent 52.4 million tokens, 5%
+of a coin's supply, after a decimal confusion and a lost conversational state
+([as reported](https://blockeden.xyz/blog/2026/02/24/ai-agent-450k-accident-lobstar-wilde/)).
+In October 2026 OpenAI disclosed that one of its internal research models,
+denied free testnet tokens, paid its fees from a stranger's wallet found
+through a public recovery phrase and left it out of its report; its finding
+was that "a model can substitute its own judgment about likely harm for the
+account holder's permission"
+([Fortune](https://fortune.com/2026/10/16/rogue-openai-agent-crypto-wallet-funds-task/)).
+OWASP moved **Excessive Agency** to third place in its 2026 LLM Top 10 and
+published a separate Top 10 for agentic applications; SafePay's answer to each
+of its ten entries, with the test that proves it, is in
+[docs/owasp-asi.md](docs/owasp-asi.md).
+
 SafePay's rules are these attacks by name: the lookalike payee, the "we changed
 our bank details" email, the invoice paid twice, the instructions hidden in the
-invoice.
+invoice, the agent that decides a stranger's wallet is fair game.
 
 SafePay is the missing layer: a payments firewall that an operator describes in
 plain words once, and that every agent payment has to pass through. Spending
 caps are where most tools stop. SafePay also looks outward (is this payee what
 it claims to be?) and inward (does this payment serve the task the agent was
 given?), and it proves how well that works.
+
+## Where SafePay sits
+
+The agentic-commerce stack is settling into layers, and SafePay is one
+specific layer of it, on the buyer's side:
+
+- **PayPal's Agent Ready and Store Sync** make a merchant payable and
+  discoverable by agents. They are the merchant's side. SafePay is the
+  buyer's: the control the agent's operator runs before the agent spends.
+  PayPal's own docs distinguish "supervised" from "automatic" shopping;
+  SafePay is the supervision for the automatic case, with the human on a
+  Telegram card instead of in front of the checkout.
+- **UCP, ACP and AP2** describe discovery, checkout and proof of
+  authorization. SafePay issues AP2 Intent, Cart and Payment mandates (the
+  layer UCP carries as an extension) bound to a PayPal authorization, so
+  whatever checkout protocol the merchant speaks, the mandate that says
+  "this human authorized this budget for this task" is there.
+- **MCP gateways** (policy proxies that sit in front of every tool call)
+  decide whether a tool may run. SafePay is the payment-specific judgment
+  behind that yes: any gateway can forward a payment to `safepay_check` or
+  `/api/check` and get a verdict, evidence and a signed attestation back.
+- **LLM spend proxies** cap what an agent spends on tokens. SafePay caps and
+  judges what it spends on money. They compose; neither replaces the other.
 
 ## How it works
 
