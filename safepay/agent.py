@@ -386,6 +386,89 @@ class SafePayAgent:
         return {"duplicate": False, "seq": record["payload"].get("seq"), "status": status,
                 "authorization_id": auth_id}
 
+    def _agent_for_transactions(self, ids: set[str]) -> tuple[str | None, int | None]:
+        """The agent whose chain link carries one of these PayPal ids (a
+        capture, authorization, payout batch or payout transaction), and that
+        link's seq. Newest link first; outside links do not count."""
+        if not ids:
+            return None, None
+        for r in reversed(list(getattr(self.audit_log, "records", []) or [])):
+            p = r.get("payload") or {}
+            x = p.get("execution") or {}
+            if not isinstance(x, dict):
+                continue
+            carried = {str(x.get(k) or "") for k in ("capture_id", "resource_id", "authorization_id",
+                                                     "payout_batch_id", "transaction_id", "order_id")}
+            if carried & ids:
+                agent_id = str((p.get("intent") or {}).get("agent_id") or "")
+                if agent_id and agent_id != "outside-safepay":
+                    return agent_id, p.get("seq")
+        return None, None
+
+    def dispute_event(self, event_type: str, resource: dict[str, Any],
+                      source: str = "webhook") -> dict[str, Any]:
+        """A PayPal dispute on a payment (CUSTOMER.DISPUTE.*). The dispute is
+        re-read from PayPal (never trusted from the event body) and chained
+        as a dispute link, and the agent whose payment it is gets frozen on
+        the spot: a buyer or a bank saying "this charge is wrong" is the
+        strongest signal an operator gets that the agent needs a human before
+        its next payment. A resolved dispute is chained but freezes nobody.
+        Idempotent per dispute and status."""
+        did = str(resource.get("dispute_id") or "")
+        if not did:
+            raise ValueError("dispute event without a dispute id")
+        body = self.paypal.get_json(f"/v1/customer/disputes/{did}")
+        status = str(body.get("status") or resource.get("status") or "")
+        reason = str(body.get("reason") or resource.get("reason") or "")
+        amt = body.get("dispute_amount") or resource.get("dispute_amount") or {}
+        txs = body.get("disputed_transactions") or resource.get("disputed_transactions") or []
+        ids = {str(t.get(k) or "") for t in txs if isinstance(t, dict)
+               for k in ("seller_transaction_id", "buyer_transaction_id")} - {""}
+        for r in reversed(list(getattr(self.audit_log, "records", []) or [])):
+            p = r.get("payload") or {}
+            x = p.get("execution") or {}
+            if (p.get("event") == "dispute" and isinstance(x, dict)
+                    and x.get("dispute_id") == did and x.get("status") == status):
+                return {"duplicate": True, "seq": p.get("seq"), "dispute_id": did,
+                        "status": status, "frozen": x.get("frozen_agent"), "agent_id": x.get("agent_id")}
+        agent_id, link_seq = self._agent_for_transactions(ids)
+        frozen = None
+        if agent_id and event_type != "CUSTOMER.DISPUTE.RESOLVED":
+            if not self._frozen(agent_id):
+                self.pause_agent(agent_id, f"PayPal dispute {did} ({reason or 'no reason given'}) "
+                                           f"on chain link #{link_seq}")
+            frozen = agent_id
+        why = (f"PayPal dispute {did} {status or '?'} ({reason or 'no reason given'}) on "
+               f"{', '.join(sorted(ids)) or 'an unknown transaction'}"
+               + (f", a payment of agent {agent_id} (chain link #{link_seq})" if agent_id
+                  else ", no SafePay link found")
+               + f"; reported by {source}")
+        check = CheckResult("dispute", False, Severity.CRITICAL, why, 1.0,
+                            [{"rule": "dispute", "dispute_id": did, "status": status, "reason": reason,
+                              "transactions": sorted(ids), "link_seq": link_seq}])
+        decision = Decision(
+            verdict=Verdict.HOLD,
+            intent=PaymentIntent(recipient="disputed", amount=float(amt.get("value") or 0),
+                                 currency=amt.get("currency_code") or "USD", category="dispute",
+                                 purpose=f"PayPal {event_type}", agent_id=agent_id or "outside-safepay"),
+            checks=[check],
+            reasons=[f"dispute: {why}" + (f"; agent {agent_id} frozen until an operator resumes it"
+                                           if frozen else "")],
+            executed=False, event="dispute", policy_hash=attest.policy_hash(self.policy),
+            execution={"dispute_id": did, "status": status, "reason": reason, "event_type": event_type,
+                       "transactions": sorted(ids), "link_seq": link_seq, "agent_id": agent_id,
+                       "frozen_agent": frozen, "source": source})
+        record = self.audit_log.append(decision)
+        if self.notifier is not None:
+            self.notifier.send_alert(
+                f"SafePay ALERT · PayPal dispute {did} ({status or '?'})\n"
+                f"{decision.intent.currency} {decision.intent.amount:.2f}, reason: {reason or 'not given'}.\n"
+                + (f"Agent {agent_id} is FROZEN until you resume it. " if frozen
+                   else "No SafePay payment matched; nothing frozen. ")
+                + f"Chain link #{record['payload'].get('seq')}.")
+        return {"duplicate": False, "seq": record["payload"].get("seq"), "dispute_id": did,
+                "status": status, "frozen": frozen, "agent_id": agent_id, "link_seq": link_seq}
+
     def _frozen(self, agent_id: str) -> str | None:
         try:
             reg = self.control.touch_agent(agent_id)

@@ -198,6 +198,13 @@ decide whether a tool may run; SafePay is the payment-specific judgment
 behind that yes, reachable from any gateway as a tool or an HTTP call. LLM
 spend proxies cap tokens; SafePay caps and judges money. They compose.
 
+PayPal can pull the kill switch too: when a CUSTOMER.DISPUTE webhook names a
+transaction, SafePay re-reads the dispute from PayPal, finds the chain link
+that carries that capture, authorization or payout, freezes the agent that
+made it with the dispute id as the reason, chains a dispute link pointing at
+the original decision, and alerts the operator on Telegram. Nothing that
+agent asks for moves until a person presses Resume.
+
 ## How we built it
 Python core with a clean separation between the deterministic policy engine and
 the two model backed checks, orchestrated by a guardrail that aggregates the
@@ -216,7 +223,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (474 tests, 98% line
+Horizon API, and a deterministic offline test suite (480 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -363,7 +370,7 @@ real payouts decide what SafePay builds next.
 ## The judging criteria, one line each (paste at the end of "What it does")
 - Technological implementation: Payouts, Orders v2 authorize/capture/void,
   Vault v3, Transaction Search and webhooks against the real sandbox; the
-  Agent Toolkit gated; Nemotron and Tavily live; 474 offline tests, 98%
+  Agent Toolkit gated; Nemotron and Tavily live; 480 offline tests, 98%
   coverage.
 - Design: one console an operator sets up in plain words and a judge works
   end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,
@@ -405,8 +412,11 @@ an AP2 network; the tamper buttons edit your own session's policy and a
 copy of the chain; the counter kit's client is tested end to end against
 the real console with a keyboard standing in for the buttons, and its GPIO
 board follows gpiozero and the documented pins but has not been run on a
-Raspberry Pi yet; there are no paying customers yet and the pricing is a
-proposal, the measured figures are costs.
+Raspberry Pi yet; the dispute webhook path (re-read the dispute from PayPal,
+match the chain link, freeze the agent, alert) is tested offline against a
+scripted dispute and no real sandbox dispute has been raised against it yet;
+there are no paying customers yet and the pricing is a proposal, the
+measured figures are costs.
 
 ## Built with
 python, paypal, paypal-payouts, paypal-orders, paypal-vault, paypal-webhooks,

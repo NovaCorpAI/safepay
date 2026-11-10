@@ -57,7 +57,7 @@ The five judging criteria, one line each, with where the evidence is:
 
 | Criterion | Where to look |
 | --- | --- |
-| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 474 offline tests at 98% coverage ([Tests](#tests)) |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 480 offline tests at 98% coverage ([Tests](#tests)) |
 | Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
 | Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
 | Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
@@ -168,6 +168,9 @@ So nobody has to guess.
   with the keyboard standing in for the buttons. Its GPIO board follows
   gpiozero and the pins in `docs/kit.md`, but has not been run on a
   Raspberry Pi yet.
+- **The dispute switch.** The `CUSTOMER.DISPUTE.*` webhook path (re-read,
+  match, freeze, chain, alert) is tested offline against a scripted dispute;
+  no real sandbox dispute has been raised against it yet.
 - **Stablecoins are validated, never moved.** SafePay has no wallet.
 - **AP2.** SafePay produces and verifies AP2-shaped mandates on its PayPal
   mandates. It is not a participant in an AP2 network, and the store does
@@ -668,6 +671,20 @@ same controls are `GET /api/agents`, `POST /api/agents/<id>/pause` and
 engineer can freeze a misbehaving agent from anywhere. With Supabase
 configured the registry is shared by every instance of the service.
 
+**PayPal can pull the switch too.** A dispute is the strongest signal an
+operator gets that an agent's payment was wrong: a buyer or a bank said so.
+When PayPal's `CUSTOMER.DISPUTE.*` webhook names a transaction, SafePay
+re-reads the dispute from PayPal (never the event body), finds the chain
+link that carries that capture, authorization or payout, freezes the agent
+that made it with the dispute id as the reason, chains a **dispute** link
+that points at the original decision, and alerts the operator on Telegram.
+Nothing that agent asks for moves until a person presses **Resume**. A
+resolved dispute is chained but freezes nobody; a dispute on money SafePay
+never saw is chained as unmatched. Subscribe the webhook to the
+`CUSTOMER.DISPUTE.CREATED` and `UPDATED` events in the PayPal dashboard;
+`tests/test_dispute_webhook.py` runs the path offline against a scripted
+dispute.
+
 ## Build your own kit (a box on the counter)
 
 The owner of a shop is not at a web console or scrolling Telegram; they are
@@ -1128,7 +1145,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-474 tests, deterministic and offline, in about five seconds (98% line
+480 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the
