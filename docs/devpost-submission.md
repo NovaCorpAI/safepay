@@ -216,7 +216,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (448 tests, 98% line
+Horizon API, and a deterministic offline test suite (474 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -291,6 +291,14 @@ one remaining soft spot, an unknown payee with a plausible invoice, flips
 between runs because model checks are not deterministic, which is why the
 strict mode exists and is reported separately.
 
+The injection scan is not fooled by hiding the text: zero-width characters
+between letters, Cyrillic look-alikes, fullwidth and mathematical alphabets,
+bidirectional overrides, invisible Unicode tag characters, HTML comments,
+elements styled display:none, HTML entities and base64 blobs are all unfolded
+before the scan, and the evidence names the disguise. Honest text with the
+same ingredients (soft hyphens, emoji joiners, Spanish with accents, real
+Cyrillic or Arabic) stays clean, and the tests hold both sides.
+
 ## What we learned
 Safety for agentic payments is a layering problem, not a single model call. The
 cheap deterministic rules should run first and stop the obvious cases for free;
@@ -351,6 +359,24 @@ framework adapters. The hosted console
 already takes early-access sign-ups (stored in the same Supabase project as the
 audit chain, write-only), and we onboard the first teams by hand: their agents'
 real payouts decide what SafePay builds next.
+
+## The judging criteria, one line each (paste at the end of "What it does")
+- Technological implementation: Payouts, Orders v2 authorize/capture/void,
+  Vault v3, Transaction Search and webhooks against the real sandbox; the
+  Agent Toolkit gated; Nemotron and Tavily live; 474 offline tests, 98%
+  coverage.
+- Design: one console an operator sets up in plain words and a judge works
+  end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,
+  counter kit), plus pip, MCP and HTTP for the agents.
+- Potential impact: the fraud is named and sized (IC3, AFP), the 2026 agent
+  incidents are real, and SafePay runs inside a product with real users whose
+  counters are public, zeros shown as zeros.
+- Innovation: judgment beyond caps (the payee on the live web, the task the
+  agent was given), a measured attack benchmark a judge reruns live,
+  instructions found even when hidden (zero-width, look-alikes, HTML, base64),
+  a seal the payee verifies without us, AP2 mandates on PayPal authorizations.
+- Presentation: a 3-minute tour inside the real console, the video, and a
+  README that says what is real and what is not before the claims.
 
 ## What is real and what is simulated
 

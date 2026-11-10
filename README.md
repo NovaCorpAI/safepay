@@ -53,6 +53,16 @@ scenarios or the chain check for you. Arrow keys move, Esc ends it.
 
 Run it yourself: `pip install safepay && safepay --demo` (no keys needed).
 
+The five judging criteria, one line each, with where the evidence is:
+
+| Criterion | Where to look |
+| --- | --- |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 474 offline tests at 98% coverage ([Tests](#tests)) |
+| Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
+| Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
+| Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
+| Presentation | The 3-minute tour inside the real console, the video, and this README: what is real and what is not, stated before the claims ([What is real](#what-is-real-and-what-is-not)) |
+
 ![SafePay home: live figures from the audit chain](docs/img/home.jpg)
 
 ## See it
@@ -1082,6 +1092,19 @@ defence is structural first and explicit second:
 `tests/test_injection_defence.py` feeds a deliberately obedient fake model a
 planted page and a planted purpose, and shows it never gets to read either.
 
+**Hiding the instruction does not help.** A pattern scan is easy to dodge
+with text a model still reads: zero-width characters between letters,
+Cyrillic look-alikes (`ignоrе`), fullwidth or mathematical
+alphabets, bidirectional overrides, invisible Unicode tag characters, HTML
+comments, elements styled `display:none`, HTML entities, a base64 blob.
+SafePay unfolds all of those before it scans (and scans HTML comments,
+hidden elements and decodable base64 as layers of their own), and the
+evidence names the disguise: "hidden in an HTML comment by 12 invisible
+characters: ignore previous instructions". Honest text with the same
+ingredients (soft hyphens, emoji joiners, a random token, Spanish with
+accents, real Cyrillic or Arabic) stays clean; `tests/test_injection_obfuscation.py`
+holds both sides.
+
 ## Tamper-evident audit chain
 
 Every decision is appended to a hash-chained log: each record carries `prev`,
@@ -1105,7 +1128,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-448 tests, deterministic and offline, in about five seconds (98% line
+474 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the
