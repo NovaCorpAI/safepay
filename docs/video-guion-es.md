@@ -101,7 +101,17 @@ de pago manual y pulsa "Evaluate": BLOCK, "agent frozen".]**
 "Si algo huele mal, un clic congela al agente como un banco congela una
 tarjeta. Una disputa en PayPal acciona el mismo interruptor sola."
 
-## 1:43 a 1:52 | El registro que no se puede editar
+## 1:43 a 1:53 | La orden por el Agent Toolkit de PayPal
+
+**[Consola, tarjeta "Agentic commerce". Pulsa "Create the order through the
+gate": ALLOW y luego "order created through the PayPal Agent Toolkit" con el
+id de la orden y el enlace de aprobación del comprador.]**
+
+"La misma puerta va delante del Agent Toolkit de PayPal: la orden se crea
+solo después de que SafePay la permite, y el paso de aprobación del comprador
+que PayPal exige queda intacto."
+
+## 1:53 a 2:02 | El registro que no se puede editar
 
 **[Pestaña Ledger. Señala la insignia verde "chain verified". Pulsa "Tamper
 (demo)": la insignia se pone roja y marca la fila.]**
@@ -109,7 +119,7 @@ tarjeta. Una disputa en PayPal acciona el mismo interruptor sola."
 "Cada decisión es un eslabón de una cadena de hashes firmada. Altero una
 fila y toda la cadena falla al instante."
 
-## 1:52 a 2:30 | El red team (la escena central)
+## 2:02 a 2:40 | El red team (la escena central)
 
 **[Vuelve a la consola. En "Red team: new attacks" deja "written by the
 model" y "judged by the full guardrail". Pulsa. Mientras el modelo escribe,
@@ -135,16 +145,6 @@ ataques otra vez."
 **[Segundo tally: "6/6 new attacks caught · nothing got through".]**
 
 "Seis de seis. Falla, arreglo y captura, delante de ustedes."
-
-## 2:30 a 2:40 | La orden por el Agent Toolkit de PayPal
-
-**[Consola, tarjeta "Agentic commerce". Pulsa "Create the order through the
-gate": ALLOW y luego "order created through the PayPal Agent Toolkit" con el
-id de la orden y el enlace de aprobación del comprador.]**
-
-"La misma puerta va delante del Agent Toolkit de PayPal: la orden se crea
-solo después de que SafePay la permite, y el paso de aprobación del comprador
-que PayPal exige queda intacto."
 
 ## 2:40 a 2:46 | Cualquier agente, cualquier riel
 
