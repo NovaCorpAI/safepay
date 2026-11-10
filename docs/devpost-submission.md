@@ -228,7 +228,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (487 tests, 98% line
+Horizon API, and a deterministic offline test suite (501 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -311,6 +311,17 @@ before the scan, and the evidence names the disguise. Honest text with the
 same ingredients (soft hyphens, emoji joiners, Spanish with accents, real
 Cyrillic or Arabic) stays clean, and the tests hold both sides.
 
+A judge can also throw attacks the benchmark has never seen. "Red team: new
+attacks" asks Nemotron for six new attacks from the task, the rules and one
+example per family (or, offline, rewrites the committed attacks the way an
+attacker does once caught: the instruction hidden, a fresh look-alike domain,
+an amount past the tolerance, a new off-task merchant, an unapproved payee);
+code validates every case, the deployment judges them live, each verdict is
+chained, and every attack that gets through comes with the rule that would
+close it. One button folds those rules into the session's policy, signs it
+with the operator key, applies it and reruns the same attacks, so the miss,
+the fix and the catch are seen in one minute. Misses are shown as misses.
+
 ## What we learned
 Safety for agentic payments is a layering problem, not a single model call. The
 cheap deterministic rules should run first and stop the obvious cases for free;
@@ -375,7 +386,7 @@ real payouts decide what SafePay builds next.
 ## The judging criteria, one line each (paste at the end of "What it does")
 - Technological implementation: Payouts, Orders v2 authorize/capture/void,
   Vault v3, Transaction Search and webhooks against the real sandbox; the
-  Agent Toolkit gated; Nemotron and Tavily live; 487 offline tests, 98%
+  Agent Toolkit gated; Nemotron and Tavily live; 501 offline tests, 98%
   coverage.
 - Design: one console an operator sets up in plain words and a judge works
   end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,

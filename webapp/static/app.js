@@ -458,6 +458,65 @@
     }
     show(true); loadAgents(); setBusy(false);
   };
+  // The red team: attacks the benchmark has never seen, judged live, each
+  // verdict chained as a "redteam" link, every miss with the rule that would
+  // close it; the fixes can be signed, applied and the same attacks rerun.
+  const RT = { cases: [], fixes: [], round: 0 };
+  async function runRedTeam(cases, mode) {
+    const tally = $('rt-tally'), t = { attacks: 0, caught: 0 };
+    RT.fixes = []; RT.round++;
+    // Each round runs the cases under fresh agent ids, so a rerun after the
+    // fixes is judged by the new rules, not caught as a duplicate invoice.
+    const aid = c => `redteam-${c.id}-r${RT.round}`;
+    const show = done => {
+      tally.hidden = false;
+      tally.textContent = `${t.caught}/${t.attacks} new attacks caught` + (done ? (RT.fixes.length ? ` · ${RT.fixes.length} got through: fixes below` : ' · nothing got through') : ' · running…');
+    };
+    show(false);
+    for (const c of cases) {
+      const el = pending({ ...c.intent, agent_id: aid(c) });
+      const caseLine = (fix) => el.insertAdjacentHTML('afterbegin', `<div class="case"><span class="kind attack">red team</span> <b>${esc(c.id)}</b> · ${esc(c.category.replace(/_/g, ' '))} · ${esc(c.source === 'model' ? 'written by the model' : 'rewrite')} · ${esc(c.note || '')}${fix ? `<br><b>Got through.</b> Fix: ${esc(fix.sentence)}` : ''}</div>`);
+      caseLine(null);
+      try {
+        const [resp, body] = await post('/api/redteam/step', { case: c, mode, run: RUN, agent_id: aid(c) });
+        if (!resp.ok || body.error) { refused(el, body.error || resp.status); }
+        else { render(el, body); caseLine(body.fix); t.attacks++; if (body.caught) t.caught++; if (body.fix) RT.fixes.push(body.fix); }
+      } catch (e) { stopProgress(el); el.querySelector('.risk').textContent = 'error'; }
+      show(false); loadAudit();
+      if (mode === 'rules') await new Promise(r => setTimeout(r, 250));
+    }
+    show(true); loadAgents();
+    $('rt-fix').hidden = !RT.fixes.length;
+  }
+  if ($('run-redteam')) $('run-redteam').onclick = async () => {
+    setBusy(true); $('run-redteam').disabled = true; await startRun(); results.innerHTML = '';
+    const source = ($('rt-source') && $('rt-source').value) || 'novel';
+    const mode = ($('rt-mode') && $('rt-mode').value) || 'full';
+    $('rt-tally').hidden = false; $('rt-tally').textContent = source === 'novel' ? 'the model is writing new attacks…' : 'rewriting the committed attacks…';
+    try {
+      const g = await (await fetch('/api/redteam/generate', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ mode: source, n: 6, run: RUN, seed: Date.now() % 1000 }) })).json();
+      if (g.error) { $('rt-tally').textContent = g.error; return; }
+      RT.cases = g.cases || [];
+      if (g.note) $('rt-tally').textContent = g.note;
+      await runRedTeam(RT.cases, mode);
+    } finally { setBusy(false); $('run-redteam').disabled = false; }
+  };
+  if ($('rt-fix')) $('rt-fix').onclick = async () => {
+    if (!RT.fixes.length) return;
+    setBusy(true); $('rt-fix').disabled = true;
+    try {
+      const m = await (await fetch('/api/redteam/fix', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, fixes: RT.fixes }) })).json();
+      if (m.error) { polMsg(m.error, 'bad'); return; }
+      let signature = null;
+      try { signature = await signPolicy({ run: RUN, policy: m.policy }); } catch (e) { polMsg('could not sign: ' + e.message, 'bad'); return; }
+      const r = await (await opFetch('/api/policy/apply', { method: 'POST', headers: jsonHeaders(), body: JSON.stringify({ run: RUN, policy: m.policy, signature }) })).json();
+      if (r.error) { polMsg(r.error, 'bad'); return; }
+      polMsg(`Fixes applied and chained as link #${r.seq}${r.signed_by ? `, signed by operator key ${r.signed_by}` : ''}: ${(m.rules || []).join(' ')}`, 'ok');
+      await loadPolicy();
+      results.innerHTML = '';
+      await runRedTeam(RT.cases, ($('rt-mode') && $('rt-mode').value) || 'full');
+    } finally { setBusy(false); $('rt-fix').disabled = false; }
+  };
   if ($('run-demo')) {
     $('run-demo').onclick = async () => {
       setBusy(true); await startRun(); results.innerHTML = '';

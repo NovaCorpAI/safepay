@@ -52,10 +52,10 @@ from safepay.auditlog import verify_chain  # noqa: E402
 from safepay.config import Config  # noqa: E402
 from safepay.leads import LeadError, lead_store_from_config, normalize_lead  # noqa: E402
 from safepay.models import PaymentIntent, PolicyConfig  # noqa: E402
-from safepay import opsig  # noqa: E402
+from safepay import attest, opsig, redteam  # noqa: E402
 from safepay.control import run_of  # noqa: E402
 from safepay.opsig import SignatureError  # noqa: E402
-from safepay.policy_draft import PolicyDraftError, describe_policy  # noqa: E402
+from safepay.policy_draft import PolicyDraftError, coerce_policy, describe_policy  # noqa: E402
 from safepay import seal as sealmod  # noqa: E402
 from safepay.payables import InvoiceError  # noqa: E402
 from dataclasses import fields  # noqa: E402
@@ -181,7 +181,7 @@ def _connector_guard(run: str, pinned_ok: bool = True):
                     "present its key (Authorization: Bearer spk_...) to change its rules"}), 403
 
 
-VERSION = "0.9.1"   # also the cache-buster on /static assets
+VERSION = "0.9.2"   # also the cache-buster on /static assets
 
 
 def _ctx() -> dict:
@@ -953,7 +953,25 @@ def benchmark_step():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 401
     intent = PaymentIntent(**dict(raw, task_goal=_BENCH["task_goal"], agent_id=agent_id))
-    policy = PolicyConfig(**_BENCH["policy"])
+    decision = _judge_live(intent, PolicyConfig(**_BENCH["policy"]), mode)
+    decision.event = "benchmark"
+    decision.reasons.insert(0, f"benchmark case {case['id']} ({case['kind']}, {case['category']}), "
+                               f"step {i + 1} of {len(steps)}, {mode} mode: {case.get('note', '')}")
+    record = _agent.audit_log.append(decision)
+    return jsonify({
+        "decision": decision.to_dict(), "audit": record, "stamp": attest.stamp(decision),
+        "paypal_mode": _agent.paypal.mode, "approval_id": None,
+        "case": {"id": case["id"], "kind": case["kind"], "category": case["category"],
+                 "step": i + 1, "steps": len(steps), "mode": mode},
+    })
+
+
+def _judge_live(intent: PaymentIntent, policy: PolicyConfig, mode: str):
+    """Judge one intent the way the benchmark does, without paying: rules
+    only (offline), the full guardrail, or full plus the new-payee hold."""
+    from safepay.guardrail import Guardrail
+    from safepay.search import WebSearch
+
     if mode == "strict":
         policy = PolicyConfig(**dict(policy.to_dict(), hold_unknown_vendors=True))
     if mode == "rules":
@@ -967,16 +985,113 @@ def benchmark_step():
         for c in decision.checks:
             if "key configured" in (c.detail or ""):
                 c.detail = c.detail.split(" (")[0] + " (rules-only mode)"
-    decision.event = "benchmark"
-    decision.reasons.insert(0, f"benchmark case {case['id']} ({case['kind']}, {case['category']}), "
-                               f"step {i + 1} of {len(steps)}, {mode} mode: {case.get('note', '')}")
+    return decision
+
+
+def _redteam_policy(run: str) -> dict:
+    """The policy the red team attacks: the console run's own when it has
+    one, else the benchmark's (so the cases and the fixes mean something)."""
+    if run:
+        pol = _agent.policy_for(f"console:{run}")
+        if pol.to_dict() != _policy.to_dict():
+            return pol.to_dict()
+    return dict(_BENCH["policy"])
+
+
+@app.post("/api/redteam/generate")
+def redteam_generate():
+    """New attacks the benchmark has never seen: written by the model
+    (`novel`) or deterministic rewrites of the committed attacks
+    (`mutations`, free and offline). Nothing is judged yet; the console
+    judges them one by one through /api/redteam/step."""
+    data = request.get_json(silent=True) or {}
+    try:
+        n = max(1, min(int(data.get("n", 6)), 12))
+    except (TypeError, ValueError):
+        n = 6
+    run = str(data.get("run", ""))[:16].strip()
+    policy = _redteam_policy(run)
+    mode = str(data.get("mode") or ("novel" if _agent.guardrail.chat is not None else "mutations"))
+    if mode not in ("novel", "mutations"):
+        return jsonify({"error": "mode must be novel or mutations"}), 400
+    note = ""
+    if mode == "novel":
+        if _rate_limited():
+            return jsonify({"error": "rate limited, try again shortly"}), 429
+        if _agent.guardrail.chat is None:
+            mode, note = "mutations", "no model key configured: mutations of the committed attacks instead"
+        else:
+            try:
+                cases = redteam.novel(_agent.guardrail.chat, _BENCH, n, policy)
+                return jsonify({"mode": mode, "cases": cases, "families": redteam.FAMILIES,
+                                "policy_hash": policy_hash(PolicyConfig(**policy))})
+            except redteam.RedTeamError as exc:
+                mode, note = "mutations", f"{exc}; mutations of the committed attacks instead"
+            except Exception as exc:
+                return jsonify({"error": f"the model could not be reached: {exc}"}), 502
+    try:
+        seed = int(data.get("seed", 0))
+    except (TypeError, ValueError):
+        seed = 0
+    cases = redteam.mutate(_BENCH, n, seed, policy)
+    return jsonify({"mode": mode, "cases": cases, "note": note, "families": redteam.FAMILIES,
+                    "policy_hash": policy_hash(PolicyConfig(**policy))})
+
+
+@app.post("/api/redteam/step")
+def redteam_step():
+    """Judge one red-team case, live, under the run's policy; chain it as a
+    `redteam` link; when the attack got through, say what would close it."""
+    data = request.get_json(force=True) or {}
+    mode = str(data.get("mode") or "strict")
+    if mode not in _BENCH_MODES:
+        return jsonify({"error": f"mode must be one of {sorted(_BENCH_MODES)}"}), 400
+    if mode != "rules" and _rate_limited():
+        return jsonify({"error": "rate limited, try again shortly"}), 429
+    run = str(data.get("run", ""))[:16].strip()
+    policy = _redteam_policy(run)
+    case = redteam.coerce_case(data.get("case"), policy, 0,
+                               source=str((data.get("case") or {}).get("source") or "model")
+                               if isinstance(data.get("case"), dict) else "model")
+    if case is None:
+        return jsonify({"error": "not a usable case (family, recipient and amount are required)"}), 400
+    try:
+        agent_id = _agent.resolve_agent(str(data.get("agent_id") or f"redteam-{case['id']}"), _agent_key())
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 401
+    intent = PaymentIntent(**dict(case["intent"], task_goal=_BENCH["task_goal"], agent_id=agent_id))
+    try:
+        pol = PolicyConfig(**policy)
+    except TypeError:
+        pol = coerce_policy(policy)
+    decision = _judge_live(intent, pol, mode)
+    decision.event = "redteam"
+    decision.reasons.insert(0, f"red team case {case['id']} ({case['source']}, {case['category']}), "
+                               f"{mode} mode: {case.get('note', '')}")
     record = _agent.audit_log.append(decision)
+    d = decision.to_dict()
     return jsonify({
-        "decision": decision.to_dict(), "audit": record, "stamp": attest.stamp(decision),
+        "decision": d, "audit": record, "stamp": attest.stamp(decision),
         "paypal_mode": _agent.paypal.mode, "approval_id": None,
-        "case": {"id": case["id"], "kind": case["kind"], "category": case["category"],
-                 "step": i + 1, "steps": len(steps), "mode": mode},
+        "case": dict(case, mode=mode), "caught": d["verdict"] != "allow",
+        "fix": redteam.fix_for(case, d, policy),
     })
+
+
+@app.post("/api/redteam/fix")
+def redteam_fix():
+    """Fold the fixes of the misses into the run's policy and return it,
+    reviewed as plain rules, for the operator to sign and apply."""
+    data = request.get_json(silent=True) or {}
+    run = str(data.get("run", ""))[:16].strip()
+    patches = [f.get("patch") if isinstance(f, dict) and "patch" in f else f for f in (data.get("fixes") or [])]
+    merged = redteam.merge_patches(_redteam_policy(run), patches)
+    try:
+        pol = coerce_policy(merged)
+    except PolicyDraftError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"run": run, "policy": pol.to_dict(), "rules": describe_policy(pol),
+                    "policy_hash": policy_hash(pol)})
 
 
 @app.post("/api/mandates")

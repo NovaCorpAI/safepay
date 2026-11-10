@@ -57,7 +57,7 @@ The five judging criteria, one line each, with where the evidence is:
 
 | Criterion | Where to look |
 | --- | --- |
-| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 487 offline tests at 98% coverage ([Tests](#tests)) |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 501 offline tests at 98% coverage ([Tests](#tests)) |
 | Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
 | Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
 | Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
@@ -579,6 +579,27 @@ python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for 
 python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
 python benchmark/retries/run_retry_benchmark.py --n 20 --rounds 3 # duplicate submissions, needs sandbox keys
 ```
+
+**Red team: attacks the benchmark has never seen.** A committed benchmark
+can be studied; a judge should be able to throw something new at the
+guardrail. "Red team: new attacks" in the console does that in two ways:
+the model (Nemotron) writes six new attacks from the task, the policy in
+plain words and one example per family, and code validates each one before
+it is judged (a known family, inside the per-payment cap so the cap does not
+catch it for free, a fictional or look-alike recipient); or, offline and
+free, the committed attacks are rewritten the way an attacker does once the
+first version is caught (the same instruction hidden by zero-width
+characters, Cyrillic look-alikes, an HTML comment or base64; a fresh
+look-alike domain of an approved vendor; an amount pushed past the
+tolerance; a new off-task merchant; a plausible payee nobody approved). Each
+case is judged live in the mode you pick and chained as a `redteam` link,
+nothing is paid, and every attack that gets through comes with the rule that
+would close it (the expected amount for that vendor, a blocked category,
+strict mode). **Apply the fixes (signed) and rerun** folds those rules into
+the session's policy, signs it with the operator key, applies it, and judges
+the same attacks again under fresh agent ids, so the judge sees the miss,
+the fix and the catch in one minute. Misses are shown as misses; the model
+writes what it writes, and we do not curate it.
 
 ## Policy in plain words
 
@@ -1160,7 +1181,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-487 tests, deterministic and offline, in about five seconds (98% line
+501 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the

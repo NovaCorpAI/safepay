@@ -118,6 +118,20 @@
   </select>
   <span class="muted" id="bench-tally" hidden></span>
 </div>
+<div class="actions bench" id="redteam-actions">
+  <button class="ghost" id="run-redteam" title="Attacks the benchmark has never seen: the model writes new ones (or, offline, the committed attacks are rewritten the way an attacker does once caught), each is judged live by this deployment and chained as a redteam link, and every miss comes with the rule that would close it.">Red team: new attacks</button>
+  <select id="rt-source" aria-label="red team source">
+    <option value="novel">written by the model, 6 new attacks</option>
+    <option value="mutations">rewrites of the committed attacks (offline, free)</option>
+  </select>
+  <select id="rt-mode" aria-label="red team judge mode">
+    <option value="full">judged by the full guardrail</option>
+    <option value="strict">full guardrail + hold new payees</option>
+    <option value="rules">rules only, no model, no web</option>
+  </select>
+  <span class="muted" id="rt-tally" hidden></span>
+  <button class="ghost" id="rt-fix" hidden title="Fold the fixes of the misses into this session's policy, show the rules, sign and apply them, then run the same attacks again.">Apply the fixes (signed) and rerun</button>
+</div>
 
 <div id="results"></div>
 
