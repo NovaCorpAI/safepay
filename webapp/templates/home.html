@@ -5,7 +5,7 @@
   <div>
     <span class="eyebrow">The payables firewall for AI agents</span>
     <h1>Every payment an agent wants to make passes through <span class="fix">SafePay</span> before any money moves.</h1>
-    <p class="lead">Policy you write in plain words, a live-web check of the payee, reasoning about whether the payment serves the agent's task, one-tap human approvals, a kill switch per agent, and a signed hash chain of every decision. For PayPal payments and for stablecoins (PYUSD, USDC). Measured against 17 real attacks, not asserted.</p>
+    <p class="lead">Policy you write in plain words, a live-web check of the payee, reasoning about whether the payment serves the agent's task, one-tap human approvals signed by the operator's own device, a kill switch per agent that PayPal's disputes can pull too, and a signed hash chain of every decision. For PayPal payments and for stablecoins (PYUSD, USDC). Measured against 17 real attacks, and against new ones a red team writes on the spot.</p>
     <div class="cta btns">
       <a class="btn primary" href="/?tour=1" data-tour-start>Take the 3-minute tour</a>
       <a class="btn ghost" href="/console">Open the console</a>
@@ -81,7 +81,7 @@
     <div class="layer"><div class="k"><i style="background:var(--seal)"></i>Policy</div><p>Per-payment and daily caps, categories, allow and block lists, an approved vendor directory that catches lookalike domains and inflated invoices, and "ask me before anything over X". A breach is a hard block, no model call spent. Written in plain words, drafted by Nemotron, reviewed by you, and signed in your browser with a key the server never holds.</p></div>
     <div class="layer"><div class="k"><i style="background:var(--allow)"></i>Live web</div><p>Tavily pulls fresh, neutral evidence about the payee and the model judges it: a first-hand scam complaint or a payee with no footprint raises a hold. Sources are kept with the decision, one click away.</p></div>
     <div class="layer"><div class="k"><i style="background:var(--hold)"></i>Reasoning</div><p>NVIDIA Nemotron on Nebius reads the task the agent was given and judges whether this payment serves it. The attack a rule set misses: a cloud-invoice agent steered into a casino payout.</p></div>
-    <div class="layer"><div class="k"><i style="background:var(--gold)"></i>Chain and watch</div><p>Every decision, approval, policy change, order and settlement is a link in a hash chain, HMAC-signed. A payout that reaches PayPal without a decision is flagged as outside the firewall and the operator is alerted on Telegram.</p></div>
+    <div class="layer"><div class="k"><i style="background:var(--gold)"></i>Chain and watch</div><p>Every decision, approval, policy change, order and settlement is a link in a hash chain, HMAC-signed. A payout that reaches PayPal without a decision is flagged as outside the firewall and the operator is alerted on Telegram. A dispute PayPal reports freezes the agent that made that payment until a person resumes it.</p></div>
   </div>
 </section>
 
@@ -95,7 +95,7 @@
         <tr><td>full (policy + Tavily + Nemotron)</td><td class="n">16 / 17</td><td class="n">8 / 8</td></tr>
         <tr><td>strict (full + hold unknown vendors)</td><td class="n">17 / 17</td><td class="n">8 / 8</td></tr>
       </table></div>
-      <p class="note">17 realistic attacks on a wallet-holding agent (prompt injection in invoices and vendor pages, goal mismatches, lookalike recipients, inflated amounts, slow drains, bursts, a duplicate invoice, a "we changed our bank details" payee change) plus 8 real invoices. Reproducible: <code>benchmark/attacks/</code> in the repo.</p>
+      <p class="note">17 realistic attacks on a wallet-holding agent (prompt injection in invoices and vendor pages, goal mismatches, lookalike recipients, inflated amounts, slow drains, bursts, a duplicate invoice, a "we changed our bank details" payee change) plus 8 real invoices. Reproducible: <code>benchmark/attacks/</code> in the repo. And in the console, a red team writes attacks the benchmark has never seen, the deployment judges them live, and every miss comes with the rule that closes it, which you sign, apply and rerun.</p>
     </div>
     <div class="card">
       <h2>Plug it in</h2>

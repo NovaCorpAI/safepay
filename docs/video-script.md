@@ -81,7 +81,10 @@ Narration, card by card:
    If Telegram is configured, show the phone or the chat: the card arrives,
    tap "Approve and pay". "It reaches me where I am: one tap on Telegram, and
    the chain records who approved it." Otherwise click "Approve and pay" in
-   the Pending approvals panel.
+   the Pending approvals panel and read the result line: "approved in console
+   (signed by operator key ...)". "In the console the approval is signed by
+   this browser's own key, the same one that signs the rules: a stolen
+   operator token approves nothing."
 
 6. Google Cloud, 420 dollars, HOLD, then approve in the console.
 7. Microsoft Azure, 420 dollars, BLOCK.
@@ -105,7 +108,7 @@ Optional, if there is time (about 6 seconds): on the first Notion card click
 "check settlement". "SafePay closes the loop: it asks PayPal whether the money
 actually moved and writes the answer into the same chain."
 
-## 2:10 - 2:38 | The tamper-evident ledger and the benchmark (the money shot)
+## 2:10 - 2:20 | The tamper-evident ledger
 
 On screen: scroll to the audit ledger table (AG Grid). Point at the green badge
 "chain verified, N records intact". Click "Tamper (demo)"; the badge turns red,
@@ -115,19 +118,30 @@ Narration:
 "Every decision, allowed or blocked, is appended to a hash-chained audit log.
 Each record carries the hash of the one before it, so if anyone edits or drops a
 past decision, every later hash breaks. Watch: I tamper with one row, and the
-whole chain fails verification instantly. That is the record an operator, an
-auditor, or a court can trust."
+whole chain fails verification instantly."
 
-On screen: the benchmark table from the README (policy 9 of 17, full 16 of
-17, strict 17 of 17, zero false positives).
+## 2:20 - 2:40 | The red team (the money shot)
+
+Record this beat in real time (about 60 seconds each round) and cut the
+waits in the edit; run it once before recording, the model's attacks differ
+every time and nothing is curated. On screen: the console, "Red team: new
+attacks" with "written by the model" and "judged by the full guardrail".
+Click. Show two or three case lines as they resolve, then the tally, for
+example "4/6 new attacks caught · 2 got through: fixes below", and one
+"Got through. Fix: ..." line. Click "Apply the fixes (signed) and rerun".
+Show the green policy message ("Fixes applied and chained as link #N, signed
+by operator key ...") and the second tally: "6/6 new attacks caught ·
+nothing got through".
 
 Narration:
-"And we measured it instead of asserting it: seventeen real attacks on a
-wallet-holding agent, including a duplicate invoice and a 'we changed our bank
-details' email. Rules alone catch nine; the full guardrail catches sixteen,
-strict mode all seventeen, with zero false positives on real vendors. The benchmark is in the repo; run it yourself."
+"We measured SafePay against seventeen real attacks, and the benchmark is in
+the repo. But a committed benchmark can be studied, so here is one you
+cannot: the model writes six attacks it has never seen, SafePay judges them
+live, and every one that gets through comes with the rule that would close
+it. One click signs those rules with my key, applies them, and runs the same
+attacks again. Misses are shown as misses. That is proof, not promise."
 
-## 2:38 - 2:50 | Any agent, any rail
+## 2:40 - 2:50 | Any agent, any rail
 
 On screen: /connect. Press "Create a connector key", then "Run a test check":
 ALLOW with the three checks and "Signed attestation returned". Cut to a
@@ -160,9 +174,10 @@ safepay.agentposhq.com/connect. Thanks for watching."
 - [ ] Policy typed live, drafted and applied ("custom for this session" pill).
 - [ ] Full "Run demo scenarios" sequence, all seven cards.
 - [ ] Clear read on the HOLD casino card (the differentiator).
-- [ ] One approval taken (Telegram if configured, else the console panel).
+- [ ] One approval taken (Telegram if configured, else the console panel), with the "signed by operator key" line readable.
 - [ ] Freeze agent, then a BLOCK with "agent frozen".
-- [ ] Benchmark table on screen for 5 seconds.
+- [ ] Red team: first tally with at least one miss and its fix line, the signed "Fixes applied" message, the second tally.
+- [ ] Optional: the Raspberry Pi kit approving a HOLD with the green button (10 seconds, only if the Pi is there; the video does not depend on it).
 - [ ] /connect: key created and a live check ALLOW with "Signed attestation returned".
 - [ ] Terminal: a USDC check with a 0x address on Stellar, BLOCK.
 - [ ] At least one card's PayPal batch id and "signed" stamp visible.
@@ -193,10 +208,21 @@ dominio parecido bloquea por directorio de proveedores, AWS 900 bloquea por
 limite, casino retiene por objetivo, dos nubes permiten, Azure bloquea por tope
 diario).
 
+Aprobacion: "En la consola la aprobacion va firmada por la clave de este
+navegador, la misma que firma las reglas: un token de operador robado no
+aprueba nada."
+
 Ledger: "Cada decision se encadena por hash en un registro de auditoria. Si
 alguien altera o borra una decision pasada, se rompen todos los hashes
 siguientes. Miren: manipulo una fila y toda la cadena falla la verificacion al
 instante."
+
+Red team: "Medimos SafePay contra diecisiete ataques reales, y el benchmark
+esta en el repo. Pero un benchmark publicado se puede estudiar, asi que aqui
+va uno que no: el modelo escribe seis ataques que nunca vio, SafePay los juzga
+en vivo, y cada uno que pasa viene con la regla que lo cerraria. Un clic firma
+esas reglas con mi clave, las aplica y vuelve a correr los mismos ataques. Los
+fallos se muestran como fallos. Eso es prueba, no promesa."
 
 Conector: "Y SafePay no necesita tener el dinero para protegerlo. SafePay
 Check es un servidor MCP remoto: Muse, Claude o cualquier agente pregunta
