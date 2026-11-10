@@ -20,8 +20,9 @@ Antes de grabar (10 minutos):
    aprobación. Si no, la aprobación se hace en el panel de la consola y vale
    igual.
 4. Corre una vez "Red team: new attacks" (modelo, full) para confirmar que
-   el modelo escribe bien hoy. Luego "nueva sesión" otra vez para grabar
-   limpio.
+   el modelo escribe bien hoy. En la pestaña Connect crea la clave del
+   conector para que durante la grabación solo haya que pulsar "Run a test
+   check". Luego "nueva sesión" en la consola para grabar limpio.
 5. Graba con OBS o Win+G, micrófono probado, notificaciones de Windows en
    silencio.
 
@@ -37,7 +38,8 @@ objetivo tras el corte.
 "Los agentes de IA ya pagan facturas, y un agente que paga puede ser
 engañado: una instrucción escondida, un dominio parecido, un monto que no
 cuadra con su tarea. SafePay es el firewall que todo agente consulta antes
-de pagar con PayPal."
+de pagar con PayPal: para los equipos que ponen agentes a pagar facturas y
+para las plataformas que les dan billetera."
 
 ## 0:12 a 0:35 | Reglas en palabras simples
 
@@ -91,7 +93,7 @@ Tarjetas 6 y 7, Google Cloud HOLD y Azure BLOCK:
 "La última se bloquea porque superaría el tope diario sumando toda la
 ráfaga: SafePay lleva la cuenta del día."
 
-## 1:35 a 1:45 | El interruptor
+## 1:35 a 1:43 | El interruptor
 
 **[Baja a "Agents in this session", pulsa "Freeze agent". Sube al formulario
 de pago manual y pulsa "Evaluate": BLOCK, "agent frozen".]**
@@ -99,7 +101,7 @@ de pago manual y pulsa "Evaluate": BLOCK, "agent frozen".]**
 "Si algo huele mal, un clic congela al agente como un banco congela una
 tarjeta. Una disputa en PayPal acciona el mismo interruptor sola."
 
-## 1:45 a 1:55 | El registro que no se puede editar
+## 1:43 a 1:52 | El registro que no se puede editar
 
 **[Pestaña Ledger. Señala la insignia verde "chain verified". Pulsa "Tamper
 (demo)": la insignia se pone roja y marca la fila.]**
@@ -107,7 +109,7 @@ tarjeta. Una disputa en PayPal acciona el mismo interruptor sola."
 "Cada decisión es un eslabón de una cadena de hashes firmada. Altero una
 fila y toda la cadena falla al instante."
 
-## 1:55 a 2:40 | El red team (la escena central)
+## 1:52 a 2:30 | El red team (la escena central)
 
 **[Vuelve a la consola. En "Red team: new attacks" deja "written by the
 model" y "judged by the full guardrail". Pulsa. Mientras el modelo escribe,
@@ -134,14 +136,32 @@ ataques otra vez."
 
 "Seis de seis. Falla, arreglo y captura, delante de ustedes."
 
-## 2:40 a 2:52 | Cualquier agente, cualquier riel
+## 2:30 a 2:40 | La orden por el Agent Toolkit de PayPal
 
-**[Pestaña Connect. Pulsa "Create a connector key" y luego "Run a test
-check": ALLOW con "Signed attestation returned".]**
+**[Consola, tarjeta "Agentic commerce". Pulsa "Create the order through the
+gate": ALLOW y luego "order created through the PayPal Agent Toolkit" con el
+id de la orden y el enlace de aprobación del comprador.]**
 
-"SafePay no necesita tener el dinero para protegerlo: SafePay Check es un
-servidor MCP remoto, cualquier agente pregunta antes de su checkout y recibe
-un veredicto firmado. Las mismas reglas valen para PYUSD y USDC."
+"La misma puerta va delante del Agent Toolkit de PayPal: la orden se crea
+solo después de que SafePay la permite, y el paso de aprobación del comprador
+que PayPal exige queda intacto."
+
+## 2:40 a 2:46 | Cualquier agente, cualquier riel
+
+**[Pestaña Connect. Pulsa "Run a test check" con una clave ya creada: ALLOW
+con "Signed attestation returned".]**
+
+"Y cualquier agente puede preguntar antes de su propio checkout por MCP y
+recibir un veredicto firmado; las mismas reglas valen para PYUSD y USDC."
+
+## 2:46 a 2:52 | En producción hoy: Impulsa
+
+**[Portada, sección "In production today: Impulsa", o la captura de la
+alerta dentro de Impulsa.]**
+
+"Esto ya corre dentro de Impulsa, nuestro SaaS para micronegocios en Chile:
+cada factura de proveedor pasa por SafePay, y lo que cada dueño hace con la
+alerta se mide y se publica."
 
 ## 2:52 a 2:58 | Cierre
 
@@ -163,7 +183,9 @@ pip install safepay. Gracias."
 - [ ] Freeze y el BLOCK "agent frozen".
 - [ ] Ledger: insignia verde, luego roja.
 - [ ] Red team: primer tally con al menos un fallo y su arreglo, mensaje "Fixes applied ... signed", segundo tally.
-- [ ] Connect: clave creada y check ALLOW con atestación firmada.
+- [ ] Orden creada por el Agent Toolkit con su id y el enlace de aprobación.
+- [ ] Connect: check ALLOW con atestación firmada (crea la clave antes de grabar).
+- [ ] Impulsa: la sección de impacto de la portada o la captura de la alerta, 6 segundos.
 - [ ] Opcional, solo si llega la Raspberry: 10 segundos del kit aprobando un HOLD con el botón verde.
 - [ ] Menos de 3:00 tras el corte. Subtítulos en inglés quemados.
 
