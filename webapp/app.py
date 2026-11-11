@@ -181,7 +181,7 @@ def _connector_guard(run: str, pinned_ok: bool = True):
                     "present its key (Authorization: Bearer spk_...) to change its rules"}), 403
 
 
-VERSION = "0.9.4"   # also the cache-buster on /static assets
+VERSION = "0.9.5"   # also the cache-buster on /static assets
 
 
 def _ctx() -> dict:
@@ -505,6 +505,14 @@ def proof_check():
 @app.get("/pricing")
 def pricing_page():
     return _page("pricing")
+
+
+@app.get("/pilot")
+def pilot():
+    """Short link for the video's closing card and its QR code: the pilot
+    sign-up form on the home page."""
+    from flask import redirect
+    return redirect("/#early", code=302)
 
 
 @app.get("/real")
