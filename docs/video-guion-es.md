@@ -160,9 +160,7 @@ recibir un veredicto firmado; las mismas reglas valen para PYUSD y USDC."
 **[Portada, sección "In production today: Impulsa", o la captura de la
 alerta dentro de Impulsa.]**
 
-"Esto ya corre dentro de Impulsa, nuestro SaaS para micronegocios en Chile:
-cada factura de proveedor pasa por SafePay, y lo que cada dueño hace con la
-alerta se mide y se publica."
+"Esto ya corre dentro de Impulsa, nuestro SaaS para micronegocios en Chile: cada factura de proveedor pasa por SafePay. Los contadores parten en cero y se muestran en cero; lo que cada dueño haga con una alerta se mide y se publica."
 
 ## 2:52 a 2:58 | Cierre
 

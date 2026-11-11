@@ -105,8 +105,8 @@ the same rules apply to PYUSD and USDC.
 
 23
 00:02:46,000 --> 00:02:52,000
-This already runs inside Impulsa, our SaaS for micro-businesses in Chile: every supplier
-invoice goes through SafePay, and what each owner does with the alert is measured and published.
+This already runs inside Impulsa, our SaaS for micro-businesses in Chile: every supplier invoice
+goes through SafePay. The counters start at zero and are shown as zeros; every alert's outcome is published.
 
 24
 00:02:52,000 --> 00:02:58,000
