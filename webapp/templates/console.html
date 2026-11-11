@@ -9,7 +9,7 @@
 
 <section class="card pol" id="policy-editor">
   <h2>Policy in plain words</h2>
-  <textarea id="policy-text" placeholder="Example: Up to $300 per payment and $1,000 a day. Ask me before anything over $100. No gambling or crypto. Hold any new payee for me."></textarea>
+  <textarea spellcheck="false" id="policy-text" placeholder="Example: Up to $300 per payment and $1,000 a day. Ask me before anything over $100. No gambling or crypto. Hold any new payee for me."></textarea>
   <div class="btns" style="margin-top:12px">
     <button class="primary" id="policy-draft">Draft the policy</button>
     <button class="ghost" id="policy-learn" title="Rules proposed from the held payments you approved or rejected, each citing its chain links. You review and sign them; nothing applies by itself.">Learn from my approvals</button>
@@ -41,15 +41,15 @@
   <div class="card">
     <h2>Custom payment intent</h2>
     <div class="row2">
-      <div><label>Recipient</label><input id="f-recipient" value="vendor@example.com"></div>
+      <div><label>Recipient</label><input spellcheck="false" id="f-recipient" value="vendor@example.com"></div>
       <div><label>Amount (USD)</label><input id="f-amount" type="number" value="250"></div>
     </div>
     <div class="row2">
-      <div><label>Category</label><input id="f-category" value="software"></div>
-      <div><label>Merchant name</label><input id="f-merchant" value=""></div>
+      <div><label>Category</label><input spellcheck="false" id="f-category" value="software"></div>
+      <div><label>Merchant name</label><input spellcheck="false" id="f-merchant" value=""></div>
     </div>
-    <label>Stated purpose</label><input id="f-purpose" value="monthly API bill">
-    <label>Task the agent was given</label><input id="f-goal" value="pay the team's approved SaaS invoices">
+    <label>Stated purpose</label><input spellcheck="false" id="f-purpose" value="monthly API bill">
+    <label>Task the agent was given</label><input spellcheck="false" id="f-goal" value="pay the team's approved SaaS invoices">
   </div>
 </div>
 
@@ -66,12 +66,12 @@
   <h2>Agentic commerce: an order through the PayPal Agent Toolkit</h2>
   <p class="muted" style="font-size:14px;max-width:80ch">The agent wants to buy something. PayPal's guidance for the Toolkit's order flow is to create the order and invoke pay only after a person approves; SafePay is that approver, made automatic: the Toolkit's <code>create_order</code> runs only after the guardrail says ALLOW, and the buyer-approval link the Orders flow requires stays intact. Held or blocked, the Toolkit is never called.</p>
   <div class="row2">
-    <div><label>Merchant</label><input id="t-merchant" value="Statista"></div>
+    <div><label>Merchant</label><input spellcheck="false" id="t-merchant" value="Statista"></div>
     <div><label>Amount (USD)</label><input id="t-amount" type="number" value="20"></div>
   </div>
   <div class="row2">
-    <div><label>What the agent is buying</label><input id="t-purpose" value="Market research report on agentic commerce"></div>
-    <div><label>Category</label><input id="t-category" value="software"></div>
+    <div><label>What the agent is buying</label><input spellcheck="false" id="t-purpose" value="Market research report on agentic commerce"></div>
+    <div><label>Category</label><input spellcheck="false" id="t-category" value="software"></div>
   </div>
 </section>
 
@@ -79,8 +79,8 @@
   <h2>Mandates: authorize a budget, capture what the task costs</h2>
   <p class="muted" style="font-size:14px;max-width:80ch">An agent booking a hotel does not know the final bill. It asks for a ceiling; SafePay judges the ceiling like any payment and, on ALLOW, authorizes it with PayPal (Orders v2, intent AUTHORIZE): nothing is charged yet. Each capture is then checked on its own (the agent that opened it, not frozen, within what is left) before PayPal is called, and carries its own seal. Closing voids the rest and gives it back to the daily cap. The agent card lives in PayPal's Vault (v3), so every mandate is authorized with a payment token, never with the card number; in the sandbox that card is PayPal's published test card. Opening also sends an <b>AP2 IntentMandate</b> signed in this browser by the operator key (the one that signs the policy): SafePay verifies it before authorizing, refuses a payee outside its merchants, and refuses captures after it expires. Each capture becomes an AP2 PaymentMandate signed with SafePay's published Ed25519 key.</p>
   <div class="row2">
-    <div><label>Task</label><input id="m-task" value="Book lodging for the Lisbon offsite, up to 2 nights"></div>
-    <div><label>Merchant</label><input id="m-merchant" value="Harbor Hotel"></div>
+    <div><label>Task</label><input spellcheck="false" id="m-task" value="Book lodging for the Lisbon offsite, up to 2 nights"></div>
+    <div><label>Merchant</label><input spellcheck="false" id="m-merchant" value="Harbor Hotel"></div>
   </div>
   <div class="row2">
     <div><label>Ceiling (USD)</label><input id="m-ceiling" type="number" value="300"></div>
@@ -98,7 +98,7 @@
 <section class="card section" id="store-card">
   <h2>Agentic commerce: buy from an agent-ready store</h2>
   <p class="muted" style="font-size:14px;max-width:80ch">The shopping agent reads the live catalog of a real store made buyable by agents with <a href="https://agentposhq.com" target="_blank" rel="noopener">AgentPOS</a> (our open-source point of sale for AI agents), and the store quotes the cart itself. SafePay then judges the quoted total as a mandate (policy, live web check of the store, Nemotron against the task), authorizes it with PayPal and captures exactly the quote. The amount comes from the store, never from the agent. AgentPOS settles in USDC on Stellar; here the catalog and quote are the store's real ones and the rail is a PayPal sandbox mandate (1 USDC = 1 USD).</p>
-  <label>Task the agent was given</label><input id="s-task" value="Buy the AgentPOS field guide for the team's agentic commerce research">
+  <label>Task the agent was given</label><input spellcheck="false" id="s-task" value="Buy the AgentPOS field guide for the team's agentic commerce research">
   <div class="store-items" id="s-items"><span class="muted">Loading the store's catalog…</span></div>
   <div class="row-btns"><button class="primary" id="s-buy" disabled>Quote, judge and pay</button><span class="muted" id="s-msg" style="font-size:13px"></span></div>
 </section>
