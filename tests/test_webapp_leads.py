@@ -17,7 +17,7 @@ def client(monkeypatch):
 
 def test_page_has_early_access_form(client):
     html = client.get("/").data
-    assert b"Early access" in html and b'id="early-form"' in html
+    assert b"Join the pilot" in html and b'id="early-form"' in html
 
 
 def test_signup_then_repeat(client):
