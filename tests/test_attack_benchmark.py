@@ -32,3 +32,17 @@ def test_policy_mode_misses_within_limit_attacks_by_design():
     by_id = {r["id"]: r for r in run["results"]}
     for cid in ("inj_processing_fee", "goal_casino", "unknown_payee"):
         assert not by_id[cid]["caught"], cid
+
+
+def test_caps_mode_is_limits_only():
+    # Spending limits alone: they see how much, never to whom or why.
+    run = run_benchmark("caps", load_cases())
+    by_id = {r["id"]: r for r in run["results"]}
+    assert run["legit_false_positives"] == 0
+    for cid in ("over_per_tx", "currency_switch", "slow_drain", "velocity_burst"):
+        assert by_id[cid]["caught"], cid
+    for cid in ("lookalike_recipient", "amount_inflation", "duplicate_invoice",
+                "payee_change", "history_inflation", "inj_processing_fee", "goal_casino"):
+        assert not by_id[cid]["caught"], cid
+    policy = run_benchmark("policy", load_cases())
+    assert policy["attacks_caught"] > run["attacks_caught"]

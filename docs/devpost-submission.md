@@ -1,7 +1,6 @@
 # SafePay, Devpost submission copy
 
-Paste-ready text for paypalaihackathon.devpost.com. Links at the bottom get
-filled once the video is up. No em dashes used, per house style.
+Paste-ready text for paypalaihackathon.devpost.com. Links at the bottom are filled in. No em dashes used, per house style.
 
 ---
 
@@ -9,16 +8,20 @@ filled once the video is up. No em dashes used, per house style.
 SafePay
 
 ## Tagline (one line)
-The firewall any AI agent asks before it pays: it judges the payment, pays
-through PayPal or lets the agent's own checkout proceed, and leaves proof
-anyone can verify without us. In production inside a real SaaS.
+The firewall any AI agent asks before it pays an invoice: limits decide how
+much, SafePay judges to whom and why. It pays through PayPal or lets the
+agent's own checkout proceed, and leaves proof anyone can verify without us.
+In production inside a real SaaS.
 
 ## Elevator pitch (shorter, if a short field is asked)
 Agents are starting to pay the bills, and the biggest ones now check out on
 their own: Meta's Muse buys through PayPal. An agent that can pay can be prompt
 injected by an invoice email, handed a real vendor's name on a lookalike
 domain, or sent to a merchant registered last week. Spending caps do not catch
-that. SafePay does, and proves it:
+that: on our benchmark, limits alone stop 4 of 17 attacks. SafePay is built
+for accounts payable, not shopping carts (invoices, vendors, and the business
+email compromise that cost USD 3.05 billion in 2025, per the FBI), and
+proves it:
 
 - In production: its rules check every supplier purchase inside Impulsa, our
   SaaS for micro-businesses in Chile, and what owners do with each alert is
@@ -31,7 +34,8 @@ that. SafePay does, and proves it:
 - Judgment, not only limits: caps and allowlists are where most agent spending
   firewalls stop; SafePay also checks the payee on the live web and asks
   whether the payment serves the task, which is what catches injected invoices
-  and goal mismatches inside every limit.
+  and goal mismatches inside every limit. A budget answers how much; SafePay
+  answers to whom and why.
 - PayPal and stablecoins under one guardrail: PYUSD and USDC payments are
   judged with the same rules (plus network and wallet-address checks, since a
   stablecoin sent to the wrong network is lost), and a settlement on Stellar is
@@ -41,8 +45,9 @@ that. SafePay does, and proves it:
 - Evidence anyone can verify without us: a hash-chained log, Ed25519 receipts
   verifiable offline, operator-signed policy, and AP2 Intent, Cart and Payment
   mandates on PayPal authorize and capture.
-- Measured: 16 of 17 attacks caught (17 with the new-payee hold), zero false
-  positives, case by case at /security.
+- Measured: on the same 17 attacks, spending limits alone catch 4; SafePay
+  catches 16 (17 with the new-payee hold), zero false positives, case by case
+  at /security.
 
 ---
 
@@ -228,7 +233,7 @@ a toolkit gate demo that creates real sandbox orders, a local MCP server that ex
 the guardrail to any agent, a remote one (SafePay Check, stateless JSON-RPC
 over streamable HTTP, tested with the official MCP Python SDK) that any agent
 calls before it pays, a read-only settlement check that reads Stellar's
-Horizon API, and a deterministic offline test suite (503 tests, 98% line
+Horizon API, and a deterministic offline test suite (504 tests, 98% line
 coverage, every PayPal REST call checked against a scripted HTTP layer).
 
 ## Challenges we ran into
@@ -287,7 +292,8 @@ excluded, zeros shown as zeros.
 
 We also measured it instead of asserting it. On a reproducible attack benchmark
 in the repo (17 realistic attacks on a wallet-holding agent, 8 legitimate
-invoices), rules alone catch 9 of 17; the full guardrail catches 16 of 17
+invoices), spending limits alone catch 4 of 17, rules with a vendor directory
+and payment history catch 9 of 17; the full guardrail catches 16 of 17
 (94%), and with the new-payee control on, 17 of 17, all with zero false
 positives on real vendors. A judge can rerun it live from the console: one
 button judges the same cases through the deployment, verdict by verdict, each
@@ -386,7 +392,7 @@ real payouts decide what SafePay builds next.
 ## The judging criteria, one line each (paste at the end of "What it does")
 - Technological implementation: Payouts, Orders v2 authorize/capture/void,
   Vault v3, Transaction Search and webhooks against the real sandbox; the
-  Agent Toolkit gated; Nemotron and Tavily live; 503 offline tests, 98%
+  Agent Toolkit gated; Nemotron and Tavily live; 504 offline tests, 98%
   coverage.
 - Design: one console an operator sets up in plain words and a judge works
   end to end (policy, scenarios, approvals, Telegram, ledger, Studio, seals,
@@ -395,7 +401,7 @@ real payouts decide what SafePay builds next.
   incidents are real, and SafePay runs inside a product with real users whose
   counters are public, zeros shown as zeros.
 - Innovation: judgment beyond caps (the payee on the live web, the task the
-  agent was given), a measured attack benchmark a judge reruns live,
+  agent was given; limits alone stop 4 of 17 attacks, SafePay 17), a measured attack benchmark a judge reruns live,
   instructions found even when hidden (zero-width, look-alikes, HTML, base64),
   a seal the payee verifies without us, AP2 mandates on PayPal authorizations.
 - Presentation: a 3-minute tour inside the real console, the video, and a
@@ -459,6 +465,7 @@ from the included render.yaml blueprint with gunicorn).
 
 ## Image gallery (upload in this order)
 1. `docs/img/gallery-flow.png` (thumbnail): the Flow, real chain links replayed as pulses through the layers.
+1b. `docs/img/gallery-limits-vs-safepay.png`: the same 17 attacks through spending limits alone (4 caught) and through SafePay (16, 17 with the new-payee hold), attack by attack.
 2. `docs/img/gallery-connect.png`: SafePay Check, the remote MCP connector: a key, a live check through /mcp, ALLOW with its checks and a signed attestation, no money moved.
 3. `docs/img/gallery-security.png`: the attack benchmark case by case, including the one case full mode lets through (in red) and strict mode holds.
 4. `docs/img/gallery-impact.png`: the fraud an agent with a wallet walks into (FBI IC3, AFP), next to the live chain figures.
@@ -542,7 +549,7 @@ https://github.com/NovaCorpAI/safepay (SECURITY.md).
 ## Links
 - Looking for pilot teams and partners: security@novacorplabs.com (pilots are free and onboarded by hand)
 - Repo: https://github.com/NovaCorpAI/safepay
-- Demo video: (YouTube link, under 3 min, to add)
+- Demo video (2:44, English subtitles): https://youtu.be/UMra3qDSNEs
 - Live demo: https://safepay.agentposhq.com (no login, no setup)
 - Render instance: https://safepay-ygzp.onrender.com (same console, Render blueprint)
 - Package: https://pypi.org/project/safepay/ (`pip install safepay`, then `safepay --demo`)

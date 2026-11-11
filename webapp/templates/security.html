@@ -24,14 +24,15 @@
 {% if bench %}
 <section class="section">
   <h2>Results</h2>
-  <div class="stats stats3">
-    {% for mode, label in [('policy', 'Rules only (no model, no web)'), ('full', 'Full guardrail'), ('strict', 'Full + hold new payees')] %}
-    {% set m = bench[mode] %}
+  <p>A spending limit answers <em>how much</em>. Most payment fraud against a business is a payment of a normal size to the wrong payee, or for the wrong reason, so the first column runs the same cases through spending limits alone (per payment, per day, per payee, velocity, currency), with no vendor directory, no payment history, no model and no web.</p>
+  <div class="stats stats4">
+    {% for mode, label in [('caps', 'Spending limits alone'), ('policy', 'Rules only (no model, no web)'), ('full', 'Full guardrail'), ('strict', 'Full + hold new payees')] %}
+    {% if bench[mode] %}{% set m = bench[mode] %}
     <div class="stat {{ 'ok' if m.attacks_caught == m.attacks_total else '' }}">
       <div class="n">{{ m.attacks_caught }}/{{ m.attacks_total }}</div>
       <div class="l">{{ label }}: attacks caught; {{ m.legit_total - m.legit_false_positives }}/{{ m.legit_total }} legitimate invoices allowed</div>
     </div>
-    {% endfor %}
+    {% endif %}{% endfor %}
   </div>
   <p class="note">Model checks are not deterministic: one borderline case (an unknown payee with a plausible invoice) can flip between runs in full mode, which is why the strict mode exists and is reported separately.</p>
 </section>

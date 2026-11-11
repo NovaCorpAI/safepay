@@ -1,114 +1,140 @@
 1
-00:00:00,000 --> 00:00:04,500
-AI agents already pay invoices, and an agent that pays can be fooled:
+00:00:00,400 --> 00:00:06,500
+In 2025, business email fraud cost more than three billion dollars.
 
 2
-00:00:04,500 --> 00:00:08,500
-a hidden instruction, a look-alike domain, an amount that does not fit its task.
+00:00:06,600 --> 00:00:10,950
+Now those invoices can be paid by an AI agent, without a second thought.
 
 3
-00:00:08,500 --> 00:00:14,000
-SafePay is the firewall every agent asks before it pays with PayPal: for teams
-that put agents on their invoices, and for platforms that give agents a wallet.
+00:00:11,000 --> 00:00:14,050
+Nobody hands a wallet to an agent that can't be stopped in time.
 
 4
-00:00:14,500 --> 00:00:20,000
-The rules are written once, in plain words. Nemotron turns them into a policy
-and shows me every field.
+00:00:14,100 --> 00:00:16,400
+That is what SafePay is for.
 
 5
-00:00:22,000 --> 00:00:28,000
-I apply it signed with a key this browser created and that never leaves it.
-Nobody changes these rules without that key, not even with server access.
+00:00:19,650 --> 00:00:26,500
+SafePay sits between the agent and PayPal, and checks every payment before it leaves.
 
 6
-00:00:35,000 --> 00:00:42,000
-A real Notion invoice: policy in order, vendor checked on the live web,
-and the reasoning confirms it serves the task. Paid through the PayPal sandbox.
+00:00:26,550 --> 00:00:32,250
+The rules are written in plain words, and signed with a key that never leaves this browser.
 
 7
-00:00:43,000 --> 00:00:48,000
-The same invoice to a look-alike domain: the vendor directory blocks it
-without calling the model.
+00:00:37,300 --> 00:00:40,300
+A real Notion invoice: paid.
 
 8
-00:00:49,000 --> 00:00:52,500
-Nine hundred dollars: over the per-payment cap. Hard block.
+00:00:42,400 --> 00:00:46,800
+The same invoice, to a look-alike domain: blocked.
 
 9
-00:00:53,000 --> 00:01:01,000
-One hundred and twenty dollars to a casino, inside every limit, and still held:
-the web found complaints and the payment does not serve the task.
+00:00:47,450 --> 00:00:51,300
+A casino, inside every limit: held.
 
 10
-00:01:01,000 --> 00:01:04,000
-A spending cap never catches this.
+00:00:51,350 --> 00:00:55,400
+It doesn't serve the agent's task, and a spending cap would never have seen it.
 
 11
-00:01:04,500 --> 00:01:09,000
-A legitimate invoice, but over the three hundred I asked to be consulted on.
-It waits for me.
+00:00:55,450 --> 00:00:58,050
+But not everything is black or white.
 
 12
-00:01:10,000 --> 00:01:16,500
-One tap and it is paid. The approval is signed by this browser's key:
-a stolen operator token approves nothing.
+00:00:58,650 --> 00:01:02,200
+For the doubtful cases, a person decides.
 
 13
-00:01:18,000 --> 00:01:24,000
-The last one is blocked because it would breach the daily cap across the burst:
-SafePay keeps the day's count.
+00:01:02,250 --> 00:01:05,100
+Anything over 300 dollars waits for their approval.
 
 14
-00:01:35,000 --> 00:01:42,500
-If something smells wrong, one click freezes the agent the way a bank freezes a card.
-A PayPal dispute pulls the same switch on its own.
+00:01:05,150 --> 00:01:09,700
+One click and it's paid, signed by this browser's key:
 
 15
-00:01:43,000 --> 00:01:52,500
-The same gate sits in front of PayPal's Agent Toolkit: the order is created only after
-SafePay allows it, and the buyer approval step PayPal requires stays intact.
+00:01:09,750 --> 00:01:12,150
+a stolen token approves nothing.
 
 16
-00:01:53,000 --> 00:02:01,000
-Every decision is a link in a signed hash chain.
-I tamper with one row and the whole chain fails at once.
+00:01:17,200 --> 00:01:21,100
+And if something looks wrong, one click freezes the agent,
 
 17
-00:02:02,000 --> 00:02:08,000
-We measured SafePay against seventeen real attacks.
-But a published benchmark can be studied,
+00:01:21,400 --> 00:01:24,400
+the way a bank freezes a card.
 
 18
-00:02:08,000 --> 00:02:15,000
-so here is one that cannot: the model is writing attacks it has never seen,
-right now, and SafePay judges them live.
+00:01:24,900 --> 00:01:28,500
+So how do we know it holds up against a real attack?
 
 19
-00:02:19,000 --> 00:02:25,000
-Four of five. One got through, shown as it is.
-Every miss comes with the rule that would close it.
+00:01:29,250 --> 00:01:31,300
+We put it to the test, live.
 
 20
-00:02:27,000 --> 00:02:33,000
-One click signs those rules with my key, applies them,
-and runs the same attacks again.
+00:01:31,350 --> 00:01:36,950
+The model writes attacks it has never seen, and SafePay judges them.
 
 21
-00:02:35,000 --> 00:02:39,500
-Five of five. Miss, fix and catch, in front of you.
+00:01:37,350 --> 00:01:39,450
+Four out of five caught.
 
 22
-00:02:40,000 --> 00:02:46,000
-And any agent can ask before its own checkout over MCP and get a signed verdict;
-the same rules apply to PYUSD and USDC.
+00:01:39,550 --> 00:01:44,650
+One got through, and we show it as it is, with the rule that closes it.
 
 23
-00:02:46,000 --> 00:02:52,000
-This already runs inside Impulsa, our SaaS for micro-businesses in Chile: every supplier invoice
-goes through SafePay. The counters start at zero and are shown as zeros; every alert's outcome is published.
+00:01:45,150 --> 00:01:50,150
+I sign it, apply it, and the same attacks: five out of five.
 
 24
-00:02:52,000 --> 00:02:58,000
-SafePay: rules in plain words, vendor checked, reasoning about every payment,
-signed approvals and a record nobody edits. pip install safepay. Thank you.
+00:01:53,100 --> 00:01:55,650
+And every decision goes into a signed chain:
+
+25
+00:01:55,700 --> 00:01:59,700
+if anyone alters a row, the chain breaks right there.
+
+26
+00:01:59,900 --> 00:02:03,300
+And all of this, without changing tools.
+
+27
+00:02:04,950 --> 00:02:07,450
+It works where the agent already is.
+
+28
+00:02:07,950 --> 00:02:11,250
+It sits in front of PayPal's Agent Toolkit:
+
+29
+00:02:11,350 --> 00:02:14,750
+the order exists only if SafePay allows it.
+
+30
+00:02:15,650 --> 00:02:20,150
+Any agent can ask it over MCP before paying.
+
+31
+00:02:20,650 --> 00:02:25,050
+And it already runs inside Impulsa, our SaaS for small businesses in Chile.
+
+32
+00:02:26,850 --> 00:02:32,700
+When agents pay on their own, every PayPal payment should go through SafePay first.
+
+33
+00:02:32,750 --> 00:02:35,700
+That way, saying yes to an agent stops being a leap of faith.
+
+34
+00:02:35,750 --> 00:02:38,500
+We're signing up our first pilots, for free:
+
+35
+00:02:38,550 --> 00:02:41,150
+scan the code and join us.
+

@@ -14,7 +14,18 @@ or **block** it. It checks the payee on the live web, catches lookalike vendors,
 inflated invoices and injected instructions, holds what a person should see,
 pays the rest through PayPal, and leaves a signed link in a hash chain for every
 decision. And it is measured: a reproducible benchmark of real attacks on a
-wallet-holding agent, not a claim.
+wallet-holding agent, not a claim. On the same 17 attacks, spending limits
+alone stop 4; SafePay stops 16, and all 17 with the new-payee hold, with no
+legitimate invoice blocked.
+
+**Built for accounts payable, not shopping carts.** A budget or spending
+mandate answers *how much* an agent may spend. Most fraud against a business
+is a payment of a normal size to the wrong payee or for the wrong reason: the
+invoice email that says "we changed our bank details", a real vendor's name on
+a lookalike domain, an instruction hidden in the invoice, a payment that sits
+inside every limit but does not serve the task. Those are the cases SafePay
+judges: *to whom* and *why*. It composes with limits; it does not replace
+them.
 
 Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 [NovaCorp Labs](https://novacorplabs.com).
@@ -23,6 +34,8 @@ Built for the PayPal AI Hackathon (Agentic Commerce and Autonomous Payments) by
 run accounts payable, or work on payments or fraud and want to try SafePay
 with your own flows, write to **security@novacorplabs.com**. Pilots are free
 and onboarded by hand.
+
+**Watch the 2:44 demo video: https://youtu.be/UMra3qDSNEs** (English subtitles; the same story as the 3-click tour below).
 
 ## Judge in 3 clicks
 
@@ -57,11 +70,11 @@ The five judging criteria, one line each, with where the evidence is:
 
 | Criterion | Where to look |
 | --- | --- |
-| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 503 offline tests at 98% coverage ([Tests](#tests)) |
+| Technological implementation | Payouts, Orders v2 authorize/capture/void, Vault v3, Transaction Search and webhooks, all against the real sandbox; the Agent Toolkit gated; Nemotron and Tavily live; 504 offline tests at 98% coverage ([Tests](#tests)) |
 | Design | One console that an operator sets up in plain words and a judge works end to end: policy, scenarios, approvals, Telegram, ledger, Studio, seals, kit ([See it](#see-it)) |
 | Potential impact | The fraud is named and sized (IC3, AFP), the 2026 agent incidents are real, and SafePay runs inside a product with real users whose counters are public ([The problem](#the-problem), [Impulsa](#inside-a-product-in-production-impulsa)) |
-| Innovation | Judgment beyond caps: the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
-| Presentation | The 3-minute tour inside the real console, the video, and this README: what is real and what is not, stated before the claims ([What is real](#what-is-real-and-what-is-not)) |
+| Innovation | Judgment beyond caps (spending limits alone stop 4 of 17 attacks, SafePay 17): the payee on the live web, the task the agent was given, a measured attack benchmark a judge reruns live, a seal the payee verifies without us, AP2 mandates on PayPal authorizations ([Attack benchmark](#attack-benchmark-proof-not-promise), [The seal](#the-seal-proof-the-payee-can-check)) |
+| Presentation | The 3-minute tour inside the real console, the [2:44 video](https://youtu.be/UMra3qDSNEs), and this README: what is real and what is not, stated before the claims ([What is real](#what-is-real-and-what-is-not)) |
 
 ![SafePay home: live figures from the audit chain](docs/img/home.jpg)
 
@@ -541,14 +554,21 @@ injection in invoices and vendor pages, goal mismatches, an unknown payee, a
 lookalike recipient, amount inflation, limit breaches, a slow drain, a velocity
 burst, a duplicate invoice, a "we changed our bank details" payee change, an
 amount far above a contractor's history) plus 8 legitimate invoices, through
-the guardrail. Three modes, side by
+the guardrail. Four modes, side by
 side, so the numbers are honest:
 
 | Mode | Attacks caught | Legit allowed (no false positives) |
 | --- | --- | --- |
+| spending limits alone (per payment, per day, per payee, velocity, currency; what a budget or spending mandate enforces) | 4/17 (23%) | 8/8 (100%) |
 | policy only (rules + vendor directory + payment history, no model, no web) | 9/17 (52%) | 8/8 (100%) |
 | full (policy + Tavily + Nemotron) | **16/17 (94%)** | **8/8 (100%)** |
 | strict (full + hold unknown vendors) | **17/17 (100%)** | **8/8 (100%)** |
+
+Spending limits alone catch only what breaches a limit: an oversized payment,
+a currency switch, a slow drain and a velocity burst. Every attack of a
+normal size passes them, including the lookalike payee, the changed bank
+details and the duplicate invoice, the shapes of business email compromise.
+![The same 17 attacks through spending limits alone and through SafePay: 4/17 against 16/17, 17/17 with the new-payee hold, 8/8 legitimate invoices paid](docs/img/gallery-limits-vs-safepay.png)
 
 Rules alone catch what breaches a limit plus, with the vendor directory, the
 lookalike recipient and the inflated amount (the two misses of the first
@@ -576,7 +596,7 @@ where the committed run reads 16/17 and 8/8; both are in the chain.
 
 ```bash
 python benchmark/attacks/run_attack_benchmark.py --mode all    # needs keys for full/strict
-python benchmark/attacks/run_attack_benchmark.py --mode policy # offline
+python benchmark/attacks/run_attack_benchmark.py --mode offline # caps and policy, no keys
 python benchmark/retries/run_retry_benchmark.py --n 20 --rounds 3 # duplicate submissions, needs sandbox keys
 ```
 
@@ -1184,7 +1204,7 @@ verified-human identity instead of a shared secret.
 python -m pytest -q
 ```
 
-503 tests, deterministic and offline, in about five seconds (98% line
+504 tests, deterministic and offline, in about five seconds (98% line
 coverage of the package and the console at 0.9.0). They cover policy,
 aggregation, the daily cap across a burst, simulated execution, audit
 integrity, the vendor directory, injection defences, settlement, the
